@@ -2,8 +2,19 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>일신캐스팅 통합 안전관리 시스템</title>
+
+<!-- ============================================================
+  PWA (홈 화면 설치용 앱 설정)
+============================================================= -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#101B33">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="일신안전관리">
 
 <!-- ============================================================
   Firebase SDK (compat 버전 - 별도 빌드 도구 없이 바로 사용 가능)
@@ -458,23 +469,33 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 ========================================================== -->
 <div class="gate" id="gate">
   <div class="gate-card">
-    <span class="tag">ILSHIN CASTING · SAFETY</span>
-    <h2>통합 안전관리 시스템</h2>
-    <p>안전환경부 · 사고예방 및 현장관리 통합 플랫폼</p>
+    <span class="tag" data-i18n="gate_tag">ILSHIN CASTING · SAFETY</span>
+    <h2 data-i18n="gate_title">통합 안전관리 시스템</h2>
+    <p data-i18n="gate_desc">안전환경부 · 사고예방 및 현장관리 통합 플랫폼</p>
     <div class="field">
-      <label>접속 모드</label>
+      <label data-i18n="gate_lang_label">언어 선택</label>
+      <select id="gateLang">
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+        <option value="th">ไทย (Thai)</option>
+        <option value="id">Bahasa Indonesia</option>
+        <option value="mn">Монгол (Mongolian)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label data-i18n="gate_mode_label">접속 모드</label>
       <select id="gateMode">
-        <option value="user">일반 열람 (조회 · 신청 · 제보)</option>
-        <option value="admin">관리자</option>
+        <option value="user" data-i18n="gate_mode_user">일반 열람 (조회 · 신청 · 제보)</option>
+        <option value="admin" data-i18n="gate_mode_admin">관리자</option>
       </select>
     </div>
     <div class="field" id="gatePwWrap" hidden>
-      <label>비밀번호</label>
-      <input type="text" id="gatePw" placeholder="비밀번호 입력">
-      <p class="hint">비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.</p>
+      <label data-i18n="gate_pw_label">비밀번호</label>
+      <input type="text" id="gatePw" placeholder="비밀번호 입력" data-i18n-placeholder="gate_pw_placeholder">
+      <p class="hint" data-i18n="gate_pw_hint">비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.</p>
     </div>
     <div class="gate-actions">
-      <button class="btn btn-primary" id="gateEnter" style="flex:1">입장하기</button>
+      <button class="btn btn-primary" id="gateEnter" style="flex:1" data-i18n="gate_enter">입장하기</button>
     </div>
   </div>
 </div>
@@ -489,19 +510,19 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
         <img src="data:image/png;base64,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" alt="일신캐스팅 로고">
       </div>
       <div class="brand-text">
-        <span class="tag">ILSHIN CASTING</span>
-        <h1>통합 안전관리</h1>
-        <p>안전환경부 · Safety &amp; Environment</p>
+        <span class="tag" data-i18n="brand_tag">ILSHIN CASTING</span>
+        <h1 data-i18n="brand_title">통합 안전관리</h1>
+        <p data-i18n="brand_sub">안전환경부 · Safety &amp; Environment</p>
       </div>
     </div>
     <nav class="nav" id="navList"></nav>
     <div class="sidebar-foot">
       <div class="mode-pill">
         <span id="modeLabel">일반 열람 모드</span>
-        <button class="mode-btn" id="modeSwitchBtn">전환</button>
+        <button class="mode-btn" id="modeSwitchBtn" data-i18n="mode_switch">전환</button>
       </div>
-      <button class="btn btn-sm" id="deptPwSettingBtn" style="width:100%;margin-bottom:10px;display:none;">관리자 계정 설정</button>
-      데이터 저장: Firebase Realtime DB
+      <button class="btn btn-sm" id="deptPwSettingBtn" style="width:100%;margin-bottom:10px;display:none;" data-i18n="account_settings_btn">관리자 계정 설정</button>
+      <span data-i18n="sidebar_foot_storage">데이터 저장: Firebase Realtime DB</span>
     </div>
   </aside>
 
@@ -636,10 +657,86 @@ const State = {
   mode: 'user', // 'user' | 'dept' | 'admin'
   dept: null,   // '관리부' | '생산부' | '품질관리부' — mode==='dept'일 때만 사용
   view: 'dashboard',
-  filters: {}
+  filters: {},
+  lang: localStorage.getItem('isc_lang') || 'ko' // 'ko'|'en'|'th'|'id'|'mn'
 };
 // 작업허가 "작업종료 확인 입력"은 부서관리자·전체관리자 모두 가능
 function canTerminate(){ return State.mode==='admin' || State.mode==='dept'; }
+
+/* ============================================================
+   1-1. 다국어(i18n) — 1단계: 로그인 화면 · 사이드바 · 대시보드
+   (작업허가/위험성평가/사고접수 등 각 화면 세부 문구는 추후 2단계에서 번역 예정)
+============================================================= */
+const LANG_NAMES = { ko:'한국어', en:'English', th:'ไทย', id:'Bahasa Indonesia', mn:'Монгол' };
+const TRANSLATIONS = {
+  gate_tag:{ko:'ILSHIN CASTING · SAFETY',en:'ILSHIN CASTING · SAFETY',th:'ILSHIN CASTING · SAFETY',id:'ILSHIN CASTING · SAFETY',mn:'ILSHIN CASTING · SAFETY'},
+  gate_title:{ko:'통합 안전관리 시스템',en:'Integrated Safety Management System',th:'ระบบบริหารความปลอดภัยแบบครบวงจร',id:'Sistem Manajemen Keselamatan Terpadu',mn:'Нэгдсэн Аюулгүй Ажиллагааны Удирдлагын Систем'},
+  gate_desc:{ko:'안전환경부 · 사고예방 및 현장관리 통합 플랫폼',en:'Safety & Environment Dept. · Integrated platform for accident prevention and site management',th:'ฝ่ายความปลอดภัยและสิ่งแวดล้อม · แพลตฟอร์มรวมสำหรับการป้องกันอุบัติเหตุและการจัดการหน้างาน',id:'Departemen Keselamatan & Lingkungan · Platform terpadu untuk pencegahan kecelakaan dan manajemen lokasi kerja',mn:'Аюулгүй байдал, орчны хэлтэс · Осол урьдчилан сэргийлэх, талбайн удирдлагын нэгдсэн платформ'},
+  gate_lang_label:{ko:'언어 선택',en:'Select Language',th:'เลือกภาษา',id:'Pilih Bahasa',mn:'Хэл сонгох'},
+  gate_mode_label:{ko:'접속 모드',en:'Access Mode',th:'โหมดการเข้าใช้งาน',id:'Mode Akses',mn:'Нэвтрэх горим'},
+  gate_mode_user:{ko:'일반 열람 (조회 · 신청 · 제보)',en:'General User (View · Apply · Report)',th:'ผู้ใช้งานทั่วไป (ดู · ยื่นคำขอ · แจ้งเหตุ)',id:'Pengguna Umum (Lihat · Ajukan · Laporkan)',mn:'Энгийн хэрэглэгч (Харах · Хүсэлт · Мэдээлэх)'},
+  gate_mode_admin:{ko:'관리자',en:'Administrator',th:'ผู้ดูแลระบบ',id:'Administrator',mn:'Админ'},
+  gate_pw_label:{ko:'비밀번호',en:'Password',th:'รหัสผ่าน',id:'Kata Sandi',mn:'Нууц үг'},
+  gate_pw_placeholder:{ko:'비밀번호 입력',en:'Enter password',th:'กรอกรหัสผ่าน',id:'Masukkan kata sandi',mn:'Нууц үгээ оруулна уу'},
+  gate_pw_hint:{ko:'비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.',en:'You will automatically log in as either the full administrator or the relevant department administrator, depending on the password.',th:'ระบบจะเข้าสู่ระบบเป็นผู้ดูแลระบบทั้งหมดหรือผู้ดูแลแผนกที่เกี่ยวข้องโดยอัตโนมัติ ขึ้นอยู่กับรหัสผ่าน',id:'Anda akan otomatis masuk sebagai administrator utama atau administrator departemen terkait, tergantung kata sandi yang dimasukkan.',mn:'Нууц үгээс хамааран та бүх эрхтэй админ эсвэл харьяа хэлтсийн админ болж автоматаар нэвтэрнэ.'},
+  gate_enter:{ko:'입장하기',en:'Enter',th:'เข้าสู่ระบบ',id:'Masuk',mn:'Нэвтрэх'},
+
+  brand_tag:{ko:'ILSHIN CASTING',en:'ILSHIN CASTING',th:'ILSHIN CASTING',id:'ILSHIN CASTING',mn:'ILSHIN CASTING'},
+  brand_title:{ko:'통합 안전관리',en:'Integrated Safety',th:'บริหารความปลอดภัยรวม',id:'Manajemen Keselamatan Terpadu',mn:'Нэгдсэн Аюулгүй Байдал'},
+  brand_sub:{ko:'안전환경부 · Safety & Environment',en:'Safety & Environment Dept.',th:'ฝ่ายความปลอดภัยและสิ่งแวดล้อม',id:'Dept. Keselamatan & Lingkungan',mn:'Аюулгүй байдал, орчны хэлтэс'},
+
+  nav_dashboard:{ko:'대시보드',en:'Dashboard',th:'แดชบอร์ด',id:'Dasbor',mn:'Хянах самбар'},
+  nav_dashboard_sub:{ko:'오늘의 안전 현황을 한눈에 확인하세요',en:"Check today's safety status at a glance",th:'ตรวจสอบสถานะความปลอดภัยวันนี้ได้ในที่เดียว',id:'Lihat status keselamatan hari ini sekilas',mn:'Өнөөдрийн аюулгүй байдлын мэдээллийг нэг дороос харна уу'},
+  nav_permits:{ko:'작업허가 관리',en:'Work Permit',th:'จัดการใบอนุญาตทำงาน',id:'Manajemen Izin Kerja',mn:'Ажлын зөвшөөрлийн удирдлага'},
+  nav_permits_sub:{ko:'안전작업허가(화기취급 통합) 신청 · 검토 · 승인 현황',en:'Safety work permit (incl. hot work) — apply, review, approve',th:'ใบอนุญาตทำงานปลอดภัย (รวมงานที่ใช้ความร้อน) — ยื่น ตรวจสอบ อนุมัติ',id:'Izin kerja aman (termasuk pekerjaan panas) — pengajuan, tinjauan, persetujuan',mn:'Аюулгүй ажлын зөвшөөрөл (галын ажил хамт) — хүсэлт, шалгах, батлах'},
+  nav_risks:{ko:'위험성평가',en:'Risk Assessment',th:'การประเมินความเสี่ยง',id:'Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ'},
+  nav_risks_sub:{ko:'공정 · 작업별 유해위험요인 및 개선대책 관리',en:'Hazards and improvement measures by process/task',th:'อันตรายและมาตรการปรับปรุงตามกระบวนการ/งาน',id:'Bahaya dan tindakan perbaikan per proses/pekerjaan',mn:'Процесс/ажил тус бүрийн эрсдэл, сайжруулах арга хэмжээ'},
+  nav_incidents:{ko:'사고 접수',en:'Incident Report',th:'รายงานอุบัติเหตุ',id:'Laporan Insiden',mn:'Осол мэдээлэх'},
+  nav_incidents_sub:{ko:'사고 접수부터 처리완료까지',en:'From report to resolution',th:'ตั้งแต่รับแจ้งจนถึงดำเนินการเสร็จสิ้น',id:'Dari pelaporan hingga penyelesaian',mn:'Мэдээлснээс шийдвэрлэх хүртэл'},
+  nav_contractors:{ko:'도급업체 관리',en:'Contractor Management',th:'จัดการผู้รับเหมา',id:'Manajemen Kontraktor',mn:'Гэрээт компанийн удирдлага'},
+  nav_contractors_sub:{ko:'협의체 회의록 · 순회점검일지 · 업체 현황',en:'Council minutes · patrol logs · contractor status',th:'บันทึกการประชุม · บันทึกตรวจตรา · สถานะผู้รับเหมา',id:'Notulen rapat · log patroli · status kontraktor',mn:'Хурлын тэмдэглэл · тойрон шалгалт · компанийн байдал'},
+  nav_tbm:{ko:'TBM(작업전안전회의)',en:'TBM (Pre-work Safety Meeting)',th:'TBM (ประชุมความปลอดภัยก่อนทำงาน)',id:'TBM (Rapat Keselamatan Sebelum Kerja)',mn:'TBM (Ажлын өмнөх аюулгүй байдлын хурал)'},
+  nav_tbm_sub:{ko:'작업 전 안전점검회의(Tool Box Meeting)',en:'Tool Box Meeting before work starts',th:'การประชุม Tool Box ก่อนเริ่มงาน',id:'Tool Box Meeting sebelum mulai kerja',mn:'Ажил эхлэхийн өмнөх Tool Box хурал'},
+  nav_notices:{ko:'공지사항 · 비상연락망',en:'Notices · Emergency Contacts',th:'ประกาศ · เบอร์ติดต่อฉุกเฉิน',id:'Pengumuman · Kontak Darurat',mn:'Мэдэгдэл · Онцгой байдлын холбоо барих'},
+  nav_notices_sub:{ko:'안전 공지사항 및 비상연락체계',en:'Safety notices and emergency contact system',th:'ประกาศความปลอดภัยและระบบติดต่อฉุกเฉิน',id:'Pengumuman keselamatan dan sistem kontak darurat',mn:'Аюулгүй байдлын мэдэгдэл болон онцгой байдлын холбоо'},
+
+  mode_label_user:{ko:'일반 열람 모드',en:'General View Mode',th:'โหมดผู้ใช้ทั่วไป',id:'Mode Pengguna Umum',mn:'Энгийн үзэх горим'},
+  mode_label_admin:{ko:'전체관리자 모드',en:'Full Administrator Mode',th:'โหมดผู้ดูแลระบบทั้งหมด',id:'Mode Administrator Utama',mn:'Бүх эрхтэй админ горим'},
+  mode_label_dept:{ko:'부서관리자 모드',en:'Department Admin Mode',th:'โหมดผู้ดูแลแผนก',id:'Mode Admin Departemen',mn:'Хэлтсийн админ горим'},
+  mode_switch:{ko:'전환',en:'Switch',th:'สลับ',id:'Ganti',mn:'Сэлгэх'},
+  mode_release:{ko:'해제',en:'Exit',th:'ออก',id:'Keluar',mn:'Гарах'},
+  account_settings_btn:{ko:'관리자 계정 설정',en:'Admin Account Settings',th:'ตั้งค่าบัญชีผู้ดูแลระบบ',id:'Pengaturan Akun Admin',mn:'Админ бүртгэлийн тохиргоо'},
+  sidebar_foot_storage:{ko:'데이터 저장: Firebase Realtime DB',en:'Data storage: Firebase Realtime DB',th:'จัดเก็บข้อมูล: Firebase Realtime DB',id:'Penyimpanan data: Firebase Realtime DB',mn:'Өгөгдөл хадгалалт: Firebase Realtime DB'},
+
+  dash_title:{ko:'일신캐스팅 통합안전관리',en:'ILSHIN CASTING Integrated Safety Management',th:'ระบบบริหารความปลอดภัยรวม ILSHIN CASTING',id:'Manajemen Keselamatan Terpadu ILSHIN CASTING',mn:'ILSHIN CASTING Нэгдсэн Аюулгүй Байдлын Удирдлага'},
+  dash_slogan:{ko:'작업전엔 점검, 작업중엔 집중, 퇴근 후엔 웃음',en:'Check before work, focus during work, smile after work',th:'ตรวจสอบก่อนทำงาน ตั้งใจระหว่างทำงาน ยิ้มได้หลังเลิกงาน',id:'Periksa sebelum kerja, fokus saat bekerja, tersenyum setelah kerja',mn:'Ажлын өмнө шалга, ажлын үед анхаарлаа төвлөрүүл, ажлын дараа инээмсэглэ'},
+  chart_monthly_title:{ko:'월별 재해 발생 현황',en:'Monthly Incident Trend',th:'แนวโน้มอุบัติเหตุรายเดือน',id:'Tren Insiden Bulanan',mn:'Сарын осол зөрчлийн чиг хандлага'},
+  chart_monthly_sub:{ko:'최근 6개월',en:'Last 6 months',th:'6 เดือนล่าสุด',id:'6 bulan terakhir',mn:'Сүүлийн 6 сар'},
+  chart_type_title:{ko:'사고유형별 현황',en:'Incidents by Type',th:'สถิติตามประเภทอุบัติเหตุ',id:'Insiden berdasarkan Jenis',mn:'Ослын төрлөөр'},
+  kpi_permits:{ko:'작업허가 대기',en:'Pending Permits',th:'ใบอนุญาตรอดำเนินการ',id:'Izin Menunggu',mn:'Хүлээгдэж буй зөвшөөрөл'},
+  kpi_permits_sub:{ko:'신청 · 검토중 건수',en:'Applied / Under review',th:'ยื่นแล้ว / กำลังตรวจสอบ',id:'Diajukan / Sedang ditinjau',mn:'Хүсэлт / Хянагдаж буй'},
+  kpi_risks:{ko:'고위험 항목',en:'High-Risk Items',th:'รายการความเสี่ยงสูง',id:'Item Berisiko Tinggi',mn:'Өндөр эрсдэлтэй зүйлс'},
+  kpi_risks_sub:{ko:'위험도 상 · 매우높음',en:'High / Very High',th:'สูง / สูงมาก',id:'Tinggi / Sangat Tinggi',mn:'Өндөр / Маш өндөр'},
+  kpi_incidents:{ko:'미처리 접수',en:'Unresolved Reports',th:'รายงานที่ยังไม่ดำเนินการ',id:'Laporan Belum Selesai',mn:'Шийдвэрлээгүй мэдээлэл'},
+  kpi_incidents_sub:{ko:'접수 · 조사중 건수',en:'Received / Investigating',th:'รับแจ้ง / กำลังสอบสวน',id:'Diterima / Sedang diselidiki',mn:'Хүлээн авсан / Судалж буй'},
+  kpi_contractors:{ko:'등록 도급업체',en:'Registered Contractors',th:'ผู้รับเหมาที่ลงทะเบียน',id:'Kontraktor Terdaftar',mn:'Бүртгэлтэй гэрээт компаниуд'},
+  kpi_contractors_sub:{ko:'협의체 관리 대상',en:'Under council management',th:'อยู่ภายใต้การบริหารของคณะกรรมการ',id:'Di bawah manajemen dewan',mn:'Зөвлөлийн удирдлагад хамрагдах'},
+  recent_permits_title:{ko:'최근 작업허가 신청',en:'Recent Work Permit Requests',th:'คำขอใบอนุญาตทำงานล่าสุด',id:'Permintaan Izin Kerja Terbaru',mn:'Сүүлийн ажлын зөвшөөрлийн хүсэлт'},
+  recent_incidents_title:{ko:'최근 사고 접수',en:'Recent Incident Reports',th:'รายงานอุบัติเหตุล่าสุด',id:'Laporan Insiden Terbaru',mn:'Сүүлийн ослын мэдээлэл'},
+  dash_risks_title:{ko:'위험성평가',en:'Risk Assessment',th:'การประเมินความเสี่ยง',id:'Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ'},
+  dash_notices_title:{ko:'공지사항',en:'Notices',th:'ประกาศ',id:'Pengumuman',mn:'Мэдэгдэл'},
+  view_all:{ko:'전체보기 →',en:'View all →',th:'ดูทั้งหมด →',id:'Lihat semua →',mn:'Бүгдийг үзэх →'},
+  config_banner:{ko:'Firebase가 아직 연결되지 않아 이 브라우저에만 데이터가 저장됩니다 (데모 모드). 코드 상단 FIREBASE_CONFIG 값을 교체하면 전사 공유 데이터로 전환됩니다.',en:'Firebase is not connected yet, so data is saved only in this browser (demo mode). Replace the FIREBASE_CONFIG values at the top of the code to switch to company-wide shared data.',th:'ยังไม่ได้เชื่อมต่อ Firebase ข้อมูลจะถูกบันทึกเฉพาะในเบราว์เซอร์นี้ (โหมดสาธิต) แก้ไขค่า FIREBASE_CONFIG ด้านบนของโค้ดเพื่อเปลี่ยนเป็นข้อมูลที่ใช้ร่วมกันทั้งบริษัท',id:'Firebase belum terhubung, jadi data hanya disimpan di browser ini (mode demo). Ganti nilai FIREBASE_CONFIG di bagian atas kode untuk beralih ke data bersama seluruh perusahaan.',mn:'Firebase холбогдоогүй тул өгөгдөл зөвхөн энэ хөтчид хадгалагдана (демо горим). Компанийн хэмжээнд хуваалцах өгөгдөл рүү шилжихийн тулд кодын дээд хэсэгт байрлах FIREBASE_CONFIG утгыг солино уу.'},
+  toast_admin_pw_set:{ko:'전체관리자 비밀번호가 설정되었습니다. 부서 비밀번호는 관리자 메뉴에서 등록해주세요.',en:'The full administrator password has been set. Please register department passwords from the admin menu.',th:'ตั้งรหัสผ่านผู้ดูแลระบบทั้งหมดแล้ว กรุณาลงทะเบียนรหัสผ่านแผนกในเมนูผู้ดูแลระบบ',id:'Kata sandi administrator utama telah diatur. Silakan daftarkan kata sandi departemen dari menu admin.',mn:'Бүх эрхтэй админы нууц үг тохируулагдлаа. Хэлтсийн нууц үгийг админы цэснээс бүртгэнэ үү.'},
+  toast_pw_required:{ko:'비밀번호를 입력해주세요',en:'Please enter a password',th:'กรุณากรอกรหัสผ่าน',id:'Silakan masukkan kata sandi',mn:'Нууц үгээ оруулна уу'},
+  toast_pw_mismatch:{ko:'비밀번호가 일치하지 않습니다',en:'The password does not match',th:'รหัสผ่านไม่ถูกต้อง',id:'Kata sandi tidak cocok',mn:'Нууц үг таарахгүй байна'},
+  toast_switched_user:{ko:'일반 열람 모드로 전환되었습니다',en:'Switched to general view mode',th:'เปลี่ยนเป็นโหมดผู้ใช้ทั่วไปแล้ว',id:'Beralih ke mode pengguna umum',mn:'Энгийн үзэх горимд шилжлээ'},
+};
+function t(key){
+  const entry = TRANSLATIONS[key];
+  if(!entry) return key;
+  return entry[State.lang] || entry.ko || key;
+}
 
 const PATHS = {
   permits:'permits',
@@ -706,20 +803,13 @@ function requireAdmin(actionLabel){
    4. 네비게이션 정의
 ============================================================= */
 const NAV_ITEMS = [
-  {id:'dashboard', label:'대시보드', icon:'grid',
-    sub:'오늘의 안전 현황을 한눈에 확인하세요'},
-  {id:'permits', label:'작업허가 관리', icon:'file-check',
-    sub:'안전작업허가(화기취급 통합) 신청 · 검토 · 승인 현황'},
-  {id:'risks', label:'위험성평가', icon:'alert-triangle',
-    sub:'공정 · 작업별 유해위험요인 및 개선대책 관리'},
-  {id:'incidents', label:'사고 접수', icon:'siren',
-    sub:'사고 접수부터 처리완료까지'},
-  {id:'contractors', label:'도급업체 관리', icon:'hard-hat',
-    sub:'협의체 회의록 · 순회점검일지 · 업체 현황'},
-  {id:'tbm', label:'TBM(작업전안전회의)', icon:'users',
-    sub:'작업 전 안전점검회의(Tool Box Meeting)'},
-  {id:'notices', label:'공지사항 · 비상연락망', icon:'megaphone',
-    sub:'안전 공지사항 및 비상연락체계'}
+  {id:'dashboard', labelKey:'nav_dashboard', icon:'grid', subKey:'nav_dashboard_sub'},
+  {id:'permits', labelKey:'nav_permits', icon:'file-check', subKey:'nav_permits_sub'},
+  {id:'risks', labelKey:'nav_risks', icon:'alert-triangle', subKey:'nav_risks_sub'},
+  {id:'incidents', labelKey:'nav_incidents', icon:'siren', subKey:'nav_incidents_sub'},
+  {id:'contractors', labelKey:'nav_contractors', icon:'hard-hat', subKey:'nav_contractors_sub'},
+  {id:'tbm', labelKey:'nav_tbm', icon:'users', subKey:'nav_tbm_sub'},
+  {id:'notices', labelKey:'nav_notices', icon:'megaphone', subKey:'nav_notices_sub'}
 ];
 
 const ICONS = {
@@ -744,7 +834,7 @@ function renderNav(){
     const count = navBadgeCount(item.id);
     const isNew = hasNewItems(item.id);
     return `<button class="nav-item ${State.view===item.id?'active':''}" data-view="${item.id}">
-      ${icon(item.icon)}<span>${item.label}</span>${isNew?'<span class="nav-dot" title="새 항목 있음"></span>':''}
+      ${icon(item.icon)}<span>${t(item.labelKey)}</span>${isNew?'<span class="nav-dot" title="새 항목 있음"></span>':''}
       ${count!=null?`<span class="nav-badge">${count}</span>`:''}
     </button>`;
   }).join('');
@@ -788,8 +878,8 @@ function switchView(id){
   const item = NAV_ITEMS.find(n=>n.id===id);
   const isDashboard = id==='dashboard';
   document.getElementById('pageTitleWrap').style.display = isDashboard ? 'none' : '';
-  document.getElementById('pageTitle').textContent = item.label;
-  document.getElementById('pageSub').textContent = item.sub;
+  document.getElementById('pageTitle').textContent = t(item.labelKey);
+  document.getElementById('pageSub').textContent = t(item.subKey);
   renderNav();
   document.querySelectorAll('.view').forEach(v=> v.hidden = v.id !== 'view-'+id);
   document.getElementById('sidebar').classList.remove('open');
@@ -844,57 +934,57 @@ function renderDashboard(){
         <img src="data:image/png;base64,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" alt="일신캐스팅 로고">
       </div>
       <div>
-        <h1>일신캐스팅 통합안전관리</h1>
-        <p>작업전엔 점검, 작업중엔 집중, 퇴근 후엔 웃음</p>
+        <h1>${t('dash_title')}</h1>
+        <p>${t('dash_slogan')}</p>
       </div>
     </div>
 
-    ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} Firebase가 아직 연결되지 않아 이 브라우저에만 데이터가 저장됩니다 (데모 모드). 코드 상단 FIREBASE_CONFIG 값을 교체하면 전사 공유 데이터로 전환됩니다.</div>`:''}
+    ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} ${t('config_banner')}</div>`:''}
 
     <div class="dash-charts">
       <div class="list-card">
-        <div class="lc-head"><h3>${icon('siren',14)} 월별 재해 발생 현황</h3><span style="font-size:11px;color:var(--ink-faint);font-weight:600;">최근 6개월</span></div>
+        <div class="lc-head"><h3>${icon('siren',14)} ${t('chart_monthly_title')}</h3><span style="font-size:11px;color:var(--ink-faint);font-weight:600;">${t('chart_monthly_sub')}</span></div>
         <div style="padding:8px 14px 4px;height:130px;"><canvas id="monthlyChart"></canvas></div>
       </div>
       <div class="list-card">
-        <div class="lc-head"><h3>${icon('alert-triangle',14)} 사고유형별 현황</h3></div>
+        <div class="lc-head"><h3>${icon('alert-triangle',14)} ${t('chart_type_title')}</h3></div>
         <div style="padding:8px 14px 4px;height:130px;"><canvas id="accidentTypeChart"></canvas></div>
       </div>
     </div>
 
     <div class="grid-4">
       <div class="card kpi c-safety">
-        <div class="k-label">${icon('file-check',14)} 작업허가 대기 ${hasNewInList(permits.filter(p=>p.status==='신청'||p.status==='검토중'), PATHS.permits) ? '<span class="badge-new">NEW</span>' : ''}</div>
+        <div class="k-label">${icon('file-check',14)} ${t('kpi_permits')} ${hasNewInList(permits.filter(p=>p.status==='신청'||p.status==='검토중'), PATHS.permits) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${openPermits}</div>
-        <div class="k-sub">신청 · 검토중 건수</div>
+        <div class="k-sub">${t('kpi_permits_sub')}</div>
       </div>
       <div class="card kpi c-caution">
-        <div class="k-label">${icon('alert-triangle',14)} 고위험 항목 ${hasNewInList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), PATHS.risks) ? '<span class="badge-new">NEW</span>' : ''}</div>
+        <div class="k-label">${icon('alert-triangle',14)} ${t('kpi_risks')} ${hasNewInList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), PATHS.risks) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${highRisks}</div>
-        <div class="k-sub">위험도 상 · 매우높음</div>
+        <div class="k-sub">${t('kpi_risks_sub')}</div>
       </div>
       <div class="card kpi c-danger">
-        <div class="k-label">${icon('siren',14)} 미처리 접수 ${hasNewInList(incidents.filter(i=>i.status!=='완료'), PATHS.incidents) ? '<span class="badge-new">NEW</span>' : ''}</div>
+        <div class="k-label">${icon('siren',14)} ${t('kpi_incidents')} ${hasNewInList(incidents.filter(i=>i.status!=='완료'), PATHS.incidents) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${openIncidents}</div>
-        <div class="k-sub">접수 · 조사중 건수</div>
+        <div class="k-sub">${t('kpi_incidents_sub')}</div>
       </div>
       <div class="card kpi c-ok">
-        <div class="k-label">${icon('hard-hat',14)} 등록 도급업체 ${hasNewInList(objToArr(DataStore.get(PATHS.contractors)), PATHS.contractors) ? '<span class="badge-new">NEW</span>' : ''}</div>
+        <div class="k-label">${icon('hard-hat',14)} ${t('kpi_contractors')} ${hasNewInList(objToArr(DataStore.get(PATHS.contractors)), PATHS.contractors) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${objToArr(DataStore.get(PATHS.contractors)).length}</div>
-        <div class="k-sub">협의체 관리 대상</div>
+        <div class="k-sub">${t('kpi_contractors_sub')}</div>
       </div>
     </div>
 
     <div class="dash-lower">
       <div class="list-card">
-        <div class="lc-head"><h3>최근 작업허가 신청</h3><button class="btn btn-sm btn-ghost" data-goto="permits">전체보기 →</button></div>
+        <div class="lc-head"><h3>${t('recent_permits_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="permits">${t('view_all')}</button></div>
         <div class="lc-body">${renderMiniList(permits, p=>({
           title:`${p.company||'미입력'} · ${p.workContent||'-'}`,
           meta: fmtDate(p.startDate), badge: statusBadge('permit', p.status)
         }), PATHS.permits)}</div>
       </div>
       <div class="list-card">
-        <div class="lc-head"><h3>최근 사고 접수</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">전체보기 →</button></div>
+        <div class="lc-head"><h3>${t('recent_incidents_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">${t('view_all')}</button></div>
         <div class="lc-body">${renderMiniList(incidents, i=>({
           title: i.location||'-',
           meta: fmtDate(i.datetime),
@@ -905,14 +995,14 @@ function renderDashboard(){
 
     <div class="dash-lower">
       <div class="list-card">
-        <div class="lc-head"><h3>위험성평가</h3><button class="btn btn-sm btn-ghost" data-goto="risks">전체보기 →</button></div>
+        <div class="lc-head"><h3>${t('dash_risks_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="risks">${t('view_all')}</button></div>
         <div class="lc-body">${renderMiniList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), r=>({
           title:`${r.process||'-'} · ${r.hazard||'-'}`,
           meta:`위험도 ${r.frequency||0}×${r.severity||0}`, badge: statusBadge('risk', r.status)
         }), PATHS.risks)}</div>
       </div>
       <div class="list-card">
-        <div class="lc-head"><h3>공지사항</h3><button class="btn btn-sm btn-ghost" data-goto="notices">전체보기 →</button></div>
+        <div class="lc-head"><h3>${t('dash_notices_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="notices">${t('view_all')}</button></div>
         <div class="lc-body">${renderMiniList(notices.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)), n=>({
           title:n.title||'-', meta: fmtDate(n.createdAt), badge: n.pinned?'<span class="badge b-safety">고정</span>':''
         }), PATHS.notices)}</div>
@@ -2192,6 +2282,14 @@ const ADMIN_PW_KEY = 'isc_admin_pw';
 const DEPTS = ['관리부','생산부','품질관리부'];
 function deptPwKey(dept){ return 'isc_dept_pw_' + dept; }
 
+document.getElementById('gateLang').value = State.lang;
+document.getElementById('gateLang').addEventListener('change', e=>{
+  State.lang = e.target.value;
+  localStorage.setItem('isc_lang', State.lang);
+  applyI18n();
+});
+applyI18n();
+
 document.getElementById('gateMode').addEventListener('change', e=>{
   document.getElementById('gatePwWrap').hidden = e.target.value === 'user';
 });
@@ -2218,7 +2316,7 @@ function resolveRoleByPassword(input){
   if(noPasswordsSetYet()){
     // 최초 실행: 지금 입력한 비밀번호를 전체관리자 비밀번호로 등록
     localStorage.setItem(ADMIN_PW_KEY, input);
-    toast('전체관리자 비밀번호가 설정되었습니다. 부서 비밀번호는 관리자 메뉴에서 등록해주세요.');
+    toast(t('toast_admin_pw_set'));
     return { ok:true, mode:'admin', dept:null };
   }
   return { ok:false, reason:'mismatch' };
@@ -2227,7 +2325,7 @@ function resolveRoleByPassword(input){
 function enterWithPassword(input){
   const result = resolveRoleByPassword(input.trim());
   if(!result.ok){
-    toast(result.reason==='empty' ? '비밀번호를 입력해주세요' : '비밀번호가 일치하지 않습니다');
+    toast(result.reason==='empty' ? t('toast_pw_required') : t('toast_pw_mismatch'));
     return false;
   }
   State.mode = result.mode; State.dept = result.dept;
@@ -2250,7 +2348,7 @@ document.getElementById('modeSwitchBtn').addEventListener('click', ()=>{
   if(State.mode !== 'user'){
     State.mode = 'user'; State.dept = null;
     updateModeUI();
-    toast('일반 열람 모드로 전환되었습니다');
+    toast(t('toast_switched_user'));
     renderCurrentView(); renderNav();
     return;
   }
@@ -2297,13 +2395,24 @@ function openDeptPasswordModal(){
 }
 
 function updateModeUI(){
-  const label = State.mode==='admin' ? '전체관리자 모드'
-    : State.mode==='dept' ? `부서관리자 모드 (${State.dept})`
-    : '일반 열람 모드';
+  const label = State.mode==='admin' ? t('mode_label_admin')
+    : State.mode==='dept' ? `${t('mode_label_dept')} (${State.dept})`
+    : t('mode_label_user');
   document.getElementById('modeLabel').textContent = label;
   document.getElementById('deptPwSettingBtn').style.display = State.mode==='admin' ? '' : 'none';
-  document.getElementById('modeSwitchBtn').textContent = State.mode==='user' ? '전환' : '해제';
+  document.getElementById('modeSwitchBtn').textContent = State.mode==='user' ? t('mode_switch') : t('mode_release');
   document.getElementById('modeSwitchBtn').classList.toggle('on', State.mode!=='user');
+}
+
+/* 정적 마크업(data-i18n / data-i18n-placeholder)에 현재 언어 적용 */
+function applyI18n(){
+  document.documentElement.lang = State.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+  });
 }
 
 document.getElementById('deptPwSettingBtn').addEventListener('click', ()=>{
@@ -2334,6 +2443,19 @@ function boot(){
     DataStore.listen(path, ()=>{
       renderNav();
       renderCurrentView();
+    });
+  });
+}
+</script>
+
+<!-- ============================================================
+   PWA: 서비스워커 등록 (홈 화면 설치 지원)
+============================================================= -->
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(err=>{
+      console.warn('서비스워커 등록 실패(무시 가능):', err);
     });
   });
 }
