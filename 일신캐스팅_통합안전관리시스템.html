@@ -133,6 +133,12 @@ a{color:inherit;}
   font-family:'JetBrains Mono',monospace;
 }
 .nav-item.active .nav-badge{background:rgba(255,255,255,.28);}
+.nav-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--danger);
+  display:inline-block;margin-left:6px;flex:0 0 8px;
+  box-shadow:0 0 0 3px rgba(229,72,77,.28);
+  animation:new-pulse 1.8s ease-in-out infinite;
+}
 
 .sidebar-foot{
   padding:14px 18px 18px;border-top:1px solid rgba(255,255,255,.08);
@@ -265,6 +271,8 @@ a{color:inherit;}
 /* Two column dashboard lower section */
 .dash-lower{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:6px;}
 @media(max-width:980px){.dash-lower{grid-template-columns:1fr;}}
+.dash-charts{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px;}
+@media(max-width:980px){.dash-charts{grid-template-columns:1fr;}}
 
 .list-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
 .list-card .lc-head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
@@ -279,6 +287,12 @@ a{color:inherit;}
 
 /* ---------- Badges ---------- */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+.badge-new{
+  display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;
+  font-size:10px;font-weight:800;letter-spacing:.03em;color:#fff;background:var(--danger);
+  vertical-align:middle;margin-right:2px;animation:new-pulse 1.8s ease-in-out infinite;
+}
+@keyframes new-pulse{0%,100%{opacity:1;}50%{opacity:.55;}}
 .b-gray{background:#EEF1F5;color:#4B5468;}
 .b-info{background:var(--info-dim);color:var(--info);}
 .b-caution{background:var(--caution-dim);color:#946200;}
@@ -302,7 +316,8 @@ a{color:inherit;}
 .searchbox input:focus{outline:none;}
 
 /* ---------- Table ---------- */
-.table-wrap{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+.table-wrap{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-wrap table{min-width:640px;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 thead th{
   text-align:left;font-size:11.5px;font-weight:800;color:var(--ink-soft);
@@ -411,8 +426,24 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
   .topbar{padding:14px 16px;}
   .view{padding:18px 16px 50px;}
   .grid-4{grid-template-columns:1fr 1fr;}
-  .zeroboard{padding:20px;}
-  .zb-num{font-size:44px;}
+  .dash-charts{grid-template-columns:1fr;}
+}
+@media(max-width:620px){
+  html,body{overflow-x:hidden;}
+  .grid-4{grid-template-columns:1fr;}
+  .kpi .k-num{font-size:26px;}
+  .modal{max-width:100%;border-radius:12px;}
+  .overlay{padding:0;align-items:flex-end;}
+  .modal-body{max-height:75vh;}
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .tabs{overflow-x:auto;padding-bottom:2px;}
+  .searchbox{width:100%;}
+  .contact-grid{grid-template-columns:1fr;}
+  .detail-grid{grid-template-columns:100px 1fr;font-size:12.5px;}
+  .dash-header h1{font-size:18px;}
+  .zb-num{font-size:34px;}
+  .zb-right{gap:14px;flex-wrap:wrap;}
+  .list-card canvas{max-width:100%;}
 }
 </style>
 </head>
@@ -429,14 +460,14 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
     <div class="field">
       <label>접속 모드</label>
       <select id="gateMode">
-        <option value="user">일반 열람 (조회 전용)</option>
-        <option value="admin">관리자 (안전환경부)</option>
+        <option value="user">일반 열람 (조회 · 신청 · 제보)</option>
+        <option value="admin">관리자</option>
       </select>
     </div>
     <div class="field" id="gatePwWrap" hidden>
-      <label>관리자 비밀번호</label>
+      <label>비밀번호</label>
       <input type="text" id="gatePw" placeholder="비밀번호 입력">
-      <p class="hint">최초 접속 시 원하는 비밀번호를 새로 설정할 수 있습니다.</p>
+      <p class="hint">비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.</p>
     </div>
     <div class="gate-actions">
       <button class="btn btn-primary" id="gateEnter" style="flex:1">입장하기</button>
@@ -465,6 +496,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
         <span id="modeLabel">일반 열람 모드</span>
         <button class="mode-btn" id="modeSwitchBtn">전환</button>
       </div>
+      <button class="btn btn-sm" id="deptPwSettingBtn" style="width:100%;margin-bottom:10px;display:none;">부서 비밀번호 설정</button>
       데이터 저장: Firebase Realtime DB
     </div>
   </aside>
@@ -594,10 +626,13 @@ const DataStore = {
    2. 전역 상태
 ============================================================= */
 const State = {
-  mode: 'user', // 'user' | 'admin'
+  mode: 'user', // 'user' | 'dept' | 'admin'
+  dept: null,   // '관리부' | '생산부' | '품질관리부' — mode==='dept'일 때만 사용
   view: 'dashboard',
   filters: {}
 };
+// 작업허가 "작업종료 확인 입력"은 부서관리자·전체관리자 모두 가능
+function canTerminate(){ return State.mode==='admin' || State.mode==='dept'; }
 
 const PATHS = {
   permits:'permits',
@@ -696,13 +731,29 @@ function renderNav(){
   const nav = document.getElementById('navList');
   nav.innerHTML = NAV_ITEMS.map(item=>{
     const count = navBadgeCount(item.id);
+    const isNew = hasNewItems(item.id);
     return `<button class="nav-item ${State.view===item.id?'active':''}" data-view="${item.id}">
-      ${icon(item.icon)}<span>${item.label}</span>
+      ${icon(item.icon)}<span>${item.label}</span>${isNew?'<span class="nav-dot" title="새 항목 있음"></span>':''}
       ${count!=null?`<span class="nav-badge">${count}</span>`:''}
     </button>`;
   }).join('');
   nav.querySelectorAll('.nav-item').forEach(btn=>{
     btn.addEventListener('click', ()=> switchView(btn.dataset.view));
+  });
+}
+function hasNewItems(viewId){
+  const pathMap = {
+    permits: [PATHS.permits],
+    risks: [PATHS.risks],
+    incidents: [PATHS.incidents],
+    contractors: [PATHS.contractorRecords],
+    notices: [PATHS.notices],
+  };
+  const paths = pathMap[viewId];
+  if(!paths) return false;
+  return paths.some(path=>{
+    const arr = objToArr(DataStore.get(path));
+    return arr.some(item => item.createdAt && (Date.now() - item.createdAt < NEW_THRESHOLD_MS));
   });
 }
 function navBadgeCount(viewId){
@@ -788,9 +839,15 @@ function renderDashboard(){
 
     ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} Firebase가 아직 연결되지 않아 이 브라우저에만 데이터가 저장됩니다 (데모 모드). 코드 상단 FIREBASE_CONFIG 값을 교체하면 전사 공유 데이터로 전환됩니다.</div>`:''}
 
-    <div class="list-card" style="margin-bottom:16px;">
-      <div class="lc-head"><h3>${icon('siren',15)} 월별 재해 발생 현황</h3><span style="font-size:11.5px;color:var(--ink-faint);font-weight:600;">최근 6개월</span></div>
-      <div style="padding:16px 18px 8px;"><canvas id="monthlyChart" height="90"></canvas></div>
+    <div class="dash-charts">
+      <div class="list-card">
+        <div class="lc-head"><h3>${icon('siren',15)} 월별 재해 발생 현황</h3><span style="font-size:11.5px;color:var(--ink-faint);font-weight:600;">최근 6개월</span></div>
+        <div style="padding:16px 18px 8px;"><canvas id="monthlyChart" height="130"></canvas></div>
+      </div>
+      <div class="list-card">
+        <div class="lc-head"><h3>${icon('alert-triangle',15)} 사고유형별 현황</h3></div>
+        <div style="padding:16px 18px 8px;"><canvas id="accidentTypeChart" height="130"></canvas></div>
+      </div>
     </div>
 
     <div class="grid-4">
@@ -852,9 +909,41 @@ function renderDashboard(){
   `;
   el.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> switchView(b.dataset.goto)));
   renderMonthlyChart(monthly);
+  renderAccidentTypeChart(incidents);
 }
 
 let monthlyChartInstance = null;
+let accidentTypeChartInstance = null;
+const ACCIDENT_CHART_COLORS = ['#FF6A13','#2D7DD2','#FFC93C','#1DA46F','#E5484D','#8C99B8','#B24A00','#946200'];
+function renderAccidentTypeChart(incidents){
+  const canvas = document.getElementById('accidentTypeChart');
+  if(!canvas || typeof Chart==='undefined') return;
+  const counts = {};
+  incidents.forEach(i=>{
+    const label = i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||'미분류');
+    counts[label] = (counts[label]||0) + 1;
+  });
+  const labels = Object.keys(counts);
+  const data = Object.values(counts);
+  if(accidentTypeChartInstance){ accidentTypeChartInstance.destroy(); }
+  if(labels.length===0){
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+  accidentTypeChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: labels.map((_,i)=>ACCIDENT_CHART_COLORS[i%ACCIDENT_CHART_COLORS.length]), borderWidth:2, borderColor:'#fff' }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position:'bottom', labels:{ boxWidth:11, font:{size:11}, color:'#4B5468', padding:10 } } },
+      cutout: '62%'
+    }
+  });
+}
 function computeMonthlyIncidentCounts(incidents, monthsBack){
   const now = new Date();
   const labels = [];
@@ -910,10 +999,18 @@ function renderMiniList(arr, mapFn){
 /* ============================================================
    8. 배지 / 위험도 헬퍼
 ============================================================= */
+const NEW_THRESHOLD_MS = 24*60*60*1000; // 24시간 이내 등록된 항목은 NEW 표시
+function newBadge(createdAt){
+  if(!createdAt) return '';
+  if(Date.now() - createdAt < NEW_THRESHOLD_MS){
+    return '<span class="badge-new">NEW</span> ';
+  }
+  return '';
+}
 function statusBadge(kind, status){
   const map = {
     permit:{'신청':'b-info','검토중':'b-caution','승인':'b-ok','반려':'b-danger','종료':'b-gray'},
-    risk:{'등록':'b-info','조치중':'b-caution','완료':'b-ok'},
+    risk:{'등록':'b-info','접수완료':'b-safety','조치중':'b-caution','완료':'b-ok'},
     incident:{'접수':'b-info','조사중':'b-caution','완료':'b-ok'}
   };
   const cls = (map[kind]||{})[status] || 'b-gray';
@@ -969,7 +1066,7 @@ function renderPermits(){
   }
   body.innerHTML = filtered.map(p=>`
     <tr>
-      <td class="cell-strong">${esc(p.company||'-')}</td>
+      <td class="cell-strong">${newBadge(p.createdAt)}${esc(p.company||'-')}</td>
       <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
       <td>${esc(p.workType||'-')}</td>
       <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
@@ -1134,7 +1231,7 @@ function openPermitDetail(id){
     </div>
     <div class="modal-foot">
       <button class="btn" id="downloadBtn">${icon('file-check',14)} 허가서 다운로드(원본 양식)</button>
-      ${(p.status==='승인'||p.status==='종료') ? `<button class="btn" id="termBtn">작업종료 확인 입력</button>` : ''}
+      ${(canTerminate() && (p.status==='승인'||p.status==='종료') && (!p.terminationLocked || State.mode==='admin')) ? `<button class="btn" id="termBtn">${p.terminationLocked?'작업종료 확인 수정':'작업종료 확인 입력'}</button>` : ''}
       ${State.mode==='admin' ? `<button class="btn" id="delBtn">삭제</button><button class="btn btn-primary" id="editBtn">수정</button>` : ''}
       <button class="btn" data-close>닫기</button>
     </div>
@@ -1170,6 +1267,7 @@ function openPermitTerminationModal(p){
       </div>
       ${p.fireWork ? `<div class="field"><label>잔불확인 결과 (화기작업 시)</label><input type="text" id="f_residualCheck" value="${esc(p.residualCheck||'')}" placeholder="예: 감시자 박O민 / 17:20~17:52(32분) / 이상없음"></div>` : ''}
       <div class="field"><label>확인자(공정담당자)</label><input type="text" id="f_endConfirmer" value="${esc(p.endConfirmer||'')}"></div>
+      ${p.terminationEnteredBy ? `<p class="hint">마지막 입력: ${esc(p.terminationEnteredBy)} · ${fmtDateTime(p.terminationEnteredAt)}</p>` : ''}
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>취소</button>
@@ -1181,7 +1279,10 @@ function openPermitTerminationModal(p){
       endDatetime: document.getElementById('f_endDatetime').value,
       siteCondition: document.getElementById('f_siteCondition').value,
       endConfirmer: document.getElementById('f_endConfirmer').value.trim(),
+      terminationEnteredBy: State.mode==='admin' ? '전체관리자' : `부서관리자(${State.dept})`,
+      terminationEnteredAt: new Date().toISOString(),
     };
+    if(State.mode==='dept'){ data.terminationLocked = true; }
     if(p.fireWork){ data.residualCheck = document.getElementById('f_residualCheck').value.trim(); }
     await DataStore.update(PATHS.permits, p.id, data);
     toast('작업종료 확인 내용이 저장되었습니다');
@@ -1251,7 +1352,7 @@ function renderRisks(){
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="riskTabs">
-        ${['전체','등록','조치중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s}</button>`).join('')}
+        ${['전체','등록','접수완료','조치중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s}</button>`).join('')}
       </div>
       <button class="btn btn-primary" id="addRiskBtn">${icon('plus',15)} 위험성평가 등록</button>
     </div>
@@ -1282,7 +1383,7 @@ function renderRisks(){
   }
   body.innerHTML = filtered.map(r=>`
     <tr>
-      <td class="cell-strong">${esc(r.process||'-')}<div class="cell-sub">${esc(r.task||'')}</div></td>
+      <td class="cell-strong">${newBadge(r.createdAt)}${esc(r.process||'-')}<div class="cell-sub">${esc(r.task||'')}</div></td>
       <td>${esc(r.hazard||'-')}</td>
       <td class="tight mono">${r.frequency||0}</td>
       <td class="tight mono">${r.severity||0}</td>
@@ -1331,13 +1432,20 @@ function openRiskModal(existing){
         </div>
       </div>
       <div class="field"><label>개선대책 *</label><textarea id="f_measures">${esc(v.measures||'')}</textarea></div>
+      <div class="field"><label>현장 사진 (선택)</label><input type="file" accept="image/*" id="f_photoBefore">
+        ${v.photoBefore?`<p class="hint">기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.</p>`:''}
+      </div>
       <div class="row2">
         <div class="field"><label>신청자</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
         ${State.mode==='admin' ? `
         <div class="field"><label>진행현황 (관리자)</label>
-          <select id="f_status">${['등록','조치중','완료'].map(s=>`<option ${v.status===s?'selected':''}>${s}</option>`).join('')}</select>
+          <select id="f_status">${['등록','접수완료','조치중','완료'].map(s=>`<option ${v.status===s?'selected':''}>${s}</option>`).join('')}</select>
         </div>` : ''}
       </div>
+      ${State.mode==='admin' ? `
+      <div class="field"><label>개선 후 사진 (선택 · 완료 처리 시)</label><input type="file" accept="image/*" id="f_photoAfter">
+        ${v.photoAfter?`<p class="hint">기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.</p>`:''}
+      </div>` : ''}
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>취소</button>
@@ -1360,6 +1468,23 @@ function openRiskModal(existing){
       data.status = '등록';
     }
     if(!data.process || !data.hazard || !data.measures){ toast('필수 항목(*)을 입력해주세요'); return; }
+    const photoBeforeFile = document.getElementById('f_photoBefore').files[0];
+    if(photoBeforeFile){
+      if(photoBeforeFile.size > 5*1024*1024){ toast('사진 용량이 너무 큽니다 (5MB 이내)'); return; }
+      data.photoBefore = await new Promise((resolve,reject)=>{
+        const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photoBeforeFile);
+      });
+    }
+    const photoAfterInput = document.getElementById('f_photoAfter');
+    if(photoAfterInput){
+      const photoAfterFile = photoAfterInput.files[0];
+      if(photoAfterFile){
+        if(photoAfterFile.size > 5*1024*1024){ toast('사진 용량이 너무 큽니다 (5MB 이내)'); return; }
+        data.photoAfter = await new Promise((resolve,reject)=>{
+          const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photoAfterFile);
+        });
+      }
+    }
     if(isEdit){
       await DataStore.update(PATHS.risks, existing.id, data);
       toast('위험성평가를 수정했습니다');
@@ -1387,6 +1512,8 @@ function openRiskDetail(id){
         <dt>신청자</dt><dd>${esc(r.reporter||'-')}</dd>
         <dt>상태</dt><dd>${statusBadge('risk', r.status)}</dd>
       </dl>
+      ${r.photoBefore ? `<div class="divider"></div><p class="hint" style="margin-bottom:6px;">현장 사진</p><img src="${r.photoBefore}" style="width:100%;border-radius:8px;border:1px solid var(--line);">` : ''}
+      ${r.photoAfter ? `<div class="divider"></div><p class="hint" style="margin-bottom:6px;">개선 후 사진</p><img src="${r.photoAfter}" style="width:100%;border-radius:8px;border:1px solid var(--line);">` : ''}
     </div>
     <div class="modal-foot">
       ${State.mode==='admin' ? `<button class="btn" id="delBtn">삭제</button><button class="btn btn-primary" id="editBtn">수정</button>` : ''}
@@ -1419,10 +1546,9 @@ function renderIncidents(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
-        ${isAdmin?'<th>공정</th>':''}
-        <th>발생일시</th><th>장소</th><th>내용</th>
+        <th>발생일시</th><th>공정</th><th>장소</th><th>내용</th>
         ${isAdmin?'<th>신고자</th>':''}
-        <th>부상정도</th>
+        <th>사고유형</th><th>부상정도</th>
         ${isAdmin?'<th>상태</th>':''}
         <th class="tight">관리</th>
       </tr></thead>
@@ -1437,18 +1563,19 @@ function renderIncidents(){
   const arr = objToArr(DataStore.get(PATHS.incidents)).sort((a,b)=> new Date(b.datetime||0) - new Date(a.datetime||0));
   const filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
   const body = document.getElementById('incBody');
-  const colCount = isAdmin ? 7 : 5;
+  const colCount = isAdmin ? 8 : 6;
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>등록된 신고가 없습니다</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(i=>`
     <tr>
-      ${isAdmin?`<td>${esc(i.process||'-')}</td>`:''}
-      <td class="mono">${fmtDateTime(i.datetime)}</td>
+      <td class="mono">${newBadge(i.createdAt)}${fmtDateTime(i.datetime)}</td>
+      <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
       ${isAdmin?`<td>${esc(i.reporter||'-')}</td>`:''}
+      <td><span class="badge b-gray">${esc(i.accidentType||'-')}</span></td>
       <td>${esc(i.injurySeverity||'-')}</td>
       ${isAdmin?`<td>${statusBadge('incident', i.status)}</td>`:''}
       <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${i.id}">보기</button></td>
@@ -1457,8 +1584,10 @@ function renderIncidents(){
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openIncidentDetail(b.dataset.viewId)));
 }
 
+const ACCIDENT_TYPES = ['추락','넘어짐','부딪힘','끼임(협착)','감전','화상','절단·베임','기타(직접입력)'];
+
 function openIncidentModal(existing){
-  // 신고 접수 자체는 일반 사용자도 가능 (관리자 전용 아님) — 처리상태·조치내용·재해상세는 관리자 권한
+  // 신고 접수 자체는 일반 사용자도 가능 (관리자 전용 아님) — 처리상태·조치내용은 관리자 권한
   const isEdit = !!existing;
   const v = existing || {};
   showModal(`
@@ -1469,11 +1598,22 @@ function openIncidentModal(existing){
         <div class="field"><label>발생일시 *</label><input type="datetime-local" id="f_datetime" value="${v.datetime||''}"></div>
       </div>
       <div class="field"><label>발생장소 *</label><input type="text" id="f_location" value="${esc(v.location||'')}" placeholder="예: 열처리공정 앞"></div>
-      <div class="field"><label>상세 내용 *</label><textarea id="f_description">${esc(v.description||'')}</textarea></div>
+      <div class="field"><label>사고유형 *</label>
+        <select id="f_accidentType">
+          <option value="">선택해주세요</option>
+          ${ACCIDENT_TYPES.map(t=>`<option ${v.accidentType===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <input type="text" id="f_accidentTypeOther" value="${esc(v.accidentTypeOther||'')}" placeholder="기타 사고유형을 입력하세요" style="margin-top:8px;${v.accidentType==='기타(직접입력)'?'':'display:none'}">
+      </div>
+      <div class="field"><label>상세 내용 *</label>
+        <textarea id="f_description">${esc(v.description||'')}</textarea>
+        <p class="hint">어떻게 작업하다가 사고가 발생했는지 적어주세요 (예: 사다리 위에서 배관 점검 중 균형을 잃고 약 1.5m 아래로 떨어짐)</p>
+      </div>
       <div class="field"><label>신고자 *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
+      <div class="field"><label><input type="checkbox" id="f_sameAsReporter" ${v.reporter && v.reporter===v.injuredPerson ? 'checked':''}> 신고자와 재해자가 동일합니다</label></div>
       <div class="divider"></div>
       <div class="row2">
-        <div class="field"><label>재해자</label><input type="text" id="f_injuredPerson" value="${esc(v.injuredPerson||'')}" placeholder="이름"></div>
+        <div class="field"><label>재해자 *</label><input type="text" id="f_injuredPerson" value="${esc(v.injuredPerson||'')}" placeholder="이름"></div>
         <div class="field"><label>부상정도</label>
           <select id="f_injurySeverity">
             <option value="">선택 안 함</option>
@@ -1496,11 +1636,27 @@ function openIncidentModal(existing){
       <button class="btn btn-primary" id="saveIncBtn">저장</button>
     </div>
   `);
+  document.getElementById('f_accidentType').addEventListener('change', e=>{
+    document.getElementById('f_accidentTypeOther').style.display = e.target.value==='기타(직접입력)' ? '' : 'none';
+  });
+  document.getElementById('f_sameAsReporter').addEventListener('change', e=>{
+    if(e.target.checked){
+      document.getElementById('f_injuredPerson').value = document.getElementById('f_reporter').value;
+    }
+  });
+  document.getElementById('f_reporter').addEventListener('input', e=>{
+    if(document.getElementById('f_sameAsReporter').checked){
+      document.getElementById('f_injuredPerson').value = e.target.value;
+    }
+  });
   document.getElementById('saveIncBtn').addEventListener('click', async ()=>{
+    const accidentType = document.getElementById('f_accidentType').value;
     const data = {
       process: document.getElementById('f_process').value.trim(),
       datetime: document.getElementById('f_datetime').value,
       location: document.getElementById('f_location').value.trim(),
+      accidentType,
+      accidentTypeOther: accidentType==='기타(직접입력)' ? document.getElementById('f_accidentTypeOther').value.trim() : '',
       description: document.getElementById('f_description').value.trim(),
       reporter: document.getElementById('f_reporter').value.trim(),
       injuredPerson: document.getElementById('f_injuredPerson').value.trim(),
@@ -1513,7 +1669,9 @@ function openIncidentModal(existing){
     }else if(!isEdit){
       data.status = '접수';
     }
-    if(!data.process || !data.location || !data.description || !data.datetime || !data.reporter){ toast('필수 항목(*)을 입력해주세요'); return; }
+    if(!data.process || !data.location || !data.description || !data.datetime || !data.reporter || !data.injuredPerson || !accidentType || (accidentType==='기타(직접입력)' && !data.accidentTypeOther)){
+      toast('필수 항목(*)을 입력해주세요'); return;
+    }
     if(isEdit){
       await DataStore.update(PATHS.incidents, existing.id, data);
       toast('신고 내용을 수정했습니다');
@@ -1530,16 +1688,18 @@ function openIncidentDetail(id){
   const raw = DataStore.get(PATHS.incidents)[id];
   if(!raw) return;
   const i = Object.assign({id}, raw);
+  const typeText = i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||'-');
   showModal(`
     <div class="modal-head"><h3>사고 신고 상세</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <dl class="detail-grid">
         <dt>발생일시</dt><dd class="mono">${fmtDateTime(i.datetime)}</dd>
+        <dt>공정</dt><dd>${esc(i.process||'-')}</dd>
         <dt>장소</dt><dd>${esc(i.location)}</dd>
         <dt>내용</dt><dd>${esc(i.description)}</dd>
+        <dt>사고유형</dt><dd>${esc(typeText)}</dd>
         <dt>부상정도</dt><dd>${esc(i.injurySeverity||'-')}</dd>
         ${State.mode==='admin' ? `
-        <dt>공정</dt><dd>${esc(i.process||'-')}</dd>
         <dt>신고자</dt><dd>${esc(i.reporter||'-')}</dd>
         <dt>재해자</dt><dd>${esc(i.injuredPerson||'-')}</dd>
         <dt>부상내용</dt><dd>${esc(i.injuryDetail||'-')}</dd>
@@ -1622,7 +1782,7 @@ function renderContractors(){
     const c = contractors.find(x=>x.id===r.contractorId);
     return `<tr>
       <td><span class="badge b-gray">${esc(r.recordType||'-')}</span></td>
-      <td>${esc(c?c.name:'(전체)')}</td>
+      <td>${newBadge(r.createdAt)}${esc(c?c.name:'(전체)')}</td>
       <td class="mono">${fmtDate(r.date)}</td>
       <td>${esc(r.author||'-')}</td>
       <td>${esc((r.content||'-').slice(0,30))}${(r.content||'').length>30?'…':''}</td>
@@ -1756,7 +1916,7 @@ function renderNotices(){
   const list = document.getElementById('noticeList');
   list.innerHTML = notices.length ? notices.map(n=>`
     <div class="notice-item ${n.pinned?'pinned':''}">
-      <h4>${n.pinned?icon('pin',14):''} ${esc(n.title)}</h4>
+      <h4>${n.pinned?icon('pin',14):''} ${newBadge(n.createdAt)}${esc(n.title)}</h4>
       <p>${esc(n.content)}</p>
       ${n.fileData ? `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>` : ''}
       <div class="notice-meta">${esc(n.author||'안전환경부')} · ${fmtDate(n.createdAt)}
@@ -1868,24 +2028,57 @@ document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id
    15. 로그인 게이트 로직
 ============================================================= */
 const ADMIN_PW_KEY = 'isc_admin_pw';
+const DEPTS = ['관리부','생산부','품질관리부'];
+function deptPwKey(dept){ return 'isc_dept_pw_' + dept; }
+
 document.getElementById('gateMode').addEventListener('change', e=>{
-  document.getElementById('gatePwWrap').hidden = e.target.value !== 'admin';
+  document.getElementById('gatePwWrap').hidden = e.target.value === 'user';
 });
+
+// 저장된 비밀번호가 하나도 없으면(최초 실행) true — 이 경우에만 입력값으로 전체관리자 비번을 새로 설정
+function noPasswordsSetYet(){
+  if(localStorage.getItem(ADMIN_PW_KEY)) return false;
+  return !DEPTS.some(d => localStorage.getItem(deptPwKey(d)));
+}
+
+// 비밀번호 하나로 역할(전체관리자/부서관리자)을 자동 판별
+function resolveRoleByPassword(input){
+  if(!input) return { ok:false, reason:'empty' };
+  const adminSaved = localStorage.getItem(ADMIN_PW_KEY);
+  if(adminSaved && input === adminSaved){
+    return { ok:true, mode:'admin', dept:null };
+  }
+  for(const d of DEPTS){
+    const saved = localStorage.getItem(deptPwKey(d));
+    if(saved && input === saved){
+      return { ok:true, mode:'dept', dept:d };
+    }
+  }
+  if(noPasswordsSetYet()){
+    // 최초 실행: 지금 입력한 비밀번호를 전체관리자 비밀번호로 등록
+    localStorage.setItem(ADMIN_PW_KEY, input);
+    toast('전체관리자 비밀번호가 설정되었습니다. 부서 비밀번호는 관리자 메뉴에서 등록해주세요.');
+    return { ok:true, mode:'admin', dept:null };
+  }
+  return { ok:false, reason:'mismatch' };
+}
+
+function enterWithPassword(input){
+  const result = resolveRoleByPassword(input.trim());
+  if(!result.ok){
+    toast(result.reason==='empty' ? '비밀번호를 입력해주세요' : '비밀번호가 일치하지 않습니다');
+    return false;
+  }
+  State.mode = result.mode; State.dept = result.dept;
+  return true;
+}
+
 document.getElementById('gateEnter').addEventListener('click', ()=>{
   const mode = document.getElementById('gateMode').value;
   if(mode==='admin'){
-    const input = document.getElementById('gatePw').value.trim();
-    const saved = localStorage.getItem(ADMIN_PW_KEY);
-    if(!saved){
-      if(!input){ toast('사용할 비밀번호를 입력해주세요'); return; }
-      localStorage.setItem(ADMIN_PW_KEY, input);
-      toast('관리자 비밀번호가 설정되었습니다');
-    }else if(input !== saved){
-      toast('비밀번호가 일치하지 않습니다'); return;
-    }
-    State.mode = 'admin';
+    if(!enterWithPassword(document.getElementById('gatePw').value)) return;
   }else{
-    State.mode = 'user';
+    State.mode = 'user'; State.dept = null;
   }
   document.getElementById('gate').style.display = 'none';
   updateModeUI();
@@ -1893,33 +2086,63 @@ document.getElementById('gateEnter').addEventListener('click', ()=>{
 });
 
 document.getElementById('modeSwitchBtn').addEventListener('click', ()=>{
-  if(State.mode === 'admin'){
-    State.mode = 'user';
+  if(State.mode !== 'user'){
+    State.mode = 'user'; State.dept = null;
     updateModeUI();
     toast('일반 열람 모드로 전환되었습니다');
     renderCurrentView(); renderNav();
-  }else{
-    const saved = localStorage.getItem(ADMIN_PW_KEY);
-    const input = prompt(saved ? '관리자 비밀번호를 입력하세요' : '사용할 관리자 비밀번호를 새로 설정하세요');
-    if(input===null) return;
-    if(!saved){
-      if(!input.trim()){ toast('비밀번호를 입력해주세요'); return; }
-      localStorage.setItem(ADMIN_PW_KEY, input.trim());
-      toast('관리자 비밀번호가 설정되었습니다');
-    }else if(input !== saved){
-      toast('비밀번호가 일치하지 않습니다'); return;
-    }
-    State.mode = 'admin';
-    updateModeUI();
-    toast('관리자 모드로 전환되었습니다');
-    renderCurrentView(); renderNav();
+    return;
   }
+  const input = prompt('관리자 비밀번호를 입력하세요\n(비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다)');
+  if(input===null) return;
+  if(!enterWithPassword(input)) return;
+  updateModeUI();
+  toast('모드가 전환되었습니다');
+  renderCurrentView(); renderNav();
 });
-function updateModeUI(){
-  document.getElementById('modeLabel').textContent = State.mode==='admin' ? '관리자 모드' : '일반 열람 모드';
-  document.getElementById('modeSwitchBtn').textContent = State.mode==='admin' ? '해제' : '전환';
-  document.getElementById('modeSwitchBtn').classList.toggle('on', State.mode==='admin');
+
+// 전체관리자 전용: 부서 비밀번호 설정/변경
+function openDeptPasswordModal(){
+  showModal(`
+    <div class="modal-head"><h3>부서 관리자 비밀번호 설정</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <p class="hint" style="margin-bottom:14px;">각 부서에 나눠줄 비밀번호를 설정하세요. 부서 담당자가 이 비밀번호로 로그인하면 자동으로 해당 부서 관리자로 접속됩니다.</p>
+      ${DEPTS.map(d=>`
+        <div class="field"><label>${d}</label>
+          <input type="text" id="f_pw_${d}" placeholder="${localStorage.getItem(deptPwKey(d)) ? '설정됨 (변경하려면 새 비밀번호 입력)' : '비밀번호 설정'}">
+        </div>
+      `).join('')}
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveDeptPwBtn">저장</button>
+    </div>
+  `);
+  document.getElementById('saveDeptPwBtn').addEventListener('click', ()=>{
+    let changed = 0;
+    DEPTS.forEach(d=>{
+      const val = document.getElementById('f_pw_'+d).value.trim();
+      if(val){ localStorage.setItem(deptPwKey(d), val); changed++; }
+    });
+    toast(changed>0 ? '부서 비밀번호가 저장되었습니다' : '변경된 내용이 없습니다');
+    closeModal();
+  });
 }
+
+function updateModeUI(){
+  const label = State.mode==='admin' ? '전체관리자 모드'
+    : State.mode==='dept' ? `부서관리자 모드 (${State.dept})`
+    : '일반 열람 모드';
+  document.getElementById('modeLabel').textContent = label;
+  document.getElementById('deptPwSettingBtn').style.display = State.mode==='admin' ? '' : 'none';
+  document.getElementById('modeSwitchBtn').textContent = State.mode==='user' ? '전환' : '해제';
+  document.getElementById('modeSwitchBtn').classList.toggle('on', State.mode!=='user');
+}
+
+document.getElementById('deptPwSettingBtn').addEventListener('click', ()=>{
+  if(State.mode!=='admin'){ toast('전체관리자만 설정할 수 있습니다'); return; }
+  openDeptPasswordModal();
+});
 
 document.getElementById('hamburger').addEventListener('click', ()=>{
   document.getElementById('sidebar').classList.toggle('open');
