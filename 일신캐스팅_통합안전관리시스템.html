@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.44.0/build/docxtemplater.min.js"></script>
 
@@ -171,7 +172,7 @@ a{color:inherit;}
   padding:6px 12px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-weight:600;
 }
 
-.view{padding:26px 32px 60px;}
+.view{padding:18px 32px 40px;}
 .view[hidden]{display:none;}
 
 /* ---------- Buttons / inputs ---------- */
@@ -206,20 +207,20 @@ a{color:inherit;}
 @media(max-width:720px){.row2,.row3{grid-template-columns:1fr;}}
 
 /* ---------- Cards / KPI ---------- */
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
 @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr);}}
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);
 }
-.kpi{padding:18px 18px 16px;border-left:4px solid var(--info);}
+.kpi{padding:12px 14px 11px;border-left:4px solid var(--info);}
 .kpi.c-safety{border-left-color:var(--safety);}
 .kpi.c-ok{border-left-color:var(--ok);}
 .kpi.c-danger{border-left-color:var(--danger);}
 .kpi.c-caution{border-left-color:var(--caution);}
-.kpi .k-label{font-size:12px;font-weight:700;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
-.kpi .k-num{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;margin:6px 0 2px;letter-spacing:-.01em;}
-.kpi .k-sub{font-size:11.5px;color:var(--ink-faint);}
+.kpi .k-label{font-size:11.5px;font-weight:700;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+.kpi .k-num{font-family:'JetBrains Mono',monospace;font-size:23px;font-weight:700;margin:4px 0 1px;letter-spacing:-.01em;}
+.kpi .k-sub{font-size:11px;color:var(--ink-faint);}
 
 /* Signature: 무재해 카운터 보드 */
 .zeroboard{
@@ -251,37 +252,37 @@ a{color:inherit;}
 @media(max-width:820px){.zeroboard{flex-direction:column;align-items:flex-start;}.zb-right{align-self:stretch;justify-content:space-between;}}
 
 .dash-header{
-  display:flex;align-items:center;gap:14px;margin-bottom:18px;
+  display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:default;
 }
 .dash-header .dh-logo{
-  flex:0 0 52px;width:52px;height:52px;border-radius:12px;
+  flex:0 0 40px;width:40px;height:40px;border-radius:10px;
   background:#fff;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;
-  box-shadow:var(--shadow);padding:6px;
+  box-shadow:var(--shadow);padding:5px;
 }
 .dash-header .dh-logo img{width:100%;height:100%;object-fit:contain;}
 .dash-header h1{
-  margin:0;font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--ink);
+  margin:0;font-size:17px;font-weight:800;letter-spacing:-.01em;color:var(--ink);
 }
-.dash-header p{margin:2px 0 0;font-size:12.5px;color:var(--ink-soft);font-weight:600;}
+.dash-header p{margin:1px 0 0;font-size:11.5px;color:var(--ink-soft);font-weight:600;}
 
 .section-title{font-size:15px;font-weight:800;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
 .section-title .n{color:var(--ink-faint);font-weight:700;font-size:12px;}
 
 /* Two column dashboard lower section */
-.dash-lower{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:6px;}
+.dash-lower{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;margin-top:10px;}
 @media(max-width:980px){.dash-lower{grid-template-columns:1fr;}}
-.dash-charts{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px;}
+.dash-charts{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:10px;}
 @media(max-width:980px){.dash-charts{grid-template-columns:1fr;}}
 
 .list-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
-.list-card .lc-head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
-.list-card .lc-head h3{margin:0;font-size:14px;font-weight:800;}
-.lc-body{max-height:340px;overflow-y:auto;}
-.mini-row{padding:11px 18px;border-bottom:1px solid #EEF1F5;display:flex;align-items:center;gap:10px;font-size:13px;}
+.list-card .lc-head{padding:9px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
+.list-card .lc-head h3{margin:0;font-size:12.5px;font-weight:800;}
+.lc-body{max-height:170px;overflow-y:auto;}
+.mini-row{padding:7px 14px;border-bottom:1px solid #EEF1F5;display:flex;align-items:center;gap:10px;font-size:12px;}
 .mini-row:last-child{border-bottom:none;}
 .mini-row .mr-title{flex:1;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.mini-row .mr-meta{font-size:11.5px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace;}
+.mini-row .mr-meta{font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace;}
 .empty{padding:30px 18px;text-align:center;color:var(--ink-faint);font-size:13px;}
 .empty .big{font-size:26px;display:block;margin-bottom:6px;}
 
@@ -360,6 +361,8 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 .notice-item.pinned{border-color:var(--safety);background:linear-gradient(0deg,#fff,var(--safety-dim) 400%);}
 .notice-item h4{margin:0 0 6px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px;}
 .notice-item p{margin:0;font-size:13px;color:var(--ink-soft);white-space:pre-wrap;}
+.notice-content{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.6;word-break:break-word;}
+.notice-content b,.notice-content strong{color:var(--ink);}
 .notice-meta{font-size:11.5px;color:var(--ink-faint);margin-top:8px;font-family:'JetBrains Mono',monospace;}
 
 .contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
@@ -431,7 +434,6 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 @media(max-width:620px){
   html,body{overflow-x:hidden;}
   .grid-4{grid-template-columns:1fr;}
-  .kpi .k-num{font-size:26px;}
   .modal{max-width:100%;border-radius:12px;}
   .overlay{padding:0;align-items:flex-end;}
   .modal-body{max-height:75vh;}
@@ -440,7 +442,9 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
   .searchbox{width:100%;}
   .contact-grid{grid-template-columns:1fr;}
   .detail-grid{grid-template-columns:100px 1fr;font-size:12.5px;}
-  .dash-header h1{font-size:18px;}
+  .dash-header h1{font-size:16px;}
+  .kpi .k-num{font-size:22px;}
+  .dash-charts > .list-card > div[style*="height:130px"]{height:110px;}
   .zb-num{font-size:34px;}
   .zb-right{gap:14px;flex-wrap:wrap;}
   .list-card canvas{max-width:100%;}
@@ -480,7 +484,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
      사이드바
   ========================================================== -->
   <aside class="sidebar" id="sidebar">
-    <div class="brand">
+    <div class="brand" id="brandHome" style="cursor:pointer;" title="홈으로 이동">
       <div class="brand-logo">
         <img src="data:image/png;base64,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" alt="일신캐스팅 로고">
       </div>
@@ -496,7 +500,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
         <span id="modeLabel">일반 열람 모드</span>
         <button class="mode-btn" id="modeSwitchBtn">전환</button>
       </div>
-      <button class="btn btn-sm" id="deptPwSettingBtn" style="width:100%;margin-bottom:10px;display:none;">부서 비밀번호 설정</button>
+      <button class="btn btn-sm" id="deptPwSettingBtn" style="width:100%;margin-bottom:10px;display:none;">관리자 계정 설정</button>
       데이터 저장: Firebase Realtime DB
     </div>
   </aside>
@@ -508,7 +512,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="hamburger" id="hamburger">☰</button>
-        <div>
+        <div id="pageTitleWrap">
           <h2 id="pageTitle">대시보드</h2>
           <p class="sub" id="pageSub">오늘의 안전 현황을 한눈에 확인하세요</p>
         </div>
@@ -532,6 +536,9 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 </div>
 
 <script>
+if(typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined'){
+  Chart.register(ChartDataLabels);
+}
 /* ============================================================
    0. Firebase 설정
    -------------------------------------------------------------
@@ -640,6 +647,7 @@ const PATHS = {
   incidents:'incidents',
   contractors:'contractors',
   contractorRecords:'contractor_records',
+  tbm:'tbm_records', // TBM(Tool Box Meeting) — 기능 개발 전, 경로만 예약
   notices:'notices',
   contacts:'emergency_contacts'
 };
@@ -704,10 +712,12 @@ const NAV_ITEMS = [
     sub:'안전작업허가(화기취급 통합) 신청 · 검토 · 승인 현황'},
   {id:'risks', label:'위험성평가', icon:'alert-triangle',
     sub:'공정 · 작업별 유해위험요인 및 개선대책 관리'},
-  {id:'incidents', label:'사고 신고', icon:'siren',
-    sub:'사고 신고 접수부터 처리완료까지'},
+  {id:'incidents', label:'사고 접수', icon:'siren',
+    sub:'사고 접수부터 처리완료까지'},
   {id:'contractors', label:'도급업체 관리', icon:'hard-hat',
     sub:'협의체 회의록 · 순회점검일지 · 업체 현황'},
+  {id:'tbm', label:'TBM(작업전안전회의)', icon:'users',
+    sub:'작업 전 안전점검회의(Tool Box Meeting)'},
   {id:'notices', label:'공지사항 · 비상연락망', icon:'megaphone',
     sub:'안전 공지사항 및 비상연락체계'}
 ];
@@ -720,7 +730,8 @@ const ICONS = {
   'hard-hat':'<path d="M4 15a8 8 0 0 1 16 0z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M2 15h20M11 8V4h2v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
   'megaphone':'<path d="M3 10v4a1 1 0 0 0 1 1h2l7 4V5L6 9H4a1 1 0 0 0-1 1z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M18 9a3 3 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
   'plus':'<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  'pin':'<path d="M12 2a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5z" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="7" r="1.6" fill="currentColor"/>'
+  'pin':'<path d="M12 2a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5z" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="7" r="1.6" fill="currentColor"/>',
+  'users':'<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="17" cy="8" r="2.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.5 14.2c2.6.3 4.7 2.5 4.9 5.3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
 };
 function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" height="${size}">${ICONS[name]||''}</svg>`; }
 
@@ -778,6 +789,8 @@ function navBadgeCount(viewId){
 function switchView(id){
   State.view = id;
   const item = NAV_ITEMS.find(n=>n.id===id);
+  const isDashboard = id==='dashboard';
+  document.getElementById('pageTitleWrap').style.display = isDashboard ? 'none' : '';
   document.getElementById('pageTitle').textContent = item.label;
   document.getElementById('pageSub').textContent = item.sub;
   renderNav();
@@ -792,6 +805,7 @@ function renderCurrentView(){
     risks: renderRisks,
     incidents: renderIncidents,
     contractors: renderContractors,
+    tbm: renderTbm,
     notices: renderNotices
   }[State.view]||function(){})();
 }
@@ -805,6 +819,7 @@ document.getElementById('views').innerHTML = `
   <section class="view" id="view-risks" hidden></section>
   <section class="view" id="view-incidents" hidden></section>
   <section class="view" id="view-contractors" hidden></section>
+  <section class="view" id="view-tbm" hidden></section>
   <section class="view" id="view-notices" hidden></section>
 `;
 
@@ -832,8 +847,8 @@ function renderDashboard(){
         <img src="data:image/png;base64,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" alt="일신캐스팅 로고">
       </div>
       <div>
-        <h1>일신캐스팅 안전관리 대시보드</h1>
-        <p>안전환경부 · Safety &amp; Environment · ${fmtDate(todayStr())} 기준</p>
+        <h1>일신캐스팅 통합안전관리</h1>
+        <p>작업전엔 점검, 작업중엔 집중, 퇴근 후엔 웃음</p>
       </div>
     </div>
 
@@ -841,12 +856,12 @@ function renderDashboard(){
 
     <div class="dash-charts">
       <div class="list-card">
-        <div class="lc-head"><h3>${icon('siren',15)} 월별 재해 발생 현황</h3><span style="font-size:11.5px;color:var(--ink-faint);font-weight:600;">최근 6개월</span></div>
-        <div style="padding:16px 18px 8px;"><canvas id="monthlyChart" height="130"></canvas></div>
+        <div class="lc-head"><h3>${icon('siren',14)} 월별 재해 발생 현황</h3><span style="font-size:11px;color:var(--ink-faint);font-weight:600;">최근 6개월</span></div>
+        <div style="padding:8px 14px 4px;height:130px;"><canvas id="monthlyChart"></canvas></div>
       </div>
       <div class="list-card">
-        <div class="lc-head"><h3>${icon('alert-triangle',15)} 사고유형별 현황</h3></div>
-        <div style="padding:16px 18px 8px;"><canvas id="accidentTypeChart" height="130"></canvas></div>
+        <div class="lc-head"><h3>${icon('alert-triangle',14)} 사고유형별 현황</h3></div>
+        <div style="padding:8px 14px 4px;height:130px;"><canvas id="accidentTypeChart"></canvas></div>
       </div>
     </div>
 
@@ -862,7 +877,7 @@ function renderDashboard(){
         <div class="k-sub">위험도 상 · 매우높음</div>
       </div>
       <div class="card kpi c-danger">
-        <div class="k-label">${icon('siren',14)} 미처리 신고</div>
+        <div class="k-label">${icon('siren',14)} 미처리 접수</div>
         <div class="k-num">${openIncidents}</div>
         <div class="k-sub">접수 · 조사중 건수</div>
       </div>
@@ -882,7 +897,7 @@ function renderDashboard(){
         }))}</div>
       </div>
       <div class="list-card">
-        <div class="lc-head"><h3>최근 사고 신고</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">전체보기 →</button></div>
+        <div class="lc-head"><h3>최근 사고 접수</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">전체보기 →</button></div>
         <div class="lc-body">${renderMiniList(incidents, i=>({
           title: i.location||'-',
           meta: fmtDate(i.datetime),
@@ -939,8 +954,19 @@ function renderAccidentTypeChart(incidents){
     },
     options: {
       responsive: true,
-      plugins: { legend: { position:'bottom', labels:{ boxWidth:11, font:{size:11}, color:'#4B5468', padding:10 } } },
-      cutout: '62%'
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'bottom', labels:{ boxWidth:10, font:{size:10.5}, color:'#4B5468', padding:8 } },
+        datalabels: {
+          color:'#fff', font:{ weight:'700', size:11 },
+          formatter: (value, ctx) => {
+            const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+            const pct = total ? Math.round(value/total*100) : 0;
+            return value>0 ? `${value}건\n${pct}%` : '';
+          }
+        }
+      },
+      cutout: '58%'
     }
   });
 }
@@ -969,15 +995,24 @@ function renderMonthlyChart(monthly){
         data: monthly.counts,
         backgroundColor: '#FF6A13',
         borderRadius: 5,
-        maxBarThickness: 42
+        maxBarThickness: 32
       }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display:false } },
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display:false },
+        datalabels: {
+          anchor:'end', align:'top', offset:2,
+          color:'#B24A00', font:{ weight:'700', size:11.5 },
+          formatter: (value)=> value>0 ? value : ''
+        }
+      },
+      layout: { padding: { top: 16 } },
       scales: {
-        y: { beginAtZero:true, ticks:{ precision:0, color:'#667085', font:{size:11.5} }, grid:{ color:'#EEF1F5' } },
-        x: { ticks:{ color:'#667085', font:{size:11.5} }, grid:{ display:false } }
+        y: { beginAtZero:true, ticks:{ precision:0, color:'#667085', font:{size:10.5} }, grid:{ color:'#EEF1F5' } },
+        x: { ticks:{ color:'#667085', font:{size:10.5} }, grid:{ display:false } }
       }
     }
   });
@@ -1358,7 +1393,7 @@ function renderRisks(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>공정 · 작업</th><th>유해위험요인</th><th class="tight">빈도</th><th class="tight">강도</th><th class="tight">위험도</th><th>개선대책</th><th>신청자</th><th>상태</th><th class="tight">관리</th>
+        <th>공정 · 작업</th><th>유해위험요인</th><th class="tight">빈도</th><th class="tight">강도</th><th class="tight">위험도</th><th>개선대책</th><th>사진</th><th>신청자</th><th>상태</th><th class="tight">관리</th>
       </tr></thead>
       <tbody id="riskBody"></tbody>
     </table></div>
@@ -1378,7 +1413,7 @@ function renderRisks(){
   const filtered = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
   const body = document.getElementById('riskBody');
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="9"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>등록된 위험성평가가 없습니다</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="10"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>등록된 위험성평가가 없습니다</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(r=>`
@@ -1389,12 +1424,19 @@ function renderRisks(){
       <td class="tight mono">${r.severity||0}</td>
       <td class="tight">${riskChip(r)}</td>
       <td>${esc(r.measures||'-')}</td>
+      <td>${riskThumbs(r)}</td>
       <td>${esc(r.reporter||'-')}</td>
       <td>${statusBadge('risk', r.status)}</td>
       <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${r.id}">보기</button></td>
     </tr>
   `).join('');
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openRiskDetail(b.dataset.viewId)));
+}
+
+function riskThumbs(r){
+  if(!r.photoBefore && !r.photoAfter) return '<span style="color:var(--ink-faint);font-size:11.5px;">-</span>';
+  const mk = (src,label)=> src ? `<img src="${src}" title="${label}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">` : '';
+  return `<div style="display:flex;gap:4px;">${mk(r.photoBefore,'현장 사진')}${mk(r.photoAfter,'개선 후 사진')}</div>`;
 }
 
 function openRiskModal(existing){
@@ -1436,7 +1478,7 @@ function openRiskModal(existing){
         ${v.photoBefore?`<p class="hint">기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.</p>`:''}
       </div>
       <div class="row2">
-        <div class="field"><label>신청자</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
+        <div class="field"><label>신청자 *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
         ${State.mode==='admin' ? `
         <div class="field"><label>진행현황 (관리자)</label>
           <select id="f_status">${['등록','접수완료','조치중','완료'].map(s=>`<option ${v.status===s?'selected':''}>${s}</option>`).join('')}</select>
@@ -1467,7 +1509,7 @@ function openRiskModal(existing){
     }else if(!isEdit){
       data.status = '등록';
     }
-    if(!data.process || !data.hazard || !data.measures){ toast('필수 항목(*)을 입력해주세요'); return; }
+    if(!data.process || !data.hazard || !data.measures || !data.reporter){ toast('필수 항목(*)을 입력해주세요'); return; }
     const photoBeforeFile = document.getElementById('f_photoBefore').files[0];
     if(photoBeforeFile){
       if(photoBeforeFile.size > 5*1024*1024){ toast('사진 용량이 너무 큽니다 (5MB 이내)'); return; }
@@ -1508,12 +1550,17 @@ function openRiskDetail(id){
         <dt>공정 · 작업</dt><dd>${esc(r.process)} ${r.task?('· '+esc(r.task)):''}</dd>
         <dt>유해위험요인</dt><dd>${esc(r.hazard)}</dd>
         <dt>위험도</dt><dd>${riskChip(r)} &nbsp;(빈도 ${r.frequency} × 강도 ${r.severity})</dd>
-        <dt>개선대책</dt><dd>${esc(r.measures)}</dd>
+        <dt>개선대책</dt><dd>
+          ${esc(r.measures)}
+          ${(r.photoBefore||r.photoAfter) ? `
+          <div style="display:flex;gap:10px;margin-top:10px;">
+            ${r.photoBefore ? `<div style="flex:1;"><div class="hint" style="margin-bottom:4px;">현장 사진</div><img src="${r.photoBefore}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid var(--line);"></div>` : ''}
+            ${r.photoAfter ? `<div style="flex:1;"><div class="hint" style="margin-bottom:4px;">개선 후 사진</div><img src="${r.photoAfter}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid var(--line);"></div>` : ''}
+          </div>` : ''}
+        </dd>
         <dt>신청자</dt><dd>${esc(r.reporter||'-')}</dd>
         <dt>상태</dt><dd>${statusBadge('risk', r.status)}</dd>
       </dl>
-      ${r.photoBefore ? `<div class="divider"></div><p class="hint" style="margin-bottom:6px;">현장 사진</p><img src="${r.photoBefore}" style="width:100%;border-radius:8px;border:1px solid var(--line);">` : ''}
-      ${r.photoAfter ? `<div class="divider"></div><p class="hint" style="margin-bottom:6px;">개선 후 사진</p><img src="${r.photoAfter}" style="width:100%;border-radius:8px;border:1px solid var(--line);">` : ''}
     </div>
     <div class="modal-foot">
       ${State.mode==='admin' ? `<button class="btn" id="delBtn">삭제</button><button class="btn btn-primary" id="editBtn">수정</button>` : ''}
@@ -1531,7 +1578,7 @@ function openRiskDetail(id){
 }
 
 /* ============================================================
-   11. 사고 신고
+   11. 사고 접수
 ============================================================= */
 function renderIncidents(){
   const el = document.getElementById('view-incidents');
@@ -1542,7 +1589,7 @@ function renderIncidents(){
       <div class="tabs" id="incTabs">
         ${['전체','접수','조사중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s}</button>`).join('')}
       </div>
-      <button class="btn btn-primary" id="addIncBtn">${icon('plus',15)} 사고 신고</button>
+      <button class="btn btn-primary" id="addIncBtn">${icon('plus',15)} 사고 접수</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
@@ -1565,7 +1612,7 @@ function renderIncidents(){
   const body = document.getElementById('incBody');
   const colCount = isAdmin ? 8 : 6;
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>등록된 신고가 없습니다</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>등록된 접수가 없습니다</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(i=>`
@@ -1591,7 +1638,7 @@ function openIncidentModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
   showModal(`
-    <div class="modal-head"><h3>${isEdit?'신고 내용 수정':'사고 신고'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?'접수 내용 수정':'사고 접수'}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
         <div class="field"><label>공정 *</label><input type="text" id="f_process" value="${esc(v.process||'')}" placeholder="예: 조형공정"></div>
@@ -1674,7 +1721,7 @@ function openIncidentModal(existing){
     }
     if(isEdit){
       await DataStore.update(PATHS.incidents, existing.id, data);
-      toast('신고 내용을 수정했습니다');
+      toast('접수 내용을 수정했습니다');
     }else{
       data.createdAt = Date.now();
       await DataStore.push(PATHS.incidents, data);
@@ -1690,7 +1737,7 @@ function openIncidentDetail(id){
   const i = Object.assign({id}, raw);
   const typeText = i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||'-');
   showModal(`
-    <div class="modal-head"><h3>사고 신고 상세</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>사고 접수 상세</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <dl class="detail-grid">
         <dt>발생일시</dt><dd class="mono">${fmtDateTime(i.datetime)}</dd>
@@ -1716,7 +1763,7 @@ function openIncidentDetail(id){
   if(State.mode==='admin'){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openIncidentModal(i); });
     document.getElementById('delBtn').addEventListener('click', async ()=>{
-      if(confirm('이 신고 항목을 삭제하시겠습니까?')){
+      if(confirm('이 접수 항목을 삭제하시겠습니까?')){
         await DataStore.remove(PATHS.incidents, id); closeModal(); toast('삭제되었습니다'); renderIncidents();
       }
     });
@@ -1885,24 +1932,54 @@ function openRecordDetail(id){
 }
 
 /* ============================================================
+   12-1. TBM (Tool Box Meeting) — 준비중
+   ※ 기능 설계 중. 지금은 자리와 데이터 구조(PATHS.tbm)만 마련해두고,
+      추후 패치로 실제 기능(체크리스트, 참석자, 사진 등)을 채울 예정.
+============================================================= */
+function renderTbm(){
+  const el = document.getElementById('view-tbm');
+  el.innerHTML = `
+    <div class="card" style="padding:48px 24px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:14px;">${icon('users',40)}</div>
+      <h3 style="margin:0 0 8px;font-size:17px;font-weight:800;">TBM 기능 준비중입니다</h3>
+      <p style="margin:0;color:var(--ink-soft);font-size:13.5px;line-height:1.7;">
+        작업 전 안전점검회의(Tool Box Meeting) 기록 기능을 준비하고 있습니다.<br>
+        곧 업데이트될 예정이니 조금만 기다려주세요.
+      </p>
+      <span class="badge b-caution" style="margin-top:16px;">개발중</span>
+    </div>
+  `;
+}
+
+/* ============================================================
    13. 공지사항 · 비상연락망
 ============================================================= */
 function renderNotices(){
   const el = document.getElementById('view-notices');
+  const tab = State.filters.noticeTab || 'notice';
   el.innerHTML = `
-    <div class="toolbar">
-      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">안전 공지사항</div>
-      <button class="btn btn-primary" id="addNoticeBtn">${icon('plus',15)} 공지 등록</button>
+    <div class="tabs" style="margin-bottom:14px;">
+      <button class="tab ${tab==='notice'?'active':''}" data-tab="notice">공지사항</button>
+      <button class="tab ${tab==='contact'?'active':''}" data-tab="contact">☎ 비상연락망</button>
     </div>
-    <div id="noticeList"></div>
-
-    <div class="section-title"><span class="n">☎</span> 비상연락망</div>
-    <div class="toolbar" style="margin-bottom:12px;">
-      <div></div>
-      <button class="btn" id="addContactBtn">${icon('plus',15)} 연락처 등록</button>
+    <div id="noticePane" style="${tab==='notice'?'':'display:none'}">
+      <div class="toolbar">
+        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">안전 공지사항</div>
+        <button class="btn btn-primary" id="addNoticeBtn">${icon('plus',15)} 공지 등록</button>
+      </div>
+      <div id="noticeList"></div>
     </div>
-    <div class="contact-grid" id="contactGrid"></div>
+    <div id="contactPane" style="${tab==='contact'?'':'display:none'}">
+      <div class="toolbar" style="margin-bottom:12px;">
+        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">비상연락망</div>
+        <button class="btn btn-primary" id="addContactBtn">${icon('plus',15)} 연락처 등록</button>
+      </div>
+      <div class="contact-grid" id="contactGrid"></div>
+    </div>
   `;
+  el.querySelectorAll('.tab[data-tab]').forEach(t=>t.addEventListener('click', ()=>{
+    State.filters.noticeTab = t.dataset.tab; renderNotices();
+  }));
   document.getElementById('addNoticeBtn').addEventListener('click', ()=>{
     if(!requireAdmin('공지 등록')) return;
     openNoticeModal();
@@ -1917,13 +1994,22 @@ function renderNotices(){
   list.innerHTML = notices.length ? notices.map(n=>`
     <div class="notice-item ${n.pinned?'pinned':''}">
       <h4>${n.pinned?icon('pin',14):''} ${newBadge(n.createdAt)}${esc(n.title)}</h4>
-      <p>${esc(n.content)}</p>
-      ${n.fileData ? `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>` : ''}
+      <div class="notice-content">${n.content||''}</div>
+      ${n.fileData ? (
+        n.fileType && n.fileType.startsWith('image/')
+          ? `<div class="notice-meta"><img src="${n.fileData}" alt="${esc(n.fileName||'첨부이미지')}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin:8px 0;display:block;"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
+          : `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
+      ) : ''}
       <div class="notice-meta">${esc(n.author||'안전환경부')} · ${fmtDate(n.createdAt)}
-        ${State.mode==='admin'?` · <a href="#" data-del-n="${n.id}" style="color:var(--danger)">삭제</a>`:''}
+        ${State.mode==='admin'?` · <a href="#" data-edit-n="${n.id}" style="color:var(--info)">수정</a> · <a href="#" data-del-n="${n.id}" style="color:var(--danger)">삭제</a>`:''}
       </div>
     </div>
   `).join('') : `<div class="empty"><span class="big">${icon('megaphone',22)}</span>등록된 공지사항이 없습니다</div>`;
+  list.querySelectorAll('[data-edit-n]').forEach(a=> a.addEventListener('click', e=>{
+    e.preventDefault();
+    const n = DataStore.get(PATHS.notices)[a.dataset.editN];
+    openNoticeModal(Object.assign({id:a.dataset.editN}, n));
+  }));
   list.querySelectorAll('[data-del-n]').forEach(a=> a.addEventListener('click', async e=>{
     e.preventDefault();
     if(confirm('공지를 삭제하시겠습니까?')){ await DataStore.remove(PATHS.notices, a.dataset.delN); toast('삭제되었습니다'); renderNotices(); }
@@ -1945,24 +2031,48 @@ function renderNotices(){
   }));
 }
 
-function openNoticeModal(){
+function openNoticeModal(existing){
+  const isEdit = !!existing;
+  const v = existing || {};
   showModal(`
-    <div class="modal-head"><h3>공지사항 등록</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?'공지사항 수정':'공지사항 등록'}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>제목 *</label><input type="text" id="f_title"></div>
-      <div class="field"><label>내용 *</label><textarea id="f_content" style="min-height:120px"></textarea></div>
-      <div class="field"><label>작성자</label><input type="text" id="f_author" value="안전환경부"></div>
+      <div class="field"><label>제목 *</label><input type="text" id="f_title" value="${esc(v.title||'')}"></div>
+      <div class="field">
+        <label>내용 *</label>
+        <div class="rte-toolbar" style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" data-cmd="bold" title="굵게" style="font-weight:800;">B</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#E5484D" title="빨강" style="color:#E5484D;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#2D7DD2" title="파랑" style="color:#2D7DD2;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#1DA46F" title="초록" style="color:#1DA46F;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#14192B" title="기본색" style="color:#14192B;font-weight:800;">A</button>
+          <span style="width:1px;background:var(--line);margin:0 2px;"></span>
+          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="2" title="작게">작게</button>
+          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="4" title="보통">보통</button>
+          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="6" title="크게">크게</button>
+        </div>
+        <div id="f_content" contenteditable="true" style="min-height:120px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13.5px;line-height:1.6;">${v.content||''}</div>
+      </div>
+      <div class="field"><label>작성자</label><input type="text" id="f_author" value="${esc(v.author||'안전환경부')}"></div>
       <div class="field"><label>첨부파일 (이미지, PDF 등)</label><input type="file" id="f_file">
+        ${v.fileName ? `<p class="hint">기존 첨부: ${esc(v.fileName)} (새로 선택하면 교체됩니다)</p>` : ''}
         <p class="hint">용량이 큰 파일은 느려질 수 있어요. 5MB 이내 문서·이미지 위주로 첨부해주세요.</p>
       </div>
-      <div class="field"><label><input type="checkbox" id="f_pinned"> 상단 고정</label></div>
+      <div class="field"><label><input type="checkbox" id="f_pinned" ${v.pinned?'checked':''}> 상단 고정</label></div>
     </div>
-    <div class="modal-foot"><button class="btn" data-close>취소</button><button class="btn btn-primary" id="saveNoticeBtn">등록</button></div>
+    <div class="modal-foot"><button class="btn" data-close>취소</button><button class="btn btn-primary" id="saveNoticeBtn">${isEdit?'저장':'등록'}</button></div>
   `);
+  document.querySelectorAll('.rte-toolbar [data-cmd]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.getElementById('f_content').focus();
+      document.execCommand(btn.dataset.cmd, false, btn.dataset.val || null);
+    });
+  });
   document.getElementById('saveNoticeBtn').addEventListener('click', async ()=>{
     const title = document.getElementById('f_title').value.trim();
-    const content = document.getElementById('f_content').value.trim();
-    if(!title || !content){ toast('필수 항목(*)을 입력해주세요'); return; }
+    const contentEl = document.getElementById('f_content');
+    const content = contentEl.innerHTML.trim();
+    if(!title || !contentEl.textContent.trim()){ toast('필수 항목(*)을 입력해주세요'); return; }
     const data = {
       title, content,
       author: document.getElementById('f_author').value.trim() || '안전환경부',
@@ -1981,11 +2091,17 @@ function openNoticeModal(){
         reader.readAsDataURL(file);
       });
       data.fileName = file.name;
+      data.fileType = file.type;
       data.fileData = dataUrl;
     }
-    data.createdAt = Date.now();
-    await DataStore.push(PATHS.notices, data);
-    toast('공지사항이 등록되었습니다');
+    if(isEdit){
+      await DataStore.update(PATHS.notices, existing.id, data);
+      toast('공지사항이 수정되었습니다');
+    }else{
+      data.createdAt = Date.now();
+      await DataStore.push(PATHS.notices, data);
+      toast('공지사항이 등록되었습니다');
+    }
     closeModal(); renderNotices();
   });
 }
@@ -2104,8 +2220,12 @@ document.getElementById('modeSwitchBtn').addEventListener('click', ()=>{
 // 전체관리자 전용: 부서 비밀번호 설정/변경
 function openDeptPasswordModal(){
   showModal(`
-    <div class="modal-head"><h3>부서 관리자 비밀번호 설정</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>관리자 계정 설정</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
+      <div class="field"><label>전체관리자 비밀번호 변경</label>
+        <input type="text" id="f_pw_admin" placeholder="새 비밀번호 (변경하지 않으려면 비워두세요)">
+      </div>
+      <div class="divider"></div>
       <p class="hint" style="margin-bottom:14px;">각 부서에 나눠줄 비밀번호를 설정하세요. 부서 담당자가 이 비밀번호로 로그인하면 자동으로 해당 부서 관리자로 접속됩니다.</p>
       ${DEPTS.map(d=>`
         <div class="field"><label>${d}</label>
@@ -2120,11 +2240,13 @@ function openDeptPasswordModal(){
   `);
   document.getElementById('saveDeptPwBtn').addEventListener('click', ()=>{
     let changed = 0;
+    const newAdminPw = document.getElementById('f_pw_admin').value.trim();
+    if(newAdminPw){ localStorage.setItem(ADMIN_PW_KEY, newAdminPw); changed++; }
     DEPTS.forEach(d=>{
       const val = document.getElementById('f_pw_'+d).value.trim();
       if(val){ localStorage.setItem(deptPwKey(d), val); changed++; }
     });
-    toast(changed>0 ? '부서 비밀번호가 저장되었습니다' : '변경된 내용이 없습니다');
+    toast(changed>0 ? '비밀번호가 저장되었습니다' : '변경된 내용이 없습니다');
     closeModal();
   });
 }
@@ -2142,6 +2264,10 @@ function updateModeUI(){
 document.getElementById('deptPwSettingBtn').addEventListener('click', ()=>{
   if(State.mode!=='admin'){ toast('전체관리자만 설정할 수 있습니다'); return; }
   openDeptPasswordModal();
+});
+
+document.getElementById('brandHome').addEventListener('click', ()=>{
+  switchView('dashboard');
 });
 
 document.getElementById('hamburger').addEventListener('click', ()=>{
