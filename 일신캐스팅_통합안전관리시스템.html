@@ -762,10 +762,7 @@ function hasNewItems(viewId){
   };
   const paths = pathMap[viewId];
   if(!paths) return false;
-  return paths.some(path=>{
-    const arr = objToArr(DataStore.get(path));
-    return arr.some(item => item.createdAt && (Date.now() - item.createdAt < NEW_THRESHOLD_MS));
-  });
+  return paths.some(path=> hasNewInList(objToArr(DataStore.get(path)), path));
 }
 function navBadgeCount(viewId){
   if(viewId==='permits'){
@@ -867,22 +864,22 @@ function renderDashboard(){
 
     <div class="grid-4">
       <div class="card kpi c-safety">
-        <div class="k-label">${icon('file-check',14)} 작업허가 대기</div>
+        <div class="k-label">${icon('file-check',14)} 작업허가 대기 ${hasNewInList(permits.filter(p=>p.status==='신청'||p.status==='검토중'), PATHS.permits) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${openPermits}</div>
         <div class="k-sub">신청 · 검토중 건수</div>
       </div>
       <div class="card kpi c-caution">
-        <div class="k-label">${icon('alert-triangle',14)} 고위험 항목</div>
+        <div class="k-label">${icon('alert-triangle',14)} 고위험 항목 ${hasNewInList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), PATHS.risks) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${highRisks}</div>
         <div class="k-sub">위험도 상 · 매우높음</div>
       </div>
       <div class="card kpi c-danger">
-        <div class="k-label">${icon('siren',14)} 미처리 접수</div>
+        <div class="k-label">${icon('siren',14)} 미처리 접수 ${hasNewInList(incidents.filter(i=>i.status!=='완료'), PATHS.incidents) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${openIncidents}</div>
         <div class="k-sub">접수 · 조사중 건수</div>
       </div>
       <div class="card kpi c-ok">
-        <div class="k-label">${icon('hard-hat',14)} 등록 도급업체</div>
+        <div class="k-label">${icon('hard-hat',14)} 등록 도급업체 ${hasNewInList(objToArr(DataStore.get(PATHS.contractors)), PATHS.contractors) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${objToArr(DataStore.get(PATHS.contractors)).length}</div>
         <div class="k-sub">협의체 관리 대상</div>
       </div>
@@ -894,7 +891,7 @@ function renderDashboard(){
         <div class="lc-body">${renderMiniList(permits, p=>({
           title:`${p.company||'미입력'} · ${p.workContent||'-'}`,
           meta: fmtDate(p.startDate), badge: statusBadge('permit', p.status)
-        }))}</div>
+        }), PATHS.permits)}</div>
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>최근 사고 접수</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">전체보기 →</button></div>
@@ -902,7 +899,7 @@ function renderDashboard(){
           title: i.location||'-',
           meta: fmtDate(i.datetime),
           badge: State.mode==='admin' ? statusBadge('incident', i.status) : (i.injurySeverity ? `<span class="badge b-gray">${esc(i.injurySeverity)}</span>` : '')
-        }))}</div>
+        }), PATHS.incidents)}</div>
       </div>
     </div>
 
@@ -912,13 +909,13 @@ function renderDashboard(){
         <div class="lc-body">${renderMiniList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), r=>({
           title:`${r.process||'-'} · ${r.hazard||'-'}`,
           meta:`위험도 ${r.frequency||0}×${r.severity||0}`, badge: statusBadge('risk', r.status)
-        }))}</div>
+        }), PATHS.risks)}</div>
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>공지사항</h3><button class="btn btn-sm btn-ghost" data-goto="notices">전체보기 →</button></div>
         <div class="lc-body">${renderMiniList(notices.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)), n=>({
           title:n.title||'-', meta: fmtDate(n.createdAt), badge: n.pinned?'<span class="badge b-safety">고정</span>':''
-        }))}</div>
+        }), PATHS.notices)}</div>
       </div>
     </div>
   `;
@@ -1018,13 +1015,13 @@ function renderMonthlyChart(monthly){
   });
 }
 
-function renderMiniList(arr, mapFn){
+function renderMiniList(arr, mapFn, mlPath){
   if(!arr || arr.length===0) return `<div class="empty"><span class="big">${icon('grid',22)}</span>등록된 항목이 없습니다</div>`;
   const sorted = [...arr].sort((a,b)=> new Date(b.createdAt||b.startDate||b.datetime||0) - new Date(a.createdAt||a.startDate||a.datetime||0));
   return sorted.slice(0,6).map(item=>{
     const m = mapFn(item);
     return `<div class="mini-row">
-      <div class="mr-title">${esc(m.title)}</div>
+      <div class="mr-title">${newBadge(item, mlPath)}${esc(m.title)}</div>
       <div class="mr-meta">${esc(m.meta)}</div>
       ${m.badge||''}
     </div>`;
@@ -1035,12 +1032,33 @@ function renderMiniList(arr, mapFn){
    8. 배지 / 위험도 헬퍼
 ============================================================= */
 const NEW_THRESHOLD_MS = 24*60*60*1000; // 24시간 이내 등록된 항목은 NEW 표시
-function newBadge(createdAt){
-  if(!createdAt) return '';
-  if(Date.now() - createdAt < NEW_THRESHOLD_MS){
-    return '<span class="badge-new">NEW</span> ';
-  }
-  return '';
+
+/* 읽음 상태 추적 — 전체관리자 모드에서만 적용, 이 브라우저(내 계정)에만 저장되고
+   다른 계정(일반/부서관리자)이나 다른 기기와는 공유되지 않음 */
+function getReadSet(path){
+  try{ return new Set(JSON.parse(localStorage.getItem('isc_read_'+path) || '[]')); }
+  catch(e){ return new Set(); }
+}
+function markRead(path, id){
+  if(!path || !id) return;
+  const set = getReadSet(path);
+  if(set.has(id)) return;
+  set.add(id);
+  localStorage.setItem('isc_read_'+path, JSON.stringify([...set]));
+}
+function isRead(path, id){ return getReadSet(path).has(id); }
+
+function isItemNew(item, path){
+  if(!item || !item.createdAt) return false;
+  if(Date.now() - item.createdAt >= NEW_THRESHOLD_MS) return false;
+  if(State.mode==='admin' && path && isRead(path, item.id)) return false;
+  return true;
+}
+function hasNewInList(arr, path){
+  return (arr||[]).some(item => isItemNew(item, path));
+}
+function newBadge(item, path){
+  return isItemNew(item, path) ? '<span class="badge-new">NEW</span> ' : '';
 }
 function statusBadge(kind, status){
   const map = {
@@ -1101,7 +1119,7 @@ function renderPermits(){
   }
   body.innerHTML = filtered.map(p=>`
     <tr>
-      <td class="cell-strong">${newBadge(p.createdAt)}${esc(p.company||'-')}</td>
+      <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}</td>
       <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
       <td>${esc(p.workType||'-')}</td>
       <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
@@ -1232,6 +1250,7 @@ function openPermitModal(existing){
 function openPermitDetail(id){
   const raw = DataStore.get(PATHS.permits)[id];
   if(!raw) return;
+  markRead(PATHS.permits, id);
   const p = Object.assign({id}, raw);
   const equipmentText = [...(p.equipment||[]), p.equipmentOther].filter(Boolean).join(', ') || '-';
   showModal(`
@@ -1418,7 +1437,7 @@ function renderRisks(){
   }
   body.innerHTML = filtered.map(r=>`
     <tr>
-      <td class="cell-strong">${newBadge(r.createdAt)}${esc(r.process||'-')}<div class="cell-sub">${esc(r.task||'')}</div></td>
+      <td class="cell-strong">${newBadge(r, PATHS.risks)}${esc(r.process||'-')}<div class="cell-sub">${esc(r.task||'')}</div></td>
       <td>${esc(r.hazard||'-')}</td>
       <td class="tight mono">${r.frequency||0}</td>
       <td class="tight mono">${r.severity||0}</td>
@@ -1542,6 +1561,7 @@ function openRiskModal(existing){
 function openRiskDetail(id){
   const raw = DataStore.get(PATHS.risks)[id];
   if(!raw) return;
+  markRead(PATHS.risks, id);
   const r = Object.assign({id}, raw);
   showModal(`
     <div class="modal-head"><h3>위험성평가 상세</h3><button class="x-btn" data-close>✕</button></div>
@@ -1617,7 +1637,7 @@ function renderIncidents(){
   }
   body.innerHTML = filtered.map(i=>`
     <tr>
-      <td class="mono">${newBadge(i.createdAt)}${fmtDateTime(i.datetime)}</td>
+      <td class="mono">${newBadge(i, PATHS.incidents)}${fmtDateTime(i.datetime)}</td>
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
@@ -1734,6 +1754,7 @@ function openIncidentModal(existing){
 function openIncidentDetail(id){
   const raw = DataStore.get(PATHS.incidents)[id];
   if(!raw) return;
+  markRead(PATHS.incidents, id);
   const i = Object.assign({id}, raw);
   const typeText = i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||'-');
   showModal(`
@@ -1829,7 +1850,7 @@ function renderContractors(){
     const c = contractors.find(x=>x.id===r.contractorId);
     return `<tr>
       <td><span class="badge b-gray">${esc(r.recordType||'-')}</span></td>
-      <td>${newBadge(r.createdAt)}${esc(c?c.name:'(전체)')}</td>
+      <td>${newBadge(r, PATHS.contractorRecords)}${esc(c?c.name:'(전체)')}</td>
       <td class="mono">${fmtDate(r.date)}</td>
       <td>${esc(r.author||'-')}</td>
       <td>${esc((r.content||'-').slice(0,30))}${(r.content||'').length>30?'…':''}</td>
@@ -1907,6 +1928,7 @@ function openRecordModal(){
 
 function openRecordDetail(id){
   const r = DataStore.get(PATHS.contractorRecords)[id];
+  markRead(PATHS.contractorRecords, id);
   const c = DataStore.get(PATHS.contractors)[r.contractorId];
   showModal(`
     <div class="modal-head"><h3>${esc(r.recordType)}</h3><button class="x-btn" data-close>✕</button></div>
@@ -1993,7 +2015,7 @@ function renderNotices(){
   const list = document.getElementById('noticeList');
   list.innerHTML = notices.length ? notices.map(n=>`
     <div class="notice-item ${n.pinned?'pinned':''}">
-      <h4>${n.pinned?icon('pin',14):''} ${newBadge(n.createdAt)}${esc(n.title)}</h4>
+      <h4 data-view-n="${n.id}" style="cursor:pointer;">${n.pinned?icon('pin',14):''} ${newBadge(n, PATHS.notices)}${esc(n.title)}</h4>
       <div class="notice-content">${n.content||''}</div>
       ${n.fileData ? (
         n.fileType && n.fileType.startsWith('image/')
@@ -2005,6 +2027,7 @@ function renderNotices(){
       </div>
     </div>
   `).join('') : `<div class="empty"><span class="big">${icon('megaphone',22)}</span>등록된 공지사항이 없습니다</div>`;
+  list.querySelectorAll('[data-view-n]').forEach(h=> h.addEventListener('click', ()=> openNoticeDetail(h.dataset.viewN)));
   list.querySelectorAll('[data-edit-n]').forEach(a=> a.addEventListener('click', e=>{
     e.preventDefault();
     const n = DataStore.get(PATHS.notices)[a.dataset.editN];
@@ -2029,6 +2052,28 @@ function renderNotices(){
     e.preventDefault();
     if(confirm('삭제하시겠습니까?')){ await DataStore.remove(PATHS.contacts, a.dataset.delC2); toast('삭제되었습니다'); renderNotices(); }
   }));
+}
+
+function openNoticeDetail(id){
+  const raw = DataStore.get(PATHS.notices)[id];
+  if(!raw) return;
+  markRead(PATHS.notices, id);
+  const n = Object.assign({id}, raw);
+  renderNotices();
+  renderNav();
+  showModal(`
+    <div class="modal-head"><h3>${esc(n.title)}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="notice-content">${n.content||''}</div>
+      ${n.fileData ? (
+        n.fileType && n.fileType.startsWith('image/')
+          ? `<div class="notice-meta"><img src="${n.fileData}" alt="${esc(n.fileName||'첨부이미지')}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin:8px 0;display:block;"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
+          : `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
+      ) : ''}
+      <p class="hint" style="margin-top:12px;">${esc(n.author||'안전환경부')} · ${fmtDate(n.createdAt)}</p>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>닫기</button></div>
+  `);
 }
 
 function openNoticeModal(existing){
