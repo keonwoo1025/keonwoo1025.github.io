@@ -24,6 +24,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.44.0/build/docxtemplater.min.js"></script>
 
@@ -349,7 +350,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 /* ---------- Modal ---------- */
 .overlay{
   position:fixed;inset:0;background:rgba(16,27,51,.5);backdrop-filter:blur(1px);
-  display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px;z-index:100;overflow-y:auto;
+  display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px;z-index:250;overflow-y:auto;
 }
 .overlay[hidden]{display:none;}
 .modal{
@@ -540,6 +541,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
     <div class="gate-actions">
       <button class="btn btn-primary" id="gateEnter" style="flex:1" data-i18n="gate_enter">입장하기</button>
     </div>
+    <button class="btn btn-sm" id="gateInstallBtn" style="width:100%;margin-top:8px;display:none;"></button>
   </div>
 </div>
 
@@ -723,6 +725,12 @@ const TRANSLATIONS = {
   gate_pw_placeholder:{ko:'비밀번호 입력',en:'Enter password',th:'กรอกรหัสผ่าน',id:'Masukkan kata sandi',mn:'Нууц үгээ оруулна уу'},
   gate_pw_hint:{ko:'비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.',en:'You will automatically log in as either the full administrator or the relevant department administrator, depending on the password.',th:'ระบบจะเข้าสู่ระบบเป็นผู้ดูแลระบบทั้งหมดหรือผู้ดูแลแผนกที่เกี่ยวข้องโดยอัตโนมัติ ขึ้นอยู่กับรหัสผ่าน',id:'Anda akan otomatis masuk sebagai administrator utama atau administrator departemen terkait, tergantung kata sandi yang dimasukkan.',mn:'Нууц үгээс хамааран та бүх эрхтэй админ эсвэл харьяа хэлтсийн админ болж автоматаар нэвтэрнэ.'},
   gate_enter:{ko:'입장하기',en:'Enter',th:'เข้าสู่ระบบ',id:'Masuk',mn:'Нэвтрэх'},
+  gate_install_btn:{ko:'앱으로 설치하기',en:'Install as App',th:'ติดตั้งเป็นแอป',id:'Pasang sebagai Aplikasi',mn:'Апп болгон суулгах'},
+  ios_install_title:{ko:'홈 화면에 추가하는 방법',en:'How to Add to Home Screen',th:'วิธีเพิ่มไปยังหน้าจอหลัก',id:'Cara Menambahkan ke Layar Utama',mn:'Нүүр дэлгэц рүү нэмэх заавар'},
+  ios_install_step1:{ko:'하단(또는 상단)의 공유 버튼을 누르세요',en:'Tap the Share button at the bottom (or top)',th:'แตะปุ่มแชร์ที่ด้านล่าง (หรือด้านบน)',id:'Ketuk tombol Bagikan di bawah (atau atas)',mn:'Доод (эсвэл дээд) хэсэгт байрлах Хуваалцах товчийг дарна уу'},
+  ios_install_step2:{ko:'"홈 화면에 추가"를 선택하세요',en:'Select "Add to Home Screen"',th:'เลือก "เพิ่มไปยังหน้าจอหลัก"',id:'Pilih "Tambahkan ke Layar Utama"',mn:'"Нүүр дэлгэц рүү нэмэх"-ийг сонгоно уу'},
+  ios_install_step3:{ko:'"추가"를 누르면 완료됩니다',en:'Tap "Add" to finish',th:'แตะ "เพิ่ม" เพื่อเสร็จสิ้น',id:'Ketuk "Tambah" untuk selesai',mn:'"Нэмэх"-ийг дарж дуусгана уу'},
+  toast_app_installed:{ko:'앱이 설치되었습니다',en:'App installed',th:'ติดตั้งแอปแล้ว',id:'Aplikasi terpasang',mn:'Апп суулгагдлаа'},
 
   brand_tag:{ko:'ILSHIN CASTING',en:'ILSHIN CASTING',th:'ILSHIN CASTING',id:'ILSHIN CASTING',mn:'ILSHIN CASTING'},
   brand_title:{ko:'통합 안전관리',en:'Integrated Safety',th:'บริหารความปลอดภัยรวม',id:'Manajemen Keselamatan Terpadu',mn:'Нэгдсэн Аюулгүй Байдал'},
@@ -2119,20 +2127,32 @@ function printRisks(list){
 }
 
 // 위험성평가 엑셀 다운로드 — 공식 양식과 동일한 컬럼 구조로 출력 (한글 문서에 복사·붙여넣기 용도)
+function dataUrlToExt(dataUrl){
+  const m = /^data:image\/(\w+);base64,/.exec(dataUrl||'');
+  return m ? m[1].replace('jpeg','jpg') : 'jpg';
+}
+function dataUrlToBase64(dataUrl){
+  return (dataUrl||'').split(',')[1] || '';
+}
+
 function exportRisksExcel(list){
   if(!list || list.length===0){ toast(t('print_no_data')); return; }
   if(typeof XLSX==='undefined'){ toast('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
 
   // 2부: 위험성평가표 — 실제 사용 양식(순번/공정명/세부작업명/위험분류/유해위험요인파악/현재조치/가능성/중대성/위험성/감소대책/개선후위험성/접수일/완료일/담당자) 컬럼 구조 그대로
   const header2 = ['순번','공정명','세부작업명','위험분류','유해위험요인 파악(위험발생상황 및 결과)','현재의 안전보건조치','가능성','중대성','위험성','위험성 감소대책','개선후 위험성','접수일','완료일','담당자'];
-  // 3부: 위험성평가 개선계획서 — 개선전/후 사진 유무, 위험성 변화, 상태 중심
-  const header3 = ['공정명','점검사항(유해위험요인)','개선방법','개선전 사진','개선후 사진','개선전 위험성','개선후 위험성','상태','담당자'];
+  // 3부: 위험성평가 개선계획서 — 개선전/후 사진 파일명(zip 참조), 위험성 변화, 상태 중심
+  const header3 = ['공정명','점검사항(유해위험요인)','개선방법','개선전 사진파일','개선후 사진파일','개선전 위험성','개선후 위험성','상태','담당자'];
 
   const byProcess = {};
   list.forEach(r=>{
     const key = r.process || '기타';
     if(!byProcess[key]) byProcess[key] = [];
     byProcess[key].push(r);
+  });
+  // 공정별 1부터 매기는 사진 번호 — 엑셀 3부 시트와 zip 파일명이 서로 일치하도록 동일 인덱스 사용
+  Object.keys(byProcess).forEach(proc=>{
+    byProcess[proc].forEach((r, idx)=>{ r._photoIdx = idx+1; });
   });
 
   const wb = XLSX.utils.book_new();
@@ -2162,17 +2182,46 @@ function exportRisksExcel(list){
       const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
       return [
         r.process||'', r.hazard||'', r.measures||'',
-        r.photoBefore ? '있음' : '-', r.photoAfter ? '있음' : '-',
+        r.photoBefore ? `${proc}_${r._photoIdx}_개선전.${dataUrlToExt(r.photoBefore)}` : '-',
+        r.photoAfter ? `${proc}_${r._photoIdx}_개선후.${dataUrlToExt(r.photoAfter)}` : '-',
         score, afterScore,
         statusLabel(r.status)||'', r.reporter||''
       ];
     });
     const ws3 = XLSX.utils.aoa_to_sheet([header3, ...rows3]);
-    ws3['!cols'] = [{wch:10},{wch:32},{wch:28},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10}];
+    ws3['!cols'] = [{wch:10},{wch:32},{wch:28},{wch:22},{wch:22},{wch:10},{wch:10},{wch:12},{wch:10}];
     const safeSheetName3 = (proc+'_개선계획').slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'');
     XLSX.utils.book_append_sheet(wb, ws3, safeSheetName3 || 'Sheet2');
   });
   XLSX.writeFile(wb, `위험성평가_${todayStr()}.xlsx`);
+
+  // 사진은 엑셀에 직접 넣을 수 없어(무료 라이브러리 한계), 별도 zip 파일로 같이 내려받게 처리
+  if(typeof JSZip==='undefined'){
+    toast('사진 압축 라이브러리를 불러오지 못해 사진은 함께 다운로드되지 않았습니다.');
+    return;
+  }
+  const hasAnyPhoto = list.some(r=>r.photoBefore||r.photoAfter);
+  if(!hasAnyPhoto) return;
+  const zip = new JSZip();
+  Object.keys(byProcess).forEach(proc=>{
+    const folder = zip.folder(proc);
+    byProcess[proc].forEach(r=>{
+      if(r.photoBefore){
+        folder.file(`${proc}_${r._photoIdx}_개선전.${dataUrlToExt(r.photoBefore)}`, dataUrlToBase64(r.photoBefore), {base64:true});
+      }
+      if(r.photoAfter){
+        folder.file(`${proc}_${r._photoIdx}_개선후.${dataUrlToExt(r.photoAfter)}`, dataUrlToBase64(r.photoAfter), {base64:true});
+      }
+    });
+  });
+  zip.generateAsync({type:'blob'}).then(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `위험성평가_사진_${todayStr()}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    toast('사진은 별도 zip 파일로 함께 다운로드됩니다');
+  });
 }
 
 const HAZARD_CATEGORIES = ['기계적요인','화학적요인','작업특성요인','작업환경요인'];
@@ -3184,6 +3233,60 @@ function boot(){
     });
   });
 }
+
+/* ============================================================
+   17. PWA 설치 안내 (로그인 화면 버튼)
+============================================================= */
+let deferredInstallPrompt = null;
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+function updateInstallBtn(){
+  const btn = document.getElementById('gateInstallBtn');
+  if(!btn) return;
+  if(isStandalone){ btn.style.display = 'none'; return; }
+  if(deferredInstallPrompt || isIOS){
+    btn.style.display = '';
+    btn.innerHTML = `${icon('file-check',14)} ${t('gate_install_btn')}`;
+  }else{
+    btn.style.display = 'none';
+  }
+}
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  updateInstallBtn();
+});
+
+document.getElementById('gateInstallBtn').addEventListener('click', async ()=>{
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if(choice.outcome === 'accepted'){ toast(t('toast_app_installed')); }
+    deferredInstallPrompt = null;
+    updateInstallBtn();
+  }else if(isIOS){
+    showModal(`
+      <div class="modal-head"><h3>${t('ios_install_title')}</h3><button class="x-btn" data-close>✕</button></div>
+      <div class="modal-body">
+        <ol style="margin:0;padding-left:20px;font-size:13.5px;line-height:2;">
+          <li>${t('ios_install_step1')}</li>
+          <li>${t('ios_install_step2')}</li>
+          <li>${t('ios_install_step3')}</li>
+        </ol>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>${t('btn_close')}</button></div>
+    `);
+  }
+});
+
+window.addEventListener('appinstalled', ()=>{
+  deferredInstallPrompt = null;
+  updateInstallBtn();
+});
+
+updateInstallBtn();
 </script>
 
 <!-- ============================================================
