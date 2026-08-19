@@ -23,6 +23,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.44.0/build/docxtemplater.min.js"></script>
 
@@ -311,6 +312,7 @@ a{color:inherit;}
 .b-ok{background:var(--ok-dim);color:var(--ok);}
 .b-danger{background:var(--danger-dim);color:var(--danger);}
 .b-safety{background:var(--safety-dim);color:#B24A00;}
+.b-caution2{background:#FFE7C7;color:#9A4B00;}
 
 /* ---------- Toolbar / filter tabs ---------- */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
@@ -394,6 +396,33 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 .risk-mid{background:var(--caution);color:#5C4400;}
 .risk-high{background:var(--safety);}
 .risk-crit{background:var(--danger);}
+.risk-level-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;}
+.risk-legend{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 16px;padding:14px 16px;background:#F7F8FA;border:1px solid var(--line);border-radius:10px;margin-bottom:14px;}
+@media(max-width:620px){.risk-legend{grid-template-columns:1fr;}}
+.risk-legend-item{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;}
+.risk-legend-item b{font-size:12.5px;}
+.lightbox-overlay{
+  position:fixed;inset:0;background:rgba(10,14,26,.88);z-index:500;
+  display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;
+  animation:lightbox-fade .12s ease-out;
+}
+@keyframes lightbox-fade{from{opacity:0;}to{opacity:1;}}
+.lightbox-overlay img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.lightbox-close{
+  position:fixed;top:20px;right:24px;width:40px;height:40px;border-radius:50%;
+  background:rgba(255,255,255,.15);color:#fff;border:none;font-size:18px;cursor:pointer;
+}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.gallery-card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+.gc-photos{display:grid;grid-template-columns:1fr 1fr;}
+.gc-photo{position:relative;aspect-ratio:1/1;background:#EEF1F5;}
+.gc-photo img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:block;}
+.gc-noimg{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:11px;}
+.gc-tag{position:absolute;bottom:6px;left:6px;background:rgba(20,25,43,.72);color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;}
+.gc-body{padding:12px 14px;}
+.gc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}
+.gc-hazard{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.5;}
+.gc-score{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800;color:var(--ink);}
 
 /* ---------- Login gate ---------- */
 .gate{
@@ -406,6 +435,13 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 }
 .gate-card h2{margin:0 0 4px;font-size:19px;font-weight:800;}
 .gate-card p{margin:0 0 20px;font-size:12.5px;color:var(--ink-soft);}
+.lang-picker{display:flex;flex-wrap:wrap;gap:7px;}
+.lang-btn{
+  display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;
+  border:1.5px solid var(--line);background:#fff;font-size:12.5px;font-weight:700;color:var(--ink);
+}
+.lang-btn .flag{font-size:16px;line-height:1;}
+.lang-btn.active{border-color:var(--safety);background:var(--safety-dim);color:#B24A00;}
 .gate-actions{display:flex;gap:8px;margin-top:6px;}
 .gate-actions .btn{flex:1;justify-content:center;}
 
@@ -474,13 +510,13 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
     <p data-i18n="gate_desc">안전환경부 · 사고예방 및 현장관리 통합 플랫폼</p>
     <div class="field">
       <label data-i18n="gate_lang_label">언어 선택</label>
-      <select id="gateLang">
-        <option value="ko">한국어</option>
-        <option value="en">English</option>
-        <option value="th">ไทย (Thai)</option>
-        <option value="id">Bahasa Indonesia</option>
-        <option value="mn">Монгол (Mongolian)</option>
-      </select>
+      <div class="lang-picker" id="langPicker">
+        <button type="button" class="lang-btn" data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span></button>
+        <button type="button" class="lang-btn" data-lang="en"><span class="flag">🇺🇸</span><span>English</span></button>
+        <button type="button" class="lang-btn" data-lang="th"><span class="flag">🇹🇭</span><span>ไทย</span></button>
+        <button type="button" class="lang-btn" data-lang="id"><span class="flag">🇮🇩</span><span>Indonesia</span></button>
+        <button type="button" class="lang-btn" data-lang="mn"><span class="flag">🇲🇳</span><span>Монгол</span></button>
+      </div>
     </div>
     <div class="field">
       <label data-i18n="gate_mode_label">접속 모드</label>
@@ -731,6 +767,306 @@ const TRANSLATIONS = {
   toast_pw_required:{ko:'비밀번호를 입력해주세요',en:'Please enter a password',th:'กรุณากรอกรหัสผ่าน',id:'Silakan masukkan kata sandi',mn:'Нууц үгээ оруулна уу'},
   toast_pw_mismatch:{ko:'비밀번호가 일치하지 않습니다',en:'The password does not match',th:'รหัสผ่านไม่ถูกต้อง',id:'Kata sandi tidak cocok',mn:'Нууц үг таарахгүй байна'},
   toast_switched_user:{ko:'일반 열람 모드로 전환되었습니다',en:'Switched to general view mode',th:'เปลี่ยนเป็นโหมดผู้ใช้ทั่วไปแล้ว',id:'Beralih ke mode pengguna umum',mn:'Энгийн үзэх горимд шилжлээ'},
+
+  /* ===== 2단계: 공통 버튼 ===== */
+  btn_save:{ko:'저장',en:'Save',th:'บันทึก',id:'Simpan',mn:'Хадгалах'},
+  btn_cancel:{ko:'취소',en:'Cancel',th:'ยกเลิก',id:'Batal',mn:'Цуцлах'},
+  btn_close:{ko:'닫기',en:'Close',th:'ปิด',id:'Tutup',mn:'Хаах'},
+  btn_edit:{ko:'수정',en:'Edit',th:'แก้ไข',id:'Ubah',mn:'Засах'},
+  btn_delete:{ko:'삭제',en:'Delete',th:'ลบ',id:'Hapus',mn:'Устгах'},
+  btn_view:{ko:'보기',en:'View',th:'ดู',id:'Lihat',mn:'Харах'},
+  btn_register:{ko:'등록',en:'Register',th:'ลงทะเบียน',id:'Daftar',mn:'Бүртгэх'},
+  btn_manage_col:{ko:'관리',en:'Actions',th:'จัดการ',id:'Kelola',mn:'Удирдах'},
+  tab_all:{ko:'전체',en:'All',th:'ทั้งหมด',id:'Semua',mn:'Бүгд'},
+
+  /* ===== 2단계: 상태 라벨 (저장값은 한국어 그대로, 표시만 번역) ===== */
+  status_신청:{ko:'신청',en:'Applied',th:'ยื่นคำขอ',id:'Diajukan',mn:'Хүсэлт гаргасан'},
+  status_검토중:{ko:'검토중',en:'Under Review',th:'กำลังตรวจสอบ',id:'Sedang Ditinjau',mn:'Хянаж байна'},
+  status_승인:{ko:'승인',en:'Approved',th:'อนุมัติ',id:'Disetujui',mn:'Батлагдсан'},
+  status_반려:{ko:'반려',en:'Rejected',th:'ปฏิเสธ',id:'Ditolak',mn:'Татгалзсан'},
+  status_종료:{ko:'종료',en:'Closed',th:'ปิดงาน',id:'Selesai',mn:'Дууссан'},
+  status_등록:{ko:'등록',en:'Registered',th:'ลงทะเบียน',id:'Terdaftar',mn:'Бүртгэгдсэн'},
+  status_접수완료:{ko:'접수완료',en:'Received',th:'รับเรื่องแล้ว',id:'Diterima',mn:'Хүлээн авсан'},
+  status_조치중:{ko:'조치중',en:'In Progress',th:'กำลังดำเนินการ',id:'Sedang Diproses',mn:'Арга хэмжээ авч байна'},
+  status_완료:{ko:'완료',en:'Completed',th:'เสร็จสิ้น',id:'Selesai',mn:'Дууссан'},
+  status_일부개선완료:{ko:'일부개선완료',en:'Partially Improved',th:'ปรับปรุงบางส่วนแล้ว',id:'Sebagian Diperbaiki',mn:'Хэсэгчлэн сайжруулсан'},
+
+  /* ===== 5단계: 개선사례 갤러리 ===== */
+  btn_gallery_view:{ko:'개선사례 보기',en:'View Success Cases',th:'ดูกรณีความสำเร็จ',id:'Lihat Kasus Sukses',mn:'Сайжруулсан жишээ харах'},
+  btn_table_view:{ko:'목록으로 보기',en:'View as List',th:'ดูเป็นรายการ',id:'Lihat sebagai Daftar',mn:'Жагсаалт хэлбэрээр харах'},
+  gallery_title:{ko:'개선 완료 사례',en:'Completed Improvement Cases',th:'กรณีการปรับปรุงที่เสร็จสิ้น',id:'Kasus Perbaikan yang Selesai',mn:'Дууссан сайжруулалтын жишээ'},
+  gallery_empty:{ko:'아직 개선 완료된 사례가 없습니다',en:'No completed improvement cases yet',th:'ยังไม่มีกรณีการปรับปรุงที่เสร็จสิ้น',id:'Belum ada kasus perbaikan yang selesai',mn:'Одоогоор дууссан сайжруулалтын жишээ алга байна'},
+  gallery_before:{ko:'개선 전',en:'Before',th:'ก่อนปรับปรุง',id:'Sebelum',mn:'Өмнө'},
+  gallery_after:{ko:'개선 후',en:'After',th:'หลังปรับปรุง',id:'Setelah',mn:'Дараа'},
+  gallery_no_photo:{ko:'사진 없음',en:'No photo',th:'ไม่มีรูปภาพ',id:'Tidak ada foto',mn:'Зураг байхгүй'},
+  status_접수:{ko:'접수',en:'Received',th:'รับเรื่อง',id:'Diterima',mn:'Хүлээн авсан'},
+  status_조사중:{ko:'조사중',en:'Investigating',th:'กำลังสอบสวน',id:'Sedang Diselidiki',mn:'Судалж байна'},
+
+  /* ===== 2단계: 작업허가 목록 화면 ===== */
+  permits_add_btn:{ko:'작업허가 신청 등록',en:'New Permit Request',th:'ยื่นคำขอใบอนุญาตทำงาน',id:'Ajukan Izin Kerja Baru',mn:'Ажлын зөвшөөрлийн хүсэлт'},
+  permits_empty:{ko:'등록된 작업허가가 없습니다',en:'No work permits registered',th:'ไม่มีใบอนุญาตทำงานที่ลงทะเบียน',id:'Belum ada izin kerja terdaftar',mn:'Бүртгэгдсэн ажлын зөвшөөрөл алга байна'},
+  th_company:{ko:'업체명',en:'Company',th:'บริษัท',id:'Perusahaan',mn:'Компани'},
+  th_workcontent:{ko:'작업내용',en:'Work Content',th:'รายละเอียดงาน',id:'Isi Pekerjaan',mn:'Ажлын агуулга'},
+  th_worktype:{ko:'구분',en:'Type',th:'ประเภท',id:'Jenis',mn:'Төрөл'},
+  th_workperiod:{ko:'작업기간',en:'Work Period',th:'ระยะเวลาทำงาน',id:'Periode Kerja',mn:'Ажлын хугацаа'},
+  th_processmanager:{ko:'공정담당자',en:'Process Manager',th:'ผู้รับผิดชอบกระบวนการ',id:'Penanggung Jawab Proses',mn:'Процессын хариуцагч'},
+  th_firework:{ko:'화기',en:'Hot Work',th:'งานเปลวไฟ',id:'Pekerjaan Panas',mn:'Галын ажил'},
+  th_status:{ko:'상태',en:'Status',th:'สถานะ',id:'Status',mn:'Төлөв'},
+
+  /* ===== 2단계: 위험성평가 목록 화면 ===== */
+  risks_add_btn:{ko:'위험성평가 등록',en:'Register Risk Assessment',th:'ลงทะเบียนการประเมินความเสี่ยง',id:'Daftarkan Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ бүртгэх'},
+  risks_empty:{ko:'등록된 위험성평가가 없습니다',en:'No risk assessments registered',th:'ไม่มีการประเมินความเสี่ยงที่ลงทะเบียน',id:'Belum ada penilaian risiko terdaftar',mn:'Бүртгэгдсэн эрсдэлийн үнэлгээ алга байна'},
+  th_process_task:{ko:'공정 · 작업',en:'Process · Task',th:'กระบวนการ · งาน',id:'Proses · Tugas',mn:'Процесс · Ажил'},
+  th_hazard:{ko:'유해위험요인',en:'Hazard',th:'อันตราย',id:'Bahaya',mn:'Эрсдэлийн хүчин зүйл'},
+  th_frequency:{ko:'빈도',en:'Frequency',th:'ความถี่',id:'Frekuensi',mn:'Давтамж'},
+  th_severity:{ko:'강도',en:'Severity',th:'ความรุนแรง',id:'Tingkat Keparahan',mn:'Хүнд байдал'},
+  th_risklevel:{ko:'위험도',en:'Risk Level',th:'ระดับความเสี่ยง',id:'Tingkat Risiko',mn:'Эрсдэлийн түвшин'},
+  th_measures:{ko:'개선대책',en:'Improvement Measures',th:'มาตรการปรับปรุง',id:'Tindakan Perbaikan',mn:'Сайжруулах арга хэмжээ'},
+  th_photo:{ko:'사진',en:'Photo',th:'รูปภาพ',id:'Foto',mn:'Зураг'},
+  th_reporter_applicant:{ko:'신청자',en:'Applicant',th:'ผู้ยื่นคำขอ',id:'Pemohon',mn:'Хүсэлт гаргагч'},
+
+  /* ===== 2단계: 사고접수 목록 화면 ===== */
+  incidents_add_btn:{ko:'사고 접수',en:'Report Incident',th:'แจ้งอุบัติเหตุ',id:'Laporkan Insiden',mn:'Осол мэдээлэх'},
+  incidents_empty:{ko:'등록된 접수가 없습니다',en:'No reports registered',th:'ไม่มีรายงานที่ลงทะเบียน',id:'Belum ada laporan terdaftar',mn:'Бүртгэгдсэн мэдээлэл алга байна'},
+  th_datetime:{ko:'발생일시',en:'Date/Time',th:'วันที่/เวลาที่เกิด',id:'Tanggal/Waktu Kejadian',mn:'Болсон огноо/цаг'},
+  th_process:{ko:'공정',en:'Process',th:'กระบวนการ',id:'Proses',mn:'Процесс'},
+  th_location:{ko:'장소',en:'Location',th:'สถานที่',id:'Lokasi',mn:'Байршил'},
+  th_content:{ko:'내용',en:'Content',th:'รายละเอียด',id:'Isi',mn:'Агуулга'},
+  th_reporter:{ko:'신고자',en:'Reporter',th:'ผู้แจ้ง',id:'Pelapor',mn:'Мэдээлэгч'},
+  th_accidenttype:{ko:'사고유형',en:'Incident Type',th:'ประเภทอุบัติเหตุ',id:'Jenis Insiden',mn:'Ослын төрөл'},
+  th_injuryseverity:{ko:'부상정도',en:'Injury Severity',th:'ความรุนแรงของบาดเจ็บ',id:'Tingkat Keparahan Cedera',mn:'Гэмтлийн хэмжээ'},
+
+  /* ===== 2단계: 도급업체 관리 화면 ===== */
+  contractors_add_company_btn:{ko:'업체 등록',en:'Add Company',th:'เพิ่มบริษัท',id:'Tambah Perusahaan',mn:'Компани нэмэх'},
+  contractors_add_record_btn:{ko:'회의록 · 점검일지 등록',en:'Add Minutes/Inspection Log',th:'เพิ่มบันทึกการประชุม/ตรวจสอบ',id:'Tambah Notulen/Log Inspeksi',mn:'Хурлын тэмдэглэл/шалгалт нэмэх'},
+  contractors_list_title:{ko:'도급업체 목록',en:'Contractor List',th:'รายชื่อผู้รับเหมา',id:'Daftar Kontraktor',mn:'Гэрээт компанийн жагсаалт'},
+  contractors_records_title:{ko:'회의록 · 점검일지',en:'Minutes · Inspection Logs',th:'บันทึกการประชุม · บันทึกตรวจสอบ',id:'Notulen · Log Inspeksi',mn:'Хурлын тэмдэглэл · Шалгалтын тэмдэглэл'},
+  contractors_empty:{ko:'등록된 업체가 없습니다',en:'No companies registered',th:'ไม่มีบริษัทที่ลงทะเบียน',id:'Belum ada perusahaan terdaftar',mn:'Бүртгэгдсэн компани алга байна'},
+  records_empty:{ko:'등록된 기록이 없습니다',en:'No records registered',th:'ไม่มีบันทึกที่ลงทะเบียน',id:'Belum ada catatan terdaftar',mn:'Бүртгэгдсэн тэмдэглэл алга байна'},
+  th_type:{ko:'유형',en:'Type',th:'ประเภท',id:'Jenis',mn:'Төрөл'},
+  th_role:{ko:'담당업무',en:'Role',th:'หน้าที่รับผิดชอบ',id:'Tugas',mn:'Хариуцах ажил'},
+  th_contact:{ko:'연락처',en:'Contact',th:'ติดต่อ',id:'Kontak',mn:'Холбоо барих'},
+  th_recordtype:{ko:'구분',en:'Type',th:'ประเภท',id:'Jenis',mn:'Төрөл'},
+  th_targetcompany:{ko:'대상업체',en:'Company',th:'บริษัทเป้าหมาย',id:'Perusahaan Terkait',mn:'Хамрагдах компани'},
+  th_date:{ko:'일자',en:'Date',th:'วันที่',id:'Tanggal',mn:'Огноо'},
+  th_author:{ko:'작성자',en:'Author',th:'ผู้บันทึก',id:'Penulis',mn:'Бичсэн хүн'},
+
+  /* ===== 2단계: 공지사항 · 비상연락망 화면 ===== */
+  notices_tab:{ko:'공지사항',en:'Notices',th:'ประกาศ',id:'Pengumuman',mn:'Мэдэгдэл'},
+  contacts_tab:{ko:'☎ 비상연락망',en:'☎ Emergency Contacts',th:'☎ เบอร์ติดต่อฉุกเฉิน',id:'☎ Kontak Darurat',mn:'☎ Онцгой байдлын холбоо'},
+  notice_add_btn:{ko:'공지 등록',en:'Add Notice',th:'เพิ่มประกาศ',id:'Tambah Pengumuman',mn:'Мэдэгдэл нэмэх'},
+  contact_add_btn:{ko:'연락처 등록',en:'Add Contact',th:'เพิ่มผู้ติดต่อ',id:'Tambah Kontak',mn:'Холбоо барих хаяг нэмэх'},
+  notices_empty:{ko:'등록된 공지사항이 없습니다',en:'No notices registered',th:'ไม่มีประกาศที่ลงทะเบียน',id:'Belum ada pengumuman terdaftar',mn:'Бүртгэгдсэн мэдэгдэл алга байна'},
+  contacts_empty:{ko:'등록된 비상연락처가 없습니다',en:'No emergency contacts registered',th:'ไม่มีเบอร์ติดต่อฉุกเฉินที่ลงทะเบียน',id:'Belum ada kontak darurat terdaftar',mn:'Бүртгэгдсэн онцгой байдлын холбоо барих хаяг алга байна'},
+  pinned_badge:{ko:'고정',en:'Pinned',th:'ปักหมุด',id:'Disematkan',mn:'Бэхлэгдсэн'},
+
+  /* ===== 2단계: 사고유형 ===== */
+  accidenttype_추락:{ko:'추락',en:'Fall from height',th:'ตกจากที่สูง',id:'Jatuh dari ketinggian',mn:'Өндрөөс унах'},
+  accidenttype_넘어짐:{ko:'넘어짐',en:'Slip/Trip',th:'ลื่นล้ม',id:'Terpeleset/Tersandung',mn:'Гулсаж унах'},
+  accidenttype_부딪힘:{ko:'부딪힘',en:'Struck by/against',th:'ถูกกระแทก',id:'Terbentur',mn:'Мөргөлдөх'},
+  'accidenttype_끼임(협착)':{ko:'끼임(협착)',en:'Caught/Crushed',th:'ติดหนีบ',id:'Terjepit',mn:'Хавчигдах'},
+  accidenttype_감전:{ko:'감전',en:'Electric shock',th:'ไฟฟ้าดูด',id:'Tersengat listrik',mn:'Цахилгаанд цохиулах'},
+  accidenttype_화상:{ko:'화상',en:'Burn',th:'ไฟไหม้/ลวก',id:'Luka bakar',mn:'Түлэгдэх'},
+  'accidenttype_절단·베임':{ko:'절단·베임',en:'Cut/Laceration',th:'บาด/ตัด',id:'Terpotong/Tersayat',mn:'Огтлогдох/зүсэгдэх'},
+  'accidenttype_기타(직접입력)':{ko:'기타(직접입력)',en:'Other (specify)',th:'อื่นๆ (ระบุ)',id:'Lainnya (isi)',mn:'Бусад (бичих)'},
+
+  /* ===== 3단계: 공통 폼 ===== */
+  toast_fill_required:{ko:'필수 항목(*)을 입력해주세요',en:'Please fill in all required (*) fields',th:'กรุณากรอกข้อมูลที่จำเป็น (*)',id:'Harap isi semua bidang wajib (*)',mn:'Заавал бөглөх (*) талбаруудыг бөглөнө үү'},
+  toast_deleted:{ko:'삭제되었습니다',en:'Deleted',th:'ลบแล้ว',id:'Telah dihapus',mn:'Устгагдлаа'},
+  confirm_delete:{ko:'삭제하시겠습니까?',en:'Are you sure you want to delete this?',th:'ต้องการลบใช่หรือไม่?',id:'Apakah Anda yakin ingin menghapus ini?',mn:'Устгахдаа итгэлтэй байна уу?'},
+
+  /* ===== 3단계: 작업허가 모달 ===== */
+  permit_new_title:{ko:'안전작업허가서 신청 등록',en:'New Safety Work Permit Request',th:'ยื่นคำขอใบอนุญาตทำงานปลอดภัย',id:'Ajukan Izin Kerja Aman Baru',mn:'Аюулгүй ажлын зөвшөөрлийн хүсэлт бүртгэх'},
+  permit_edit_title:{ko:'작업허가 정보 수정',en:'Edit Work Permit',th:'แก้ไขใบอนุญาตทำงาน',id:'Ubah Izin Kerja',mn:'Ажлын зөвшөөрлийн мэдээлэл засах'},
+  lbl_company:{ko:'외주업체명',en:'Contractor Company',th:'ชื่อบริษัทผู้รับเหมา',id:'Nama Perusahaan Kontraktor',mn:'Гэрээт компанийн нэр'},
+  lbl_worktype:{ko:'작업구분',en:'Work Type',th:'ประเภทงาน',id:'Jenis Pekerjaan',mn:'Ажлын төрөл'},
+  worktype_공사:{ko:'공사',en:'Construction',th:'งานก่อสร้าง',id:'Konstruksi',mn:'Барилга'},
+  worktype_정비:{ko:'정비',en:'Maintenance',th:'งานซ่อมบำรุง',id:'Pemeliharaan',mn:'Засвар үйлчилгээ'},
+  worktype_운송:{ko:'운송',en:'Transport',th:'งานขนส่ง',id:'Transportasi',mn:'Тээвэрлэлт'},
+  lbl_workname:{ko:'작업명(작업내용)',en:'Work Name (Description)',th:'ชื่องาน (รายละเอียด)',id:'Nama Pekerjaan (Deskripsi)',mn:'Ажлын нэр (Тайлбар)'},
+  lbl_worklocation:{ko:'작업장소',en:'Work Location',th:'สถานที่ทำงาน',id:'Lokasi Kerja',mn:'Ажлын байршил'},
+  lbl_startdate:{ko:'작업 시작일',en:'Start Date',th:'วันที่เริ่มงาน',id:'Tanggal Mulai',mn:'Эхлэх огноо'},
+  lbl_enddate:{ko:'작업 종료일',en:'End Date',th:'วันที่สิ้นสุดงาน',id:'Tanggal Selesai',mn:'Дуусах огноо'},
+  lbl_headcount:{ko:'작업인원',en:'Number of Workers',th:'จำนวนผู้ปฏิบัติงาน',id:'Jumlah Pekerja',mn:'Ажилчдын тоо'},
+  lbl_processmanager:{ko:'공정 담당자(1차 확인)',en:'Process Manager (First Check)',th:'ผู้รับผิดชอบกระบวนการ (ตรวจสอบครั้งที่ 1)',id:'Penanggung Jawab Proses (Pemeriksaan Pertama)',mn:'Процессын хариуцагч (1-р шалгалт)'},
+  lbl_sitesuper:{ko:'현장감독자(외주업체)',en:'Site Supervisor (Contractor)',th:'หัวหน้างานหน้างาน (ผู้รับเหมา)',id:'Pengawas Lapangan (Kontraktor)',mn:'Талбайн хяналт (Гэрээт компани)'},
+  lbl_hazard_equipment:{ko:'위험요인(사용설비)',en:'Hazard (Equipment Used)',th:'อันตราย (อุปกรณ์ที่ใช้)',id:'Bahaya (Peralatan yang Digunakan)',mn:'Эрсдэл (Ашиглах тоног төхөөрөмж)'},
+  hint_select_all_equip:{ko:'— 해당 설비를 모두 선택하세요',en:'— Select all equipment that applies',th:'— เลือกอุปกรณ์ที่เกี่ยวข้องทั้งหมด',id:'— Pilih semua peralatan yang berlaku',mn:'— Холбогдох бүх тоног төхөөрөмжийг сонгоно уу'},
+  equip_crane:{ko:'크레인·호이스트',en:'Crane/Hoist',th:'เครน/รอก',id:'Derek/Hoist',mn:'Кран/Ачигч'},
+  equip_forklift:{ko:'지게차',en:'Forklift',th:'รถโฟล์คลิฟท์',id:'Forklift',mn:'Ачигч тэрэг'},
+  equip_conveyor:{ko:'컨베이어',en:'Conveyor',th:'สายพานลำเลียง',id:'Konveyor',mn:'Дамжуулагч'},
+  equip_press:{ko:'프레스',en:'Press',th:'เครื่องปั๊ม',id:'Mesin Press',mn:'Пресс'},
+  equip_welder:{ko:'용접기',en:'Welding Machine',th:'เครื่องเชื่อม',id:'Mesin Las',mn:'Гагнуурын машин'},
+  equip_ladder:{ko:'사다리·고소작업대',en:'Ladder/Aerial Work Platform',th:'บันได/แท่นทำงานบนที่สูง',id:'Tangga/Platform Kerja Tinggi',mn:'Шат/Өндөрт ажиллах тавцан'},
+  'equip_electrical':{ko:'전기설비(배전반 등)',en:'Electrical Equipment (Switchboard, etc.)',th:'อุปกรณ์ไฟฟ้า (ตู้ไฟ ฯลฯ)',id:'Peralatan Listrik (Panel, dll.)',mn:'Цахилгааны тоноглол (Тараах самбар г.м)'},
+  'equip_rotating':{ko:'회전체(롤러·기어 등)',en:'Rotating Equipment (Roller, Gear, etc.)',th:'อุปกรณ์หมุน (ลูกกลิ้ง เกียร์ ฯลฯ)',id:'Peralatan Berputar (Roller, Gear, dll.)',mn:'Эргэдэг эд анги (Гөлгөр, Хайрцаг г.м)'},
+  equip_other:{ko:'기타(직접입력)',en:'Other (specify)',th:'อื่นๆ (ระบุ)',id:'Lainnya (isi)',mn:'Бусад (бичих)'},
+  placeholder_equip_other:{ko:'기타 사용설비를 직접 입력하세요',en:'Enter other equipment used',th:'ระบุอุปกรณ์อื่นๆ ที่ใช้',id:'Masukkan peralatan lain yang digunakan',mn:'Бусад ашигласан тоног төхөөрөмжийг бичнэ үү'},
+  lbl_hazard_measures:{ko:'위험요인 및 안전조치사항',en:'Hazards and Safety Measures',th:'อันตรายและมาตรการความปลอดภัย',id:'Bahaya dan Tindakan Keselamatan',mn:'Эрсдэл ба аюулгүй ажиллагааны арга хэмжээ'},
+  lbl_firework_check:{ko:'화기작업 해당 (용접·용단 등)',en:'Hot Work Applicable (Welding, Cutting, etc.)',th:'เป็นงานเปลวไฟ (เชื่อม ตัด ฯลฯ)',id:'Termasuk Pekerjaan Panas (Las, Potong, dll.)',mn:'Галын ажилд хамаарна (Гагнуур, Огтлолт г.м)'},
+  lbl_firedetail:{ko:'화기작업 상세',en:'Hot Work Details',th:'รายละเอียดงานเปลวไฟ',id:'Detail Pekerjaan Panas',mn:'Галын ажлын дэлгэрэнгүй'},
+  lbl_watchman:{ko:'화재감시자 배치',en:'Fire Watch Assignment',th:'การจัดเจ้าหน้าที่เฝ้าระวังไฟ',id:'Penugasan Pengawas Api',mn:'Гал хамгаалагч томилох'},
+  lbl_extinguisher:{ko:'소화기 등 소화설비 비치',en:'Fire Extinguisher/Equipment Provided',th:'จัดเตรียมถังดับเพลิง/อุปกรณ์ดับเพลิง',id:'Alat Pemadam Api Disediakan',mn:'Гал унтраагуур бэлэн байлгах'},
+  lbl_combustible:{ko:'가연물 제거·방호조치',en:'Combustibles Removal/Protection',th:'การกำจัดวัสดุไวไฟ/มาตรการป้องกัน',id:'Penghapusan/Perlindungan Bahan Mudah Terbakar',mn:'Шатамхай зүйл зайлуулах/хамгаалах арга хэмжээ'},
+  lbl_progress_admin:{ko:'진행현황 (관리자)',en:'Status (Admin)',th:'สถานะ (ผู้ดูแลระบบ)',id:'Status (Admin)',mn:'Явц (Админ)'},
+  lbl_note:{ko:'비고',en:'Notes',th:'หมายเหตุ',id:'Catatan',mn:'Тэмдэглэл'},
+  toast_permit_updated:{ko:'작업허가 정보를 수정했습니다',en:'Work permit information updated',th:'อัปเดตข้อมูลใบอนุญาตทำงานแล้ว',id:'Informasi izin kerja telah diperbarui',mn:'Ажлын зөвшөөрлийн мэдээлэл шинэчлэгдлээ'},
+  toast_permit_registered:{ko:'작업허가 신청이 등록되었습니다',en:'Work permit request has been registered',th:'ลงทะเบียนคำขอใบอนุญาตทำงานแล้ว',id:'Permintaan izin kerja telah didaftarkan',mn:'Ажлын зөвшөөрлийн хүсэлт бүртгэгдлээ'},
+
+  /* ===== 3단계: 작업허가 상세보기 ===== */
+  permit_detail_title:{ko:'작업허가 상세',en:'Work Permit Details',th:'รายละเอียดใบอนุญาตทำงาน',id:'Detail Izin Kerja',mn:'Ажлын зөвшөөрлийн дэлгэрэнгүй'},
+  dt_type:{ko:'구분',en:'Type',th:'ประเภท',id:'Jenis',mn:'Төрөл'},
+  firework_tag:{ko:'화기작업',en:'Hot Work',th:'งานเปลวไฟ',id:'Pekerjaan Panas',mn:'Галын ажил'},
+  dt_workperiod:{ko:'작업기간',en:'Work Period',th:'ระยะเวลาทำงาน',id:'Periode Kerja',mn:'Ажлын хугацаа'},
+  dt_safety_measures:{ko:'안전조치사항',en:'Safety Measures',th:'มาตรการความปลอดภัย',id:'Tindakan Keselamatan',mn:'Аюулгүй ажиллагааны арга хэмжээ'},
+  btn_download_permit:{ko:'허가서 다운로드(원본 양식)',en:'Download Permit (Original Form)',th:'ดาวน์โหลดใบอนุญาต (แบบฟอร์มต้นฉบับ)',id:'Unduh Izin (Formulir Asli)',mn:'Зөвшөөрөл татах (Эх маягт)'},
+  btn_term_input:{ko:'작업종료 확인 입력',en:'Enter Completion Check',th:'กรอกข้อมูลตรวจสอบงานเสร็จสิ้น',id:'Masukkan Pemeriksaan Selesai',mn:'Ажил дуусгах баталгаажуулалт оруулах'},
+  btn_term_edit:{ko:'작업종료 확인 수정',en:'Edit Completion Check',th:'แก้ไขข้อมูลตรวจสอบงานเสร็จสิ้น',id:'Ubah Pemeriksaan Selesai',mn:'Ажил дуусгах баталгаажуулалт засах'},
+  dt_enddatetime:{ko:'종료일시',en:'End Date/Time',th:'วันที่/เวลาสิ้นสุด',id:'Tanggal/Waktu Selesai',mn:'Дуусах огноо/цаг'},
+  dt_sitecondition:{ko:'현장상태',en:'Site Condition',th:'สภาพหน้างาน',id:'Kondisi Lokasi',mn:'Талбайн байдал'},
+  dt_residualcheck:{ko:'잔불확인',en:'Residual Fire Check',th:'ตรวจสอบไฟตกค้าง',id:'Pemeriksaan Sisa Api',mn:'Үлдэгдэл галын шалгалт'},
+  dt_confirmer:{ko:'확인자',en:'Confirmed By',th:'ผู้ตรวจสอบ',id:'Diperiksa Oleh',mn:'Баталгаажуулагч'},
+  confirm_delete_permit:{ko:'이 작업허가 항목을 삭제하시겠습니까?',en:'Are you sure you want to delete this work permit?',th:'ต้องการลบใบอนุญาตทำงานนี้ใช่หรือไม่?',id:'Apakah Anda yakin ingin menghapus izin kerja ini?',mn:'Энэ ажлын зөвшөөрлийг устгахдаа итгэлтэй байна уу?'},
+  term_modal_title:{ko:'작업종료 확인 입력',en:'Work Completion Check',th:'ข้อมูลตรวจสอบงานเสร็จสิ้น',id:'Pemeriksaan Selesai Kerja',mn:'Ажил дуусгах баталгаажуулалт'},
+  term_modal_hint:{ko:'작업이 끝난 뒤, 현장에서 확인한 내용을 입력해주세요.',en:'After work is finished, please enter what was confirmed on site.',th:'หลังงานเสร็จสิ้น กรุณากรอกข้อมูลที่ตรวจสอบหน้างาน',id:'Setelah pekerjaan selesai, silakan masukkan apa yang telah diperiksa di lokasi.',mn:'Ажил дууссаны дараа талбай дээр баталгаажуулсан зүйлээ оруулна уу.'},
+  lbl_last_entered:{ko:'마지막 입력',en:'Last entered',th:'บันทึกล่าสุด',id:'Terakhir dimasukkan',mn:'Сүүлд оруулсан'},
+  toast_term_saved:{ko:'작업종료 확인 내용이 저장되었습니다',en:'Completion check has been saved',th:'บันทึกข้อมูลตรวจสอบงานเสร็จสิ้นแล้ว',id:'Pemeriksaan selesai telah disimpan',mn:'Ажил дуусгах баталгаажуулалт хадгалагдлаа'},
+  lbl_end_datetime_input:{ko:'작업종료 일시',en:'Work Completion Date/Time',th:'วันที่/เวลาสิ้นสุดงาน',id:'Tanggal/Waktu Selesai Kerja',mn:'Ажил дуусах огноо/цаг'},
+  lbl_sitecondition_input:{ko:'현장 정리정돈·안전상태',en:'Site Cleanup/Safety Condition',th:'สภาพความสะอาด/ความปลอดภัยหน้างาน',id:'Kondisi Kebersihan/Keselamatan Lokasi',mn:'Талбайн цэвэрлэгээ/аюулгүй байдал'},
+  opt_none_selected:{ko:'선택 안 함',en:'Not selected',th:'ไม่ได้เลือก',id:'Tidak dipilih',mn:'Сонгоогүй'},
+  opt_site_ok:{ko:'이상없음',en:'No Issues',th:'ไม่มีปัญหา',id:'Tidak Ada Masalah',mn:'Асуудалгүй'},
+  opt_site_notok:{ko:'이상있음',en:'Issues Found',th:'พบปัญหา',id:'Ada Masalah',mn:'Асуудал байна'},
+  lbl_residualcheck_input:{ko:'잔불확인 결과 (화기작업 시)',en:'Residual Fire Check Result (for Hot Work)',th:'ผลตรวจสอบไฟตกค้าง (สำหรับงานเปลวไฟ)',id:'Hasil Pemeriksaan Sisa Api (untuk Pekerjaan Panas)',mn:'Үлдэгдэл галын шалгалтын үр дүн (Галын ажилд)'},
+  lbl_endconfirmer_input:{ko:'확인자(공정담당자)',en:'Confirmed By (Process Manager)',th:'ผู้ตรวจสอบ (ผู้รับผิดชอบกระบวนการ)',id:'Diperiksa Oleh (Penanggung Jawab Proses)',mn:'Баталгаажуулагч (Процессын хариуцагч)'},
+  role_full_admin:{ko:'전체관리자',en:'Full Administrator',th:'ผู้ดูแลระบบทั้งหมด',id:'Administrator Utama',mn:'Бүх эрхтэй админ'},
+  role_dept_admin:{ko:'부서관리자',en:'Department Admin',th:'ผู้ดูแลแผนก',id:'Admin Departemen',mn:'Хэлтсийн админ'},
+
+  /* ===== 3단계: 위험성평가 모달 ===== */
+  risk_new_title:{ko:'위험성평가 등록',en:'Register Risk Assessment',th:'ลงทะเบียนการประเมินความเสี่ยง',id:'Daftarkan Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ бүртгэх'},
+  risk_edit_title:{ko:'위험성평가 수정',en:'Edit Risk Assessment',th:'แก้ไขการประเมินความเสี่ยง',id:'Ubah Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ засах'},
+  lbl_processname:{ko:'공정명',en:'Process Name',th:'ชื่อกระบวนการ',id:'Nama Proses',mn:'Процессын нэр'},
+  lbl_subtask:{ko:'세부 작업',en:'Sub-task',th:'งานย่อย',id:'Sub-tugas',mn:'Дэд ажил'},
+  lbl_hazard:{ko:'유해위험요인',en:'Hazard',th:'อันตราย',id:'Bahaya',mn:'Эрсдэлийн хүчин зүйл'},
+  lbl_frequency:{ko:'빈도 (발생 가능성)',en:'Frequency (Likelihood)',th:'ความถี่ (โอกาสเกิด)',id:'Frekuensi (Kemungkinan)',mn:'Давтамж (Тохиолдох магадлал)'},
+  lbl_severity:{ko:'강도 (피해 정도)',en:'Severity (Degree of Harm)',th:'ความรุนแรง (ระดับความเสียหาย)',id:'Tingkat Keparahan (Derajat Kerugian)',mn:'Хүнд байдал (Хохирлын хэмжээ)'},
+  freq_1:{ko:'1 - 거의 없음 (연 1회 미만)',en:'1 - Rare (less than once/year)',th:'1 - แทบไม่เกิด (น้อยกว่า 1 ครั้ง/ปี)',id:'1 - Jarang (kurang dari 1 kali/tahun)',mn:'1 - Ховор (жилд 1-ээс цөөн удаа)'},
+  freq_2:{ko:'2 - 드묾 (연 1~2회)',en:'2 - Occasional (1-2 times/year)',th:'2 - นานๆ ครั้ง (1-2 ครั้ง/ปี)',id:'2 - Jarang (1-2 kali/tahun)',mn:'2 - Ховорхон (жилд 1-2 удаа)'},
+  freq_3:{ko:'3 - 가끔 (분기 1회 정도)',en:'3 - Sometimes (about once/quarter)',th:'3 - บางครั้ง (ประมาณ 1 ครั้ง/ไตรมาส)',id:'3 - Kadang-kadang (sekitar 1 kali/kuartal)',mn:'3 - Заримдаа (улиралд ойролцоогоор 1 удаа)'},
+  freq_4:{ko:'4 - 자주 (월 1회 이상)',en:'4 - Frequent (1+ times/month)',th:'4 - บ่อยครั้ง (มากกว่า 1 ครั้ง/เดือน)',id:'4 - Sering (1+ kali/bulan)',mn:'4 - Байнга (сард 1-ээс дээш удаа)'},
+  freq_5:{ko:'5 - 매우 잦음 (상시 노출)',en:'5 - Very Frequent (constant exposure)',th:'5 - บ่อยมาก (สัมผัสตลอดเวลา)',id:'5 - Sangat Sering (paparan konstan)',mn:'5 - Маш байнга (тогтмол өртөх)'},
+  sev_1:{ko:'1 - 경미 (응급처치 수준)',en:'1 - Minor (first aid level)',th:'1 - เล็กน้อย (ระดับปฐมพยาบาล)',id:'1 - Ringan (tingkat P3K)',mn:'1 - Бага зэрэг (яаралтай тусламжийн түвшин)'},
+  sev_2:{ko:'2 - 경상 (병원 치료 필요)',en:'2 - Moderate (hospital treatment needed)',th:'2 - บาดเจ็บปานกลาง (ต้องรักษาที่โรงพยาบาล)',id:'2 - Sedang (perlu perawatan rumah sakit)',mn:'2 - Дунд зэрэг (эмнэлгийн эмчилгээ шаардлагатай)'},
+  sev_3:{ko:'3 - 중상 (장기 요양·후유증)',en:'3 - Serious (long-term care/after-effects)',th:'3 - บาดเจ็บสาหัส (รักษาระยะยาว/ผลข้างเคียง)',id:'3 - Serius (perawatan jangka panjang/efek lanjutan)',mn:'3 - Хүнд (урт хугацааны эмчилгээ/үр дагавар)'},
+  sev_4:{ko:'4 - 치명적 (사망·중대재해)',en:'4 - Fatal (death/serious accident)',th:'4 - ร้ายแรงถึงชีวิต (เสียชีวิต/อุบัติเหตุร้ายแรง)',id:'4 - Fatal (kematian/kecelakaan serius)',mn:'4 - Аюултай (нас баралт/хүнд осол)'},
+  lbl_measures_only:{ko:'개선대책',en:'Improvement Measures',th:'มาตรการปรับปรุง',id:'Tindakan Perbaikan',mn:'Сайжруулах арга хэмжээ'},
+  lbl_photo_before:{ko:'현장 사진 (선택)',en:'Site Photo (Optional)',th:'รูปถ่ายหน้างาน (ไม่บังคับ)',id:'Foto Lokasi (Opsional)',mn:'Талбайн зураг (Заавал биш)'},
+  hint_photo_replace:{ko:'기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.',en:'A photo is already attached. Selecting a new one will replace it.',th:'มีรูปแนบอยู่แล้ว หากเลือกใหม่จะเป็นการแทนที่',id:'Foto sudah terlampir. Memilih yang baru akan menggantinya.',mn:'Аль хэдийн зураг хавсаргасан байна. Шинээр сонговол солигдоно.'},
+  lbl_photo_after:{ko:'개선 후 사진 (선택 · 완료 처리 시)',en:'After-Improvement Photo (Optional, on Completion)',th:'รูปถ่ายหลังปรับปรุง (ไม่บังคับ · เมื่อเสร็จสิ้น)',id:'Foto Setelah Perbaikan (Opsional, saat Selesai)',mn:'Сайжруулсны дараах зураг (Заавал биш, дуусахад)'},
+  toast_photo_toobig:{ko:'사진 용량이 너무 큽니다 (5MB 이내)',en:'Photo file is too large (max 5MB)',th:'ไฟล์รูปภาพใหญ่เกินไป (สูงสุด 5MB)',id:'File foto terlalu besar (maks 5MB)',mn:'Зургийн хэмжээ хэт том байна (5MB хүртэл)'},
+  toast_risk_updated:{ko:'위험성평가를 수정했습니다',en:'Risk assessment has been updated',th:'อัปเดตการประเมินความเสี่ยงแล้ว',id:'Penilaian risiko telah diperbarui',mn:'Эрсдэлийн үнэлгээ шинэчлэгдлээ'},
+  toast_risk_registered:{ko:'위험성평가가 등록되었습니다',en:'Risk assessment has been registered',th:'ลงทะเบียนการประเมินความเสี่ยงแล้ว',id:'Penilaian risiko telah didaftarkan',mn:'Эрсдэлийн үнэлгээ бүртгэгдлээ'},
+  risk_detail_title:{ko:'위험성평가 상세',en:'Risk Assessment Details',th:'รายละเอียดการประเมินความเสี่ยง',id:'Detail Penilaian Risiko',mn:'Эрсдэлийн үнэлгээний дэлгэрэнгүй'},
+  dt_photo_site:{ko:'현장 사진',en:'Site Photo',th:'รูปถ่ายหน้างาน',id:'Foto Lokasi',mn:'Талбайн зураг'},
+  dt_photo_after:{ko:'개선 후 사진',en:'After-Improvement Photo',th:'รูปถ่ายหลังปรับปรุง',id:'Foto Setelah Perbaikan',mn:'Сайжруулсны дараах зураг'},
+
+  /* ===== 3단계: 사고접수 모달 ===== */
+  incident_new_title:{ko:'사고 접수',en:'Report Incident',th:'แจ้งอุบัติเหตุ',id:'Laporkan Insiden',mn:'Осол мэдээлэх'},
+  incident_edit_title:{ko:'접수 내용 수정',en:'Edit Report',th:'แก้ไขรายงาน',id:'Ubah Laporan',mn:'Мэдээллийг засах'},
+  opt_select_please:{ko:'선택해주세요',en:'Please select',th:'กรุณาเลือก',id:'Silakan pilih',mn:'Сонгоно уу'},
+  placeholder_accidenttype_other:{ko:'기타 사고유형을 입력하세요',en:'Enter other incident type',th:'ระบุประเภทอุบัติเหตุอื่นๆ',id:'Masukkan jenis insiden lainnya',mn:'Бусад ослын төрлийг бичнэ үү'},
+  lbl_description:{ko:'상세 내용',en:'Detailed Description',th:'รายละเอียด',id:'Deskripsi Rinci',mn:'Дэлгэрэнгүй тайлбар'},
+  hint_description_example:{ko:'어떻게 작업하다가 사고가 발생했는지 적어주세요 (예: 사다리 위에서 배관 점검 중 균형을 잃고 약 1.5m 아래로 떨어짐)',en:'Please describe how the incident occurred while working (e.g., Lost balance while inspecting pipes on a ladder and fell about 1.5m)',th:'กรุณาอธิบายว่าเกิดอุบัติเหตุขึ้นได้อย่างไรขณะทำงาน (เช่น เสียหลักขณะตรวจสอบท่อบนบันไดและตกลงมาประมาณ 1.5 เมตร)',id:'Harap jelaskan bagaimana insiden terjadi saat bekerja (mis., Kehilangan keseimbangan saat memeriksa pipa di tangga dan jatuh sekitar 1,5m)',mn:'Ажил хийж байхдаа хэрхэн осол болсныг бичнэ үү (Жишээ нь: Шат дээр хоолой шалгаж байтал тэнцвэрээ алдаж 1.5м-ээс унасан)'},
+  lbl_reporter_input:{ko:'신고자',en:'Reporter',th:'ผู้แจ้ง',id:'Pelapor',mn:'Мэдээлэгч'},
+  lbl_same_as_reporter:{ko:'신고자와 재해자가 동일합니다',en:'The reporter and the injured person are the same',th:'ผู้แจ้งและผู้บาดเจ็บเป็นคนเดียวกัน',id:'Pelapor dan korban adalah orang yang sama',mn:'Мэдээлэгч болон гэмтэгч нэг хүн'},
+  lbl_injured_person:{ko:'재해자',en:'Injured Person',th:'ผู้บาดเจ็บ',id:'Korban Cedera',mn:'Гэмтэгч'},
+  lbl_injury_severity:{ko:'부상정도',en:'Injury Severity',th:'ความรุนแรงของบาดเจ็บ',id:'Tingkat Keparahan Cedera',mn:'Гэмтлийн хэмжээ'},
+  'injury_경미(응급처치)':{ko:'경미(응급처치)',en:'Minor (First Aid)',th:'เล็กน้อย (ปฐมพยาบาล)',id:'Ringan (P3K)',mn:'Бага зэрэг (Яаралтай тусламж)'},
+  'injury_경상(통원치료)':{ko:'경상(통원치료)',en:'Moderate (Outpatient Treatment)',th:'ปานกลาง (รักษาแบบผู้ป่วยนอก)',id:'Sedang (Rawat Jalan)',mn:'Дунд зэрэг (Амбулаторийн эмчилгээ)'},
+  'injury_중상(입원치료)':{ko:'중상(입원치료)',en:'Serious (Hospitalization)',th:'สาหัส (รักษาแบบผู้ป่วยใน)',id:'Serius (Rawat Inap)',mn:'Хүнд (Хэвтэн эмчлүүлэх)'},
+  injury_기타:{ko:'기타',en:'Other',th:'อื่นๆ',id:'Lainnya',mn:'Бусад'},
+  lbl_injury_detail:{ko:'부상내용',en:'Injury Details',th:'รายละเอียดการบาดเจ็บ',id:'Detail Cedera',mn:'Гэмтлийн дэлгэрэнгүй'},
+  hint_privacy_notice:{ko:'※ 재해자·부상 정보는 개인정보로 분류되어 관리자만 열람할 수 있습니다.',en:'※ Injured person and injury information is classified as personal data and can only be viewed by administrators.',th:'※ ข้อมูลผู้บาดเจ็บและการบาดเจ็บถูกจัดเป็นข้อมูลส่วนบุคคล เฉพาะผู้ดูแลระบบเท่านั้นที่ดูได้',id:'※ Informasi korban dan cedera diklasifikasikan sebagai data pribadi dan hanya dapat dilihat oleh administrator.',mn:'※ Гэмтэгч болон гэмтлийн мэдээлэл нь хувийн мэдээлэлд ангилагдах бөгөөд зөвхөн админ харах боломжтой.'},
+  lbl_status_admin:{ko:'처리 상태 (관리자)',en:'Processing Status (Admin)',th:'สถานะการดำเนินการ (ผู้ดูแลระบบ)',id:'Status Pemrosesan (Admin)',mn:'Боловсруулах төлөв (Админ)'},
+  lbl_action_admin:{ko:'조치 내용 (관리자)',en:'Action Taken (Admin)',th:'มาตรการที่ดำเนินการ (ผู้ดูแลระบบ)',id:'Tindakan yang Diambil (Admin)',mn:'Авсан арга хэмжээ (Админ)'},
+  toast_incident_updated:{ko:'접수 내용을 수정했습니다',en:'The report has been updated',th:'อัปเดตรายงานแล้ว',id:'Laporan telah diperbarui',mn:'Мэдээлэл шинэчлэгдлээ'},
+  toast_incident_registered:{ko:'신고가 접수되었습니다. 안전환경부가 확인 후 조치합니다.',en:'The report has been received. The Safety & Environment Dept. will review and take action.',th:'รับรายงานแล้ว ฝ่ายความปลอดภัยและสิ่งแวดล้อมจะตรวจสอบและดำเนินการ',id:'Laporan telah diterima. Departemen Keselamatan & Lingkungan akan meninjau dan mengambil tindakan.',mn:'Мэдээлэл хүлээн авлаа. Аюулгүй байдал, орчны хэлтэс шалгаж, арга хэмжээ авна.'},
+  incident_detail_title:{ko:'사고 접수 상세',en:'Incident Report Details',th:'รายละเอียดรายงานอุบัติเหตุ',id:'Detail Laporan Insiden',mn:'Ослын мэдээллийн дэлгэрэнгүй'},
+  btn_process_edit:{ko:'처리 · 수정',en:'Process · Edit',th:'ดำเนินการ · แก้ไข',id:'Proses · Ubah',mn:'Боловсруулах · Засах'},
+  confirm_delete_incident:{ko:'이 접수 항목을 삭제하시겠습니까?',en:'Are you sure you want to delete this report?',th:'ต้องการลบรายงานนี้ใช่หรือไม่?',id:'Apakah Anda yakin ingin menghapus laporan ini?',mn:'Энэ мэдээллийг устгахдаа итгэлтэй байна уу?'},
+
+  /* ===== 3단계: 도급업체 모달 ===== */
+  contractor_new_title:{ko:'도급업체 등록',en:'Register Contractor',th:'ลงทะเบียนผู้รับเหมา',id:'Daftarkan Kontraktor',mn:'Гэрээт компани бүртгэх'},
+  contractor_edit_title:{ko:'업체 정보 수정',en:'Edit Company Info',th:'แก้ไขข้อมูลบริษัท',id:'Ubah Info Perusahaan',mn:'Компанийн мэдээлэл засах'},
+  lbl_companyname:{ko:'업체명',en:'Company Name',th:'ชื่อบริษัท',id:'Nama Perusahaan',mn:'Компанийн нэр'},
+  ctype_상주용역:{ko:'상주(용역)',en:'On-site (Service)',th:'ประจำ (บริการ)',id:'On-site (Layanan)',mn:'Байнгын (Үйлчилгээ)'},
+  ctype_정기납품:{ko:'정기납품',en:'Regular Supplier',th:'ผู้จัดส่งประจำ',id:'Pemasok Reguler',mn:'Тогтмол нийлүүлэгч'},
+  ctype_물류운송:{ko:'물류운송',en:'Logistics/Transport',th:'โลจิสติกส์/ขนส่ง',id:'Logistik/Transportasi',mn:'Ложистик/Тээвэр'},
+  ctype_공사정비:{ko:'공사·정비',en:'Construction/Maintenance',th:'ก่อสร้าง/ซ่อมบำรุง',id:'Konstruksi/Pemeliharaan',mn:'Барилга/Засвар үйлчилгээ'},
+  ctype_기타:{ko:'기타',en:'Other',th:'อื่นๆ',id:'Lainnya',mn:'Бусад'},
+  toast_company_name_required:{ko:'업체명을 입력해주세요',en:'Please enter a company name',th:'กรุณากรอกชื่อบริษัท',id:'Silakan masukkan nama perusahaan',mn:'Компанийн нэрээ оруулна уу'},
+  toast_updated_generic:{ko:'수정되었습니다',en:'Updated',th:'แก้ไขแล้ว',id:'Telah diperbarui',mn:'Шинэчлэгдлээ'},
+  toast_company_registered:{ko:'업체가 등록되었습니다',en:'Company has been registered',th:'ลงทะเบียนบริษัทแล้ว',id:'Perusahaan telah didaftarkan',mn:'Компани бүртгэгдлээ'},
+
+  /* ===== 3단계: 회의록·점검일지 모달 ===== */
+  record_new_title:{ko:'회의록 · 순회점검일지 등록',en:'Register Minutes/Inspection Log',th:'ลงทะเบียนบันทึกการประชุม/ตรวจสอบ',id:'Daftarkan Notulen/Log Inspeksi',mn:'Хурлын тэмдэглэл/Шалгалт бүртгэх'},
+  rtype_협의체회의록:{ko:'협의체 회의록',en:'Council Meeting Minutes',th:'บันทึกการประชุมคณะกรรมการ',id:'Notulen Rapat Dewan',mn:'Зөвлөлийн хурлын тэмдэглэл'},
+  rtype_합동점검일지:{ko:'합동점검일지',en:'Joint Inspection Log',th:'บันทึกการตรวจสอบร่วม',id:'Log Inspeksi Bersama',mn:'Хамтарсан шалгалтын тэмдэглэл'},
+  rtype_순회점검일지:{ko:'순회점검일지',en:'Patrol Inspection Log',th:'บันทึกการตรวจตรา',id:'Log Inspeksi Patroli',mn:'Тойрон шалгалтын тэмдэглэл'},
+  lbl_target_company:{ko:'대상 업체',en:'Target Company',th:'บริษัทเป้าหมาย',id:'Perusahaan Terkait',mn:'Хамрагдах компани'},
+  opt_all_notapplicable:{ko:'전체 / 해당없음',en:'All / Not applicable',th:'ทั้งหมด / ไม่เกี่ยวข้อง',id:'Semua / Tidak berlaku',mn:'Бүгд / Хамаарахгүй'},
+  placeholder_record_content:{ko:'회의 안건, 점검 결과, 지적사항 등',en:'Meeting agenda, inspection results, findings, etc.',th:'วาระการประชุม ผลการตรวจสอบ ข้อบกพร่อง ฯลฯ',id:'Agenda rapat, hasil inspeksi, temuan, dll.',mn:'Хурлын хэлэлцэх асуудал, шалгалтын үр дүн, дутагдал г.м'},
+  toast_record_registered:{ko:'기록이 등록되었습니다',en:'Record has been registered',th:'ลงทะเบียนบันทึกแล้ว',id:'Catatan telah didaftarkan',mn:'Тэмдэглэл бүртгэгдлээ'},
+
+  /* ===== 3단계: 공지사항/비상연락처 모달 ===== */
+  notice_edit_title:{ko:'공지사항 수정',en:'Edit Notice',th:'แก้ไขประกาศ',id:'Ubah Pengumuman',mn:'Мэдэгдэл засах'},
+  notice_new_title:{ko:'공지사항 등록',en:'New Notice',th:'ประกาศใหม่',id:'Pengumuman Baru',mn:'Шинэ мэдэгдэл'},
+  lbl_title:{ko:'제목',en:'Title',th:'หัวข้อ',id:'Judul',mn:'Гарчиг'},
+  lbl_content:{ko:'내용',en:'Content',th:'เนื้อหา',id:'Isi',mn:'Агуулга'},
+  rte_bold:{ko:'굵게',en:'Bold',th:'ตัวหนา',id:'Tebal',mn:'Тод'},
+  rte_red:{ko:'빨강',en:'Red',th:'สีแดง',id:'Merah',mn:'Улаан'},
+  rte_blue:{ko:'파랑',en:'Blue',th:'สีน้ำเงิน',id:'Biru',mn:'Хөх'},
+  rte_green:{ko:'초록',en:'Green',th:'สีเขียว',id:'Hijau',mn:'Ногоон'},
+  rte_default:{ko:'기본색',en:'Default',th:'สีเริ่มต้น',id:'Default',mn:'Үндсэн'},
+  rte_small:{ko:'작게',en:'Small',th:'เล็ก',id:'Kecil',mn:'Жижиг'},
+  rte_normal:{ko:'보통',en:'Normal',th:'ปกติ',id:'Normal',mn:'Дунд'},
+  rte_large:{ko:'크게',en:'Large',th:'ใหญ่',id:'Besar',mn:'Том'},
+  lbl_author:{ko:'작성자',en:'Author',th:'ผู้เขียน',id:'Penulis',mn:'Бичсэн хүн'},
+  lbl_attachment:{ko:'첨부파일 (이미지, PDF 등)',en:'Attachment (Image, PDF, etc.)',th:'ไฟล์แนบ (รูปภาพ, PDF ฯลฯ)',id:'Lampiran (Gambar, PDF, dll.)',mn:'Хавсралт (Зураг, PDF г.м)'},
+  hint_existing_attachment:{ko:'기존 첨부: {name} (새로 선택하면 교체됩니다)',en:'Current attachment: {name} (selecting a new one will replace it)',th:'ไฟล์แนบปัจจุบัน: {name} (หากเลือกใหม่จะแทนที่)',id:'Lampiran saat ini: {name} (memilih baru akan menggantinya)',mn:'Одоогийн хавсралт: {name} (шинээр сонговол солигдоно)'},
+  hint_attachment_size:{ko:'용량이 큰 파일은 느려질 수 있어요. 5MB 이내 문서·이미지 위주로 첨부해주세요.',en:'Large files may load slowly. Please attach documents/images under 5MB.',th:'ไฟล์ขนาดใหญ่อาจโหลดช้า กรุณาแนบเอกสาร/รูปภาพขนาดไม่เกิน 5MB',id:'File besar mungkin lambat dimuat. Harap lampirkan dokumen/gambar di bawah 5MB.',mn:'Том хэмжээтэй файл удаан ачаалж болно. 5MB-аас бага баримт/зураг хавсаргана уу.'},
+  lbl_pin_top:{ko:'상단 고정',en:'Pin to Top',th:'ปักหมุดด้านบน',id:'Sematkan di Atas',mn:'Дээд талд бэхлэх'},
+  toast_file_toobig:{ko:'파일 용량이 너무 큽니다 (5MB 이내로 첨부해주세요)',en:'File size is too large (please attach under 5MB)',th:'ไฟล์มีขนาดใหญ่เกินไป (กรุณาแนบไม่เกิน 5MB)',id:'Ukuran file terlalu besar (harap lampirkan di bawah 5MB)',mn:'Файлын хэмжээ хэт том байна (5MB-аас бага хавсаргана уу)'},
+  toast_notice_updated:{ko:'공지사항이 수정되었습니다',en:'Notice has been updated',th:'แก้ไขประกาศแล้ว',id:'Pengumuman telah diperbarui',mn:'Мэдэгдэл шинэчлэгдлээ'},
+  toast_notice_registered:{ko:'공지사항이 등록되었습니다',en:'Notice has been registered',th:'ลงทะเบียนประกาศแล้ว',id:'Pengumuman telah didaftarkan',mn:'Мэдэгдэл бүртгэгдлээ'},
+  contact_new_title:{ko:'비상연락처 등록',en:'Register Emergency Contact',th:'ลงทะเบียนผู้ติดต่อฉุกเฉิน',id:'Daftarkan Kontak Darurat',mn:'Онцгой байдлын холбоо барих хаяг бүртгэх'},
+  lbl_role:{ko:'역할',en:'Role',th:'บทบาท',id:'Peran',mn:'Үүрэг'},
+  lbl_name_org:{ko:'이름/기관명',en:'Name/Organization',th:'ชื่อ/หน่วยงาน',id:'Nama/Organisasi',mn:'Нэр/Байгууллага'},
+  lbl_phone:{ko:'연락처',en:'Phone Number',th:'เบอร์โทรศัพท์',id:'Nomor Telepon',mn:'Утасны дугаар'},
+  attach_image:{ko:'첨부이미지',en:'Attached Image',th:'รูปภาพแนบ',id:'Gambar Terlampir',mn:'Хавсаргасан зураг'},
+  attach_file:{ko:'첨부파일',en:'Attachment',th:'ไฟล์แนบ',id:'Lampiran',mn:'Хавсралт'},
+  attach_download:{ko:'다운로드',en:'Download',th:'ดาวน์โหลด',id:'Unduh',mn:'Татах'},
+  toast_contact_registered:{ko:'비상연락처가 등록되었습니다',en:'Emergency contact has been registered',th:'ลงทะเบียนผู้ติดต่อฉุกเฉินแล้ว',id:'Kontak darurat telah didaftarkan',mn:'Онцгой байдлын холбоо барих хаяг бүртгэгдлээ'},
+  toast_admin_only:{ko:'전체관리자만 설정할 수 있습니다',en:'Only the full administrator can configure this',th:'เฉพาะผู้ดูแลระบบทั้งหมดเท่านั้นที่ตั้งค่าได้',id:'Hanya administrator utama yang dapat mengatur ini',mn:'Зөвхөн бүх эрхтэй админ тохируулах боломжтой'},
+
+  /* ===== 4단계: 위험도 등급 기준 ===== */
+  risklevel_label_crit:{ko:'매우높음',en:'Very High',th:'สูงมาก',id:'Sangat Tinggi',mn:'Маш өндөр'},
+  risklevel_label_high:{ko:'높음',en:'High',th:'สูง',id:'Tinggi',mn:'Өндөр'},
+  risklevel_label_mid:{ko:'보통',en:'Medium',th:'ปานกลาง',id:'Sedang',mn:'Дунд'},
+  risklevel_label_low:{ko:'낮음',en:'Low',th:'ต่ำ',id:'Rendah',mn:'Бага'},
+  risklevel_action_crit:{ko:'즉시개선',en:'Immediate Action',th:'ปรับปรุงทันที',id:'Tindakan Segera',mn:'Даруй сайжруулах'},
+  risklevel_action_high:{ko:'긴급개선',en:'Urgent Action',th:'ปรับปรุงเร่งด่วน',id:'Tindakan Mendesak',mn:'Яаралтай сайжруулах'},
+  risklevel_action_mid:{ko:'개선',en:'Improve',th:'ปรับปรุง',id:'Perbaikan',mn:'Сайжруулах'},
+  risklevel_action_low:{ko:'관리',en:'Monitor',th:'เฝ้าระวัง',id:'Pantau',mn:'Хянах'},
+  risklevel_desc_crit:{ko:'즉시 작업을 중지하고 개선 후 재개해야 합니다.',en:'Work must stop immediately and resume only after improvement.',th:'ต้องหยุดงานทันทีและกลับมาทำงานหลังปรับปรุงแล้วเท่านั้น',id:'Pekerjaan harus dihentikan segera dan dilanjutkan hanya setelah perbaikan.',mn:'Ажлыг даруй зогсоож, сайжруулсны дараа л үргэлжлүүлнэ.'},
+  risklevel_desc_high:{ko:'단기간(1주 이내) 내 개선 조치가 필요합니다.',en:'Improvement action is needed within a short period (within 1 week).',th:'ต้องดำเนินการปรับปรุงในระยะสั้น (ภายใน 1 สัปดาห์)',id:'Tindakan perbaikan diperlukan dalam waktu singkat (dalam 1 minggu).',mn:'Богино хугацаанд (1 долоо хоногийн дотор) сайжруулах арга хэмжээ шаардлагатай.'},
+  risklevel_desc_mid:{ko:'계획을 수립하여 개선 조치를 진행합니다.',en:'Establish a plan and proceed with improvement action.',th:'จัดทำแผนและดำเนินการปรับปรุง',id:'Susun rencana dan lanjutkan tindakan perbaikan.',mn:'Төлөвлөгөө боловсруулж, сайжруулах арга хэмжээ авна.'},
+  risklevel_desc_low:{ko:'현재 상태를 유지하며 관리·감독합니다.',en:'Maintain current status with ongoing monitoring.',th:'รักษาสภาพปัจจุบันพร้อมเฝ้าระวังอย่างต่อเนื่อง',id:'Pertahankan status saat ini dengan pemantauan berkelanjutan.',mn:'Одоогийн байдлыг хадгалж, тогтмол хянана.'},
+  risk_legend_title:{ko:'위험도 판단 기준',en:'Risk Level Criteria',th:'เกณฑ์ระดับความเสี่ยง',id:'Kriteria Tingkat Risiko',mn:'Эрсдэлийн түвшний шалгуур'},
+  btn_print:{ko:'인쇄',en:'Print',th:'พิมพ์',id:'Cetak',mn:'Хэвлэх'},
+  btn_excel:{ko:'엑셀 다운로드',en:'Download Excel',th:'ดาวน์โหลด Excel',id:'Unduh Excel',mn:'Excel татах'},
+  print_report_title:{ko:'위험성평가 보고서',en:'Risk Assessment Report',th:'รายงานการประเมินความเสี่ยง',id:'Laporan Penilaian Risiko',mn:'Эрсдэлийн үнэлгээний тайлан'},
+  print_generated_on:{ko:'출력일',en:'Printed on',th:'วันที่พิมพ์',id:'Dicetak pada',mn:'Хэвлэсэн огноо'},
+  print_no_data:{ko:'인쇄할 항목이 없습니다',en:'No items to print',th:'ไม่มีรายการให้พิมพ์',id:'Tidak ada item untuk dicetak',mn:'Хэвлэх зүйл алга байна'},
 };
 function t(key){
   const entry = TRANSLATIONS[key];
@@ -751,6 +1087,19 @@ const PATHS = {
 
 /* 위험요인(사용설비) 체크리스트 옵션 — 마지막은 항상 기타(직접입력) */
 const EQUIPMENT_OPTIONS = ['크레인·호이스트','지게차','컨베이어','프레스','용접기','사다리·고소작업대','전기설비(배전반 등)','회전체(롤러·기어 등)'];
+const EQUIP_LABEL_KEYS = {
+  '크레인·호이스트':'equip_crane','지게차':'equip_forklift','컨베이어':'equip_conveyor','프레스':'equip_press',
+  '용접기':'equip_welder','사다리·고소작업대':'equip_ladder','전기설비(배전반 등)':'equip_electrical','회전체(롤러·기어 등)':'equip_rotating'
+};
+function equipLabel(opt){ return t(EQUIP_LABEL_KEYS[opt] || opt); }
+const CONTRACTOR_TYPE_KEYS = {
+  '상주(용역)':'ctype_상주용역','정기납품':'ctype_정기납품','물류운송':'ctype_물류운송','공사·정비':'ctype_공사정비','기타':'ctype_기타'
+};
+function contractorTypeLabel(type){ return t(CONTRACTOR_TYPE_KEYS[type] || type); }
+const RECORD_TYPE_KEYS = {
+  '협의체 회의록':'rtype_협의체회의록','합동점검일지':'rtype_합동점검일지','순회점검일지':'rtype_순회점검일지'
+};
+function recordTypeLabel(type){ return t(RECORD_TYPE_KEYS[type] || type); }
 
 /* 인쇄용 허가서(PDF)에 쓰이는 로고 (사이드바/대시보드와 동일 이미지) */
 const LOGO_DATA_URI = "data:image/png;base64,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";
@@ -1004,7 +1353,7 @@ function renderDashboard(){
       <div class="list-card">
         <div class="lc-head"><h3>${t('dash_notices_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="notices">${t('view_all')}</button></div>
         <div class="lc-body">${renderMiniList(notices.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)), n=>({
-          title:n.title||'-', meta: fmtDate(n.createdAt), badge: n.pinned?'<span class="badge b-safety">고정</span>':''
+          title:n.title||'-', meta: fmtDate(n.createdAt), badge: n.pinned?`<span class="badge b-safety">${t('pinned_badge')}</span>`:''
         }), PATHS.notices)}</div>
       </div>
     </div>
@@ -1150,15 +1499,30 @@ function hasNewInList(arr, path){
 function newBadge(item, path){
   return isItemNew(item, path) ? '<span class="badge-new">NEW</span> ' : '';
 }
+function statusLabel(status){
+  if(!status) return '-';
+  return t('status_'+status);
+}
 function statusBadge(kind, status){
   const map = {
     permit:{'신청':'b-info','검토중':'b-caution','승인':'b-ok','반려':'b-danger','종료':'b-gray'},
-    risk:{'등록':'b-info','접수완료':'b-safety','조치중':'b-caution','완료':'b-ok'},
+    risk:{'등록':'b-info','접수완료':'b-safety','조치중':'b-caution','완료':'b-ok','일부개선완료':'b-caution2'},
     incident:{'접수':'b-info','조사중':'b-caution','완료':'b-ok'}
   };
   const cls = (map[kind]||{})[status] || 'b-gray';
-  return `<span class="badge ${cls}">${esc(status||'-')}</span>`;
+  return `<span class="badge ${cls}">${esc(statusLabel(status))}</span>`;
 }
+// 위험성평가 공정 분류 (고정 목록 — 필터·등록 시 공통 사용)
+const PROCESS_OPTIONS = ['용해','보온로','주입','조형','사처리','후처리','래들보수','합리화','기계','전기','개발','UVT','스펙트로','실험실','공정품질','환경정리','생산관리','집진기'];
+// 부서별 공정 매핑
+const PROCESS_DEPT_MAP = {
+  '용해':'생산부','보온로':'생산부','주입':'생산부','조형':'생산부','사처리':'생산부','후처리':'생산부','래들보수':'생산부','합리화':'생산부','기계':'생산부','전기':'생산부',
+  '개발':'품질관리부','UVT':'품질관리부','스펙트로':'품질관리부','실험실':'품질관리부','공정품질':'품질관리부',
+  '생산관리':'관리부','환경정리':'관리부',
+  '집진기':'안전환경부'
+};
+function processDept(process){ return PROCESS_DEPT_MAP[process] || '-'; }
+
 function riskLevel(r){
   const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
   if(score>=15) return 'crit';
@@ -1166,11 +1530,38 @@ function riskLevel(r){
   if(score>=4) return 'mid';
   return 'low';
 }
+// 위험도 등급별 조치기준 — 색상·라벨·조치내용을 한 곳에서 관리 (표시 텍스트는 다국어)
+const RISK_LEVEL_SCORE_RANGE = { crit:'15~20', high:'8~14', mid:'4~7', low:'1~3' };
+function riskLevelInfo(lv){
+  return {
+    scoreRange: RISK_LEVEL_SCORE_RANGE[lv],
+    label: t('risklevel_label_'+lv),
+    action: t('risklevel_action_'+lv),
+    desc: t('risklevel_desc_'+lv),
+  };
+}
 function riskChip(r){
   const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
   const lv = riskLevel(r);
-  const label = {low:'낮음',mid:'보통',high:'높음',crit:'매우높음'}[lv];
-  return `<span class="risk-chip risk-${lv}" title="위험도 ${label}">${score}</span>`;
+  const info = riskLevelInfo(lv);
+  return `<span class="risk-chip risk-${lv}" title="위험도 ${info.label} · ${info.action}">${score}</span>`;
+}
+// 위험도 등급을 색상+글자로 함께 보여주는 뱃지 (목록/상세에서 사용)
+function riskLevelBadge(r){
+  const lv = riskLevel(r);
+  const info = riskLevelInfo(lv);
+  return `<span class="risk-level-badge risk-${lv}">${riskChip(r)} ${esc(info.action)}</span>`;
+}
+function riskLegendHtml(){
+  return `<div class="risk-legend">
+    ${['crit','high','mid','low'].map(lv=>{
+      const info = riskLevelInfo(lv);
+      return `<div class="risk-legend-item">
+        <span class="risk-chip risk-${lv}">${info.scoreRange}</span>
+        <div><b>${esc(info.label)} · ${esc(info.action)}</b><div class="hint" style="margin:1px 0 0;">${esc(info.desc)}</div></div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 /* ============================================================
@@ -1182,13 +1573,13 @@ function renderPermits(){
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="permitTabs">
-        ${['전체','신청','검토중','승인','반려','종료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s}</button>`).join('')}
+        ${['전체','신청','검토중','승인','반려','종료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      <button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} 작업허가 신청 등록</button>
+      <button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} ${t('permits_add_btn')}</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>업체명</th><th>작업내용</th><th>구분</th><th>작업기간</th><th>공정담당자</th><th>화기</th><th>상태</th><th class="tight">관리</th>
+        <th>${t('th_company')}</th><th>${t('th_workcontent')}</th><th>${t('th_worktype')}</th><th>${t('th_workperiod')}</th><th>${t('th_processmanager')}</th><th>${t('th_firework')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
       </tr></thead>
       <tbody id="permitBody"></tbody>
     </table></div>
@@ -1204,7 +1595,7 @@ function renderPermits(){
   const filtered = filter==='전체' ? arr : arr.filter(p=>p.status===filter);
   const body = document.getElementById('permitBody');
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="8"><div class="empty"><span class="big">${icon('file-check',22)}</span>등록된 작업허가가 없습니다</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="8"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('permits_empty')}</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(p=>`
@@ -1214,10 +1605,10 @@ function renderPermits(){
       <td>${esc(p.workType||'-')}</td>
       <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
       <td>${esc(p.processManager||'-')}</td>
-      <td>${p.fireWork? '<span class="badge b-safety">화기</span>' : '<span class="badge b-gray">일반</span>'}</td>
+      <td>${p.fireWork? '<span class="badge b-safety">🔥</span>' : '<span class="badge b-gray">-</span>'}</td>
       <td>${statusBadge('permit', p.status)}</td>
       <td class="tight row-btns">
-        <button class="btn btn-sm" data-view-id="${p.id}">보기</button>
+        <button class="btn btn-sm" data-view-id="${p.id}">${t('btn_view')}</button>
       </td>
     </tr>
   `).join('');
@@ -1229,64 +1620,64 @@ function openPermitModal(existing){
   const v = existing || {};
   const eqSelected = v.equipment || [];
   showModal(`
-    <div class="modal-head"><h3>${isEdit?'작업허가 정보 수정':'안전작업허가서 신청 등록'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?t('permit_edit_title'):t('permit_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
-        <div class="field"><label>외주업체명 *</label><input type="text" id="f_company" value="${esc(v.company||'')}"></div>
-        <div class="field"><label>작업구분 *</label>
+        <div class="field"><label>${t('lbl_company')} *</label><input type="text" id="f_company" value="${esc(v.company||'')}"></div>
+        <div class="field"><label>${t('lbl_worktype')} *</label>
           <select id="f_workType">
-            ${['공사','정비','운송'].map(t=>`<option ${v.workType===t?'selected':''}>${t}</option>`).join('')}
+            ${['공사','정비','운송'].map(wt=>`<option value="${wt}" ${v.workType===wt?'selected':''}>${t('worktype_'+wt)}</option>`).join('')}
           </select>
         </div>
       </div>
-      <div class="field"><label>작업명(작업내용) *</label><input type="text" id="f_workContent" value="${esc(v.workContent||'')}" placeholder="예: 3호기 컨베이어 롤러 교체"></div>
-      <div class="field"><label>작업장소 *</label><input type="text" id="f_location" value="${esc(v.location||'')}" placeholder="예: 조형공정 2라인"></div>
+      <div class="field"><label>${t('lbl_workname')} *</label><input type="text" id="f_workContent" value="${esc(v.workContent||'')}" placeholder="예: 3호기 컨베이어 롤러 교체"></div>
+      <div class="field"><label>${t('lbl_worklocation')} *</label><input type="text" id="f_location" value="${esc(v.location||'')}" placeholder="예: 조형공정 2라인"></div>
       <div class="row3">
-        <div class="field"><label>작업 시작일 *</label><input type="date" id="f_startDate" value="${v.startDate||''}"></div>
-        <div class="field"><label>작업 종료일 *</label><input type="date" id="f_endDate" value="${v.endDate||''}"></div>
-        <div class="field"><label>작업인원 *</label><input type="text" id="f_headcount" value="${esc(v.headcount||'')}" placeholder="예: 3명"></div>
+        <div class="field"><label>${t('lbl_startdate')} *</label><input type="date" id="f_startDate" value="${v.startDate||''}"></div>
+        <div class="field"><label>${t('lbl_enddate')} *</label><input type="date" id="f_endDate" value="${v.endDate||''}"></div>
+        <div class="field"><label>${t('lbl_headcount')} *</label><input type="text" id="f_headcount" value="${esc(v.headcount||'')}" placeholder="예: 3명"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>공정 담당자(1차 확인) *</label><input type="text" id="f_processManager" value="${esc(v.processManager||'')}"></div>
-        <div class="field"><label>현장감독자(외주업체)</label><input type="text" id="f_contractorLead" value="${esc(v.contractorLead||'')}"></div>
+        <div class="field"><label>${t('lbl_processmanager')} *</label><input type="text" id="f_processManager" value="${esc(v.processManager||'')}"></div>
+        <div class="field"><label>${t('lbl_sitesuper')}</label><input type="text" id="f_contractorLead" value="${esc(v.contractorLead||'')}"></div>
       </div>
 
       <div class="divider"></div>
-      <div class="field"><label>위험요인(사용설비) * <span class="hint" style="margin:0;">— 해당 설비를 모두 선택하세요</span></label>
+      <div class="field"><label>${t('lbl_hazard_equipment')} * <span class="hint" style="margin:0;">${t('hint_select_all_equip')}</span></label>
         <div style="display:flex;flex-wrap:wrap;gap:8px 16px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;">
-          ${EQUIPMENT_OPTIONS.map(opt=>`<label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;"><input type="checkbox" class="eq-check" value="${esc(opt)}" ${eqSelected.includes(opt)?'checked':''}> ${esc(opt)}</label>`).join('')}
-          <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;"><input type="checkbox" id="f_eqOtherCheck" ${v.equipmentOther?'checked':''}> 기타(직접입력)</label>
+          ${EQUIPMENT_OPTIONS.map(opt=>`<label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;"><input type="checkbox" class="eq-check" value="${esc(opt)}" ${eqSelected.includes(opt)?'checked':''}> ${esc(equipLabel(opt))}</label>`).join('')}
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;"><input type="checkbox" id="f_eqOtherCheck" ${v.equipmentOther?'checked':''}> ${t('equip_other')}</label>
         </div>
-        <input type="text" id="f_equipmentOther" value="${esc(v.equipmentOther||'')}" placeholder="기타 사용설비를 직접 입력하세요" style="margin-top:8px;${v.equipmentOther?'':'display:none'}">
+        <input type="text" id="f_equipmentOther" value="${esc(v.equipmentOther||'')}" placeholder="${t('placeholder_equip_other')}" style="margin-top:8px;${v.equipmentOther?'':'display:none'}">
       </div>
-      <div class="field"><label>위험요인 및 안전조치사항 *</label><textarea id="f_hazardDetail" placeholder="예: 협착·끼임, 낙하물 위험 — 설비 전원 차단(LOTO) 후 작업, 방호덮개 설치, 보호구 착용">${esc(v.hazardDetail||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_hazard_measures')} *</label><textarea id="f_hazardDetail" placeholder="예: 협착·끼임, 낙하물 위험 — 설비 전원 차단(LOTO) 후 작업, 방호덮개 설치, 보호구 착용">${esc(v.hazardDetail||'')}</textarea></div>
 
       <div class="divider"></div>
       <div class="field">
-        <label><input type="checkbox" id="f_fireWork" ${v.fireWork?'checked':''}> 화기작업 해당 (용접·용단 등)</label>
+        <label><input type="checkbox" id="f_fireWork" ${v.fireWork?'checked':''}> ${t('lbl_firework_check')}</label>
       </div>
       <div id="fireFields" style="${v.fireWork?'':'display:none'}">
-        <div class="field"><label>화기작업 상세</label><input type="text" id="f_fireDetail" value="${esc(v.fireDetail||'')}" placeholder="예: 용접 작업, 용단 작업"></div>
+        <div class="field"><label>${t('lbl_firedetail')}</label><input type="text" id="f_fireDetail" value="${esc(v.fireDetail||'')}" placeholder="예: 용접 작업, 용단 작업"></div>
         <div class="row2">
-          <div class="field"><label>화재감시자 배치</label><input type="text" id="f_watchman" value="${esc(v.watchman||'')}" placeholder="예: 박O민, 외주업체 지정"></div>
-          <div class="field"><label>소화기 등 소화설비 비치</label><input type="text" id="f_fireExtinguisher" value="${esc(v.fireExtinguisher||'')}" placeholder="예: 분말소화기 2대 비치"></div>
+          <div class="field"><label>${t('lbl_watchman')}</label><input type="text" id="f_watchman" value="${esc(v.watchman||'')}" placeholder="예: 박O민, 외주업체 지정"></div>
+          <div class="field"><label>${t('lbl_extinguisher')}</label><input type="text" id="f_fireExtinguisher" value="${esc(v.fireExtinguisher||'')}" placeholder="예: 분말소화기 2대 비치"></div>
         </div>
-        <div class="field"><label>가연물 제거·방호조치</label><input type="text" id="f_combustibleRemoval" value="${esc(v.combustibleRemoval||'')}" placeholder="예: 반경 11m 내 가연물 제거, 방화포 설치"></div>
+        <div class="field"><label>${t('lbl_combustible')}</label><input type="text" id="f_combustibleRemoval" value="${esc(v.combustibleRemoval||'')}" placeholder="예: 반경 11m 내 가연물 제거, 방화포 설치"></div>
       </div>
 
       ${State.mode==='admin' ? `
       <div class="divider"></div>
-      <div class="field"><label>진행현황 (관리자)</label>
+      <div class="field"><label>${t('lbl_progress_admin')}</label>
         <select id="f_status">
-          ${['신청','검토중','승인','반려','종료'].map(s=>`<option ${v.status===s?'selected':''}>${s}</option>`).join('')}
+          ${['신청','검토중','승인','반려','종료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
         </select>
       </div>
       ` : ''}
-      <div class="field"><label>비고</label><textarea id="f_note">${esc(v.note||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_note')}</label><textarea id="f_note">${esc(v.note||'')}</textarea></div>
     </div>
     <div class="modal-foot">
-      <button class="btn" data-close>취소</button>
-      <button class="btn btn-primary" id="savePermitBtn">저장</button>
+      <button class="btn" data-close>${t('btn_cancel')}</button>
+      <button class="btn btn-primary" id="savePermitBtn">${t('btn_save')}</button>
     </div>
   `);
   document.getElementById('f_fireWork').addEventListener('change', e=>{
@@ -1323,15 +1714,15 @@ function openPermitModal(existing){
       data.status = '신청';
     }
     if(!data.company || !data.workContent || !data.location || !data.startDate || !data.endDate || !data.headcount || !data.processManager || !data.hazardDetail || (equipment.length===0 && !equipmentOther)){
-      toast('필수 항목(*)을 입력해주세요'); return;
+      toast(t('toast_fill_required')); return;
     }
     if(isEdit){
       await DataStore.update(PATHS.permits, existing.id, data);
-      toast('작업허가 정보를 수정했습니다');
+      toast(t('toast_permit_updated'));
     }else{
       data.createdAt = Date.now();
       await DataStore.push(PATHS.permits, data);
-      toast('작업허가 신청이 등록되었습니다');
+      toast(t('toast_permit_registered'));
     }
     closeModal(); renderPermits();
   });
@@ -1342,42 +1733,42 @@ function openPermitDetail(id){
   if(!raw) return;
   markRead(PATHS.permits, id);
   const p = Object.assign({id}, raw);
-  const equipmentText = [...(p.equipment||[]), p.equipmentOther].filter(Boolean).join(', ') || '-';
+  const equipmentText = [...(p.equipment||[]).map(equipLabel), p.equipmentOther].filter(Boolean).join(', ') || '-';
   showModal(`
-    <div class="modal-head"><h3>작업허가 상세</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${t('permit_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <dl class="detail-grid">
-        <dt>업체명</dt><dd>${esc(p.company)}</dd>
-        <dt>구분</dt><dd>${esc(p.workType)} ${p.fireWork?'· 🔥화기작업':''}</dd>
-        <dt>작업명</dt><dd>${esc(p.workContent)}</dd>
-        <dt>작업장소</dt><dd>${esc(p.location)}</dd>
-        <dt>작업기간</dt><dd class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</dd>
-        <dt>작업인원</dt><dd>${esc(p.headcount||'-')}</dd>
-        <dt>공정담당자</dt><dd>${esc(p.processManager||'-')}</dd>
-        <dt>현장감독자</dt><dd>${esc(p.contractorLead||'-')}</dd>
-        <dt>위험요인(사용설비)</dt><dd>${esc(equipmentText)}</dd>
-        <dt>안전조치사항</dt><dd>${esc(p.hazardDetail||'-')}</dd>
+        <dt>${t('th_company')}</dt><dd>${esc(p.company)}</dd>
+        <dt>${t('dt_type')}</dt><dd>${esc(t('worktype_'+p.workType))} ${p.fireWork?'· 🔥'+t('firework_tag'):''}</dd>
+        <dt>${t('lbl_workname')}</dt><dd>${esc(p.workContent)}</dd>
+        <dt>${t('lbl_worklocation')}</dt><dd>${esc(p.location)}</dd>
+        <dt>${t('dt_workperiod')}</dt><dd class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</dd>
+        <dt>${t('lbl_headcount')}</dt><dd>${esc(p.headcount||'-')}</dd>
+        <dt>${t('th_processmanager')}</dt><dd>${esc(p.processManager||'-')}</dd>
+        <dt>${t('lbl_sitesuper')}</dt><dd>${esc(p.contractorLead||'-')}</dd>
+        <dt>${t('lbl_hazard_equipment')}</dt><dd>${esc(equipmentText)}</dd>
+        <dt>${t('dt_safety_measures')}</dt><dd>${esc(p.hazardDetail||'-')}</dd>
         ${p.fireWork?`
-        <dt>화기작업 상세</dt><dd>${esc(p.fireDetail||'-')}</dd>
-        <dt>화재감시자</dt><dd>${esc(p.watchman||'-')}</dd>
-        <dt>소화설비 비치</dt><dd>${esc(p.fireExtinguisher||'-')}</dd>
-        <dt>가연물 제거·방호</dt><dd>${esc(p.combustibleRemoval||'-')}</dd>
+        <dt>${t('lbl_firedetail')}</dt><dd>${esc(p.fireDetail||'-')}</dd>
+        <dt>${t('lbl_watchman')}</dt><dd>${esc(p.watchman||'-')}</dd>
+        <dt>${t('lbl_extinguisher')}</dt><dd>${esc(p.fireExtinguisher||'-')}</dd>
+        <dt>${t('lbl_combustible')}</dt><dd>${esc(p.combustibleRemoval||'-')}</dd>
         `:''}
-        <dt>상태</dt><dd>${statusBadge('permit', p.status)}</dd>
+        <dt>${t('th_status')}</dt><dd>${statusBadge('permit', p.status)}</dd>
         ${(p.endDatetime||p.siteCondition||p.residualCheck||p.endConfirmer) ? `
-        <dt>종료일시</dt><dd class="mono">${p.endDatetime?fmtDateTime(p.endDatetime):'-'}</dd>
-        <dt>현장상태</dt><dd>${esc(p.siteCondition||'-')}</dd>
-        ${p.fireWork?`<dt>잔불확인</dt><dd>${esc(p.residualCheck||'-')}</dd>`:''}
-        <dt>확인자</dt><dd>${esc(p.endConfirmer||'-')}</dd>
+        <dt>${t('dt_enddatetime')}</dt><dd class="mono">${p.endDatetime?fmtDateTime(p.endDatetime):'-'}</dd>
+        <dt>${t('dt_sitecondition')}</dt><dd>${esc(p.siteCondition||'-')}</dd>
+        ${p.fireWork?`<dt>${t('dt_residualcheck')}</dt><dd>${esc(p.residualCheck||'-')}</dd>`:''}
+        <dt>${t('dt_confirmer')}</dt><dd>${esc(p.endConfirmer||'-')}</dd>
         `:''}
-        <dt>비고</dt><dd>${esc(p.note||'-')}</dd>
+        <dt>${t('lbl_note')}</dt><dd>${esc(p.note||'-')}</dd>
       </dl>
     </div>
     <div class="modal-foot">
-      <button class="btn" id="downloadBtn">${icon('file-check',14)} 허가서 다운로드(원본 양식)</button>
-      ${(canTerminate() && (p.status==='승인'||p.status==='종료') && (!p.terminationLocked || State.mode==='admin')) ? `<button class="btn" id="termBtn">${p.terminationLocked?'작업종료 확인 수정':'작업종료 확인 입력'}</button>` : ''}
-      ${State.mode==='admin' ? `<button class="btn" id="delBtn">삭제</button><button class="btn btn-primary" id="editBtn">수정</button>` : ''}
-      <button class="btn" data-close>닫기</button>
+      <button class="btn" id="downloadBtn">${icon('file-check',14)} ${t('btn_download_permit')}</button>
+      ${(canTerminate() && (p.status==='승인'||p.status==='종료') && (!p.terminationLocked || State.mode==='admin')) ? `<button class="btn" id="termBtn">${p.terminationLocked?t('btn_term_edit'):t('btn_term_input')}</button>` : ''}
+      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
   document.getElementById('downloadBtn').addEventListener('click', ()=> generatePermitDocx(p));
@@ -1387,8 +1778,8 @@ function openPermitDetail(id){
   if(State.mode==='admin'){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openPermitModal(p); });
     document.getElementById('delBtn').addEventListener('click', async ()=>{
-      if(confirm('이 작업허가 항목을 삭제하시겠습니까?')){
-        await DataStore.remove(PATHS.permits, id); closeModal(); toast('삭제되었습니다'); renderPermits();
+      if(confirm(t('confirm_delete_permit'))){
+        await DataStore.remove(PATHS.permits, id); closeModal(); toast(t('toast_deleted')); renderPermits();
       }
     });
   }
@@ -1396,26 +1787,26 @@ function openPermitDetail(id){
 
 function openPermitTerminationModal(p){
   showModal(`
-    <div class="modal-head"><h3>작업종료 확인 입력</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${t('term_modal_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <p class="hint" style="margin-bottom:14px;">작업이 끝난 뒤, 현장에서 확인한 내용을 입력해주세요.</p>
+      <p class="hint" style="margin-bottom:14px;">${t('term_modal_hint')}</p>
       <div class="row2">
-        <div class="field"><label>작업종료 일시</label><input type="datetime-local" id="f_endDatetime" value="${p.endDatetime||''}"></div>
-        <div class="field"><label>현장 정리정돈·안전상태</label>
+        <div class="field"><label>${t('lbl_end_datetime_input')}</label><input type="datetime-local" id="f_endDatetime" value="${p.endDatetime||''}"></div>
+        <div class="field"><label>${t('lbl_sitecondition_input')}</label>
           <select id="f_siteCondition">
-            <option value="">선택 안 함</option>
-            <option value="이상없음" ${p.siteCondition==='이상없음'?'selected':''}>이상없음</option>
-            <option value="이상있음" ${p.siteCondition==='이상있음'?'selected':''}>이상있음</option>
+            <option value="">${t('opt_none_selected')}</option>
+            <option value="이상없음" ${p.siteCondition==='이상없음'?'selected':''}>${t('opt_site_ok')}</option>
+            <option value="이상있음" ${p.siteCondition==='이상있음'?'selected':''}>${t('opt_site_notok')}</option>
           </select>
         </div>
       </div>
-      ${p.fireWork ? `<div class="field"><label>잔불확인 결과 (화기작업 시)</label><input type="text" id="f_residualCheck" value="${esc(p.residualCheck||'')}" placeholder="예: 감시자 박O민 / 17:20~17:52(32분) / 이상없음"></div>` : ''}
-      <div class="field"><label>확인자(공정담당자)</label><input type="text" id="f_endConfirmer" value="${esc(p.endConfirmer||'')}"></div>
-      ${p.terminationEnteredBy ? `<p class="hint">마지막 입력: ${esc(p.terminationEnteredBy)} · ${fmtDateTime(p.terminationEnteredAt)}</p>` : ''}
+      ${p.fireWork ? `<div class="field"><label>${t('lbl_residualcheck_input')}</label><input type="text" id="f_residualCheck" value="${esc(p.residualCheck||'')}" placeholder="예: 감시자 박O민 / 17:20~17:52(32분) / 이상없음"></div>` : ''}
+      <div class="field"><label>${t('lbl_endconfirmer_input')}</label><input type="text" id="f_endConfirmer" value="${esc(p.endConfirmer||'')}"></div>
+      ${p.terminationEnteredBy ? `<p class="hint">${t('lbl_last_entered')}: ${esc(p.terminationEnteredBy)} · ${fmtDateTime(p.terminationEnteredAt)}</p>` : ''}
     </div>
     <div class="modal-foot">
-      <button class="btn" data-close>취소</button>
-      <button class="btn btn-primary" id="saveTerminationBtn">저장</button>
+      <button class="btn" data-close>${t('btn_cancel')}</button>
+      <button class="btn btn-primary" id="saveTerminationBtn">${t('btn_save')}</button>
     </div>
   `);
   document.getElementById('saveTerminationBtn').addEventListener('click', async ()=>{
@@ -1423,13 +1814,13 @@ function openPermitTerminationModal(p){
       endDatetime: document.getElementById('f_endDatetime').value,
       siteCondition: document.getElementById('f_siteCondition').value,
       endConfirmer: document.getElementById('f_endConfirmer').value.trim(),
-      terminationEnteredBy: State.mode==='admin' ? '전체관리자' : `부서관리자(${State.dept})`,
+      terminationEnteredBy: State.mode==='admin' ? t('role_full_admin') : `${t('role_dept_admin')}(${State.dept})`,
       terminationEnteredAt: new Date().toISOString(),
     };
     if(State.mode==='dept'){ data.terminationLocked = true; }
     if(p.fireWork){ data.residualCheck = document.getElementById('f_residualCheck').value.trim(); }
     await DataStore.update(PATHS.permits, p.id, data);
-    toast('작업종료 확인 내용이 저장되었습니다');
+    toast(t('toast_term_saved'));
     closeModal();
     openPermitDetail(p.id);
   });
@@ -1493,36 +1884,97 @@ function generatePermitDocx(p){
 function renderRisks(){
   const el = document.getElementById('view-risks');
   const filter = State.filters.risks || '전체';
+  const processFilter = State.filters.risksProcess || '전체';
+  const viewMode = State.filters.risksView || 'table';
+  const isAdmin = State.mode==='admin';
+
+  function getFilteredRisks(){
+    const arr = objToArr(DataStore.get(PATHS.risks)).sort((a,b)=>{
+      const s = riskLevel(b)==='crit'?4:riskLevel(b)==='high'?3:riskLevel(b)==='mid'?2:1;
+      const s2 = riskLevel(a)==='crit'?4:riskLevel(a)==='high'?3:riskLevel(a)==='mid'?2:1;
+      return s - s2;
+    });
+    let f = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
+    if(processFilter!=='전체') f = f.filter(r=>r.process===processFilter);
+    return f;
+  }
+
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="riskTabs">
-        ${['전체','등록','접수완료','조치중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s}</button>`).join('')}
+        ${['전체','등록','접수완료','조치중','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      <button class="btn btn-primary" id="addRiskBtn">${icon('plus',15)} 위험성평가 등록</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="riskProcessFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체">${t('tab_all')} (${t('th_process_task')})</option>
+          ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${processFilter===p?'selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm" id="galleryToggleBtn">${viewMode==='table' ? icon('alert-triangle',14)+' '+t('btn_gallery_view') : icon('grid',14)+' '+t('btn_table_view')}</button>
+        ${isAdmin ? `<button class="btn btn-sm" id="printRisksBtn">${icon('file-check',14)} ${t('btn_print')}</button>` : ''}
+        ${isAdmin ? `<button class="btn btn-sm" id="excelRisksBtn">${icon('file-check',14)} ${t('btn_excel')}</button>` : ''}
+        <button class="btn btn-primary" id="addRiskBtn">${icon('plus',15)} ${t('risks_add_btn')}</button>
+      </div>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr>
-        <th>공정 · 작업</th><th>유해위험요인</th><th class="tight">빈도</th><th class="tight">강도</th><th class="tight">위험도</th><th>개선대책</th><th>사진</th><th>신청자</th><th>상태</th><th class="tight">관리</th>
-      </tr></thead>
-      <tbody id="riskBody"></tbody>
-    </table></div>
+    ${viewMode==='table' ? riskLegendHtml() : ''}
+    <div id="riskViewArea"></div>
   `;
   el.querySelectorAll('#riskTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.risks = t.dataset.s; renderRisks();
   }));
+  document.getElementById('riskProcessFilter').addEventListener('change', e=>{
+    State.filters.risksProcess = e.target.value; renderRisks();
+  });
+  document.getElementById('galleryToggleBtn').addEventListener('click', ()=>{
+    State.filters.risksView = viewMode==='table' ? 'gallery' : 'table';
+    renderRisks();
+  });
+  if(isAdmin){
+    document.getElementById('printRisksBtn').addEventListener('click', ()=> printRisks(getFilteredRisks()));
+    document.getElementById('excelRisksBtn').addEventListener('click', ()=> exportRisksExcel(getFilteredRisks()));
+  }
   el.querySelector('#addRiskBtn').addEventListener('click', ()=>{
     openRiskModal();
   });
 
-  const arr = objToArr(DataStore.get(PATHS.risks)).sort((a,b)=>{
-    const s = riskLevel(b)==='crit'?4:riskLevel(b)==='high'?3:riskLevel(b)==='mid'?2:1;
-    const s2 = riskLevel(a)==='crit'?4:riskLevel(a)==='high'?3:riskLevel(a)==='mid'?2:1;
-    return s - s2;
-  });
-  const filtered = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
+  const filtered = getFilteredRisks();
+  const area = document.getElementById('riskViewArea');
+
+  if(viewMode==='gallery'){
+    const done = filtered.filter(r=>r.status==='완료'||r.status==='일부개선완료');
+    if(done.length===0){
+      area.innerHTML = `<div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('gallery_empty')}</div>`;
+      return;
+    }
+    area.innerHTML = `<div class="gallery-grid">${done.map(r=>{
+      const beforeScore = (Number(r.frequency)||0)*(Number(r.severity)||0);
+      const afterScore = (r.afterFrequency && r.afterSeverity) ? (Number(r.afterFrequency)*Number(r.afterSeverity)) : null;
+      return `<div class="gallery-card">
+        <div class="gc-photos">
+          <div class="gc-photo">${r.photoBefore?`<img src="${r.photoBefore}" class="risk-photo-lg">`:`<div class="gc-noimg">${t('gallery_no_photo')}</div>`}<span class="gc-tag">${t('gallery_before')}</span></div>
+          <div class="gc-photo">${r.photoAfter?`<img src="${r.photoAfter}" class="risk-photo-lg">`:`<div class="gc-noimg">${t('gallery_no_photo')}</div>`}<span class="gc-tag">${t('gallery_after')}</span></div>
+        </div>
+        <div class="gc-body">
+          <div class="gc-head"><b>${esc(r.process||'-')}</b> ${statusBadge('risk', r.status)}</div>
+          <div class="gc-hazard">${esc(r.hazard||'-')}</div>
+          <div class="gc-score">${beforeScore}${afterScore!=null?` → <b>${afterScore}</b>`:''}</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+    bindImageZoom(area);
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th><th>${t('th_reporter_applicant')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
+      </tr></thead>
+      <tbody id="riskBody"></tbody>
+    </table></div>
+  `;
   const body = document.getElementById('riskBody');
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="10"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>등록된 위험성평가가 없습니다</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="11"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(r=>`
@@ -1531,78 +1983,227 @@ function renderRisks(){
       <td>${esc(r.hazard||'-')}</td>
       <td class="tight mono">${r.frequency||0}</td>
       <td class="tight mono">${r.severity||0}</td>
-      <td class="tight">${riskChip(r)}</td>
+      <td class="tight">${riskLevelBadge(r)}</td>
       <td>${esc(r.measures||'-')}</td>
-      <td>${riskThumbs(r)}</td>
+      <td>${riskThumb(r.photoBefore)}</td>
+      <td>${riskThumb(r.photoAfter)}</td>
       <td>${esc(r.reporter||'-')}</td>
       <td>${statusBadge('risk', r.status)}</td>
-      <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${r.id}">보기</button></td>
+      <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${r.id}">${t('btn_view')}</button></td>
     </tr>
   `).join('');
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openRiskDetail(b.dataset.viewId)));
+  bindImageZoom(body);
 }
 
-function riskThumbs(r){
-  if(!r.photoBefore && !r.photoAfter) return '<span style="color:var(--ink-faint);font-size:11.5px;">-</span>';
-  const mk = (src,label)=> src ? `<img src="${src}" title="${label}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">` : '';
-  return `<div style="display:flex;gap:4px;">${mk(r.photoBefore,'현장 사진')}${mk(r.photoAfter,'개선 후 사진')}</div>`;
+function riskThumb(src){
+  if(!src) return '<span style="color:var(--ink-faint);font-size:11.5px;">-</span>';
+  return `<img src="${src}" class="risk-thumb" style="width:56px;height:56px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in;">`;
 }
+// 사진(썸네일) 클릭 시 원본 크기로 확대해서 보여주는 라이트박스
+function bindImageZoom(container){
+  (container||document).querySelectorAll('img.risk-thumb, img.risk-photo-lg').forEach(img=>{
+    img.addEventListener('click', ()=> openImageLightbox(img.src));
+  });
+}
+function openImageLightbox(src){
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `<img src="${src}"><button class="lightbox-close" aria-label="close">✕</button>`;
+  overlay.addEventListener('click', ()=> overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+// 위험성평가 인쇄 — 필터링된 목록을 인쇄용 레이아웃으로 새 창에 열어 브라우저 인쇄로 출력
+// ※ 정식 위험성평가 양식(docx)을 주시면, 작업허가서처럼 그 양식에 그대로 값을 채워 넣는 방식으로 업그레이드할 수 있습니다.
+function printRisks(list){
+  if(!list || list.length===0){ toast(t('print_no_data')); return; }
+  const rows = list.map(r=>{
+    const info = riskLevelInfo(riskLevel(r));
+    const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
+    const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : null;
+    return `
+      <tr>
+        <td>${esc(r.process||'-')}${r.task?('<br><span class="sub">'+esc(r.task)+'</span>'):''}</td>
+        <td>${esc(r.hazardCategory||'-')}</td>
+        <td>${esc(r.hazardDetailType||'-')}</td>
+        <td>${esc(r.hazard||'-')}</td>
+        <td>${esc(r.currentMeasures||'-')}</td>
+        <td class="ctr">${r.frequency||0}</td>
+        <td class="ctr">${r.severity||0}</td>
+        <td class="ctr"><span class="lv-badge lv-${riskLevel(r)}">${score}</span></td>
+        <td>${esc(r.measures||'-')}</td>
+        <td class="ctr">${r.afterFrequency||'-'}</td>
+        <td class="ctr">${r.afterSeverity||'-'}</td>
+        <td class="ctr">${afterScore!=null?afterScore:'-'}</td>
+        <td class="ctr">${esc(r.reporter||'-')}</td>
+        <td class="ctr">${esc(statusLabel(r.status))}</td>
+        <td class="photos">
+          ${r.photoBefore?`<img src="${r.photoBefore}">`:''}
+          ${r.photoAfter?`<img src="${r.photoAfter}">`:''}
+        </td>
+      </tr>`;
+  }).join('');
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>${t('print_report_title')}</title>
+    <style>
+      body{font-family:'Malgun Gothic',sans-serif;padding:24px;color:#14192B;}
+      h1{font-size:19px;margin:0 0 4px;}
+      .meta{font-size:11.5px;color:#667085;margin-bottom:18px;}
+      table{width:100%;border-collapse:collapse;font-size:10px;}
+      th,td{border:1px solid #C7CEDB;padding:5px 6px;vertical-align:top;text-align:left;}
+      th{background:#F1F3F7;font-weight:700;}
+      td.ctr{text-align:center;white-space:nowrap;}
+      td.photos{display:flex;gap:4px;}
+      td.photos img{width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #C7CEDB;}
+      .sub{color:#667085;font-size:9.5px;}
+      .lv-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-weight:700;color:#fff;font-size:10px;}
+      .lv-crit{background:#E5484D;} .lv-high{background:#FF6A13;} .lv-mid{background:#FFC93C;color:#5C4400;} .lv-low{background:#1DA46F;}
+      @media print{ body{padding:8mm;} table{font-size:8.5px;} }
+    </style>
+  </head><body>
+    <h1>${t('print_report_title')}</h1>
+    <div class="meta">${t('print_generated_on')}: ${fmtDate(todayStr())}</div>
+    <table>
+      <thead><tr>
+        <th>${t('th_process_task')}</th><th>위험분류</th><th>위험세부분류</th><th>${t('th_hazard')}</th><th>현재조치</th><th>${t('th_frequency')}</th><th>${t('th_severity')}</th><th>${t('th_risklevel')}</th><th>${t('th_measures')}</th><th>개선후가능성</th><th>개선후강도</th><th>개선후위험성</th><th>${t('th_reporter_applicant')}</th><th>${t('th_status')}</th><th>${t('dt_photo_site')}/${t('dt_photo_after')}</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body></html>`);
+  win.document.close();
+  win.onload = ()=> win.print();
+}
+
+// 위험성평가 엑셀 다운로드 — 공식 양식과 동일한 컬럼 구조로 출력 (한글 문서에 복사·붙여넣기 용도)
+function exportRisksExcel(list){
+  if(!list || list.length===0){ toast(t('print_no_data')); return; }
+  if(typeof XLSX==='undefined'){ toast('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  const header = ['공정명','세부작업내용','위험분류','위험세부분류','유해위험요인(위험발생상황 및 결과)','현재의 안전보건조치','가능성','중대성','위험성','위험성 감소대책(개선대책)','개선후 가능성','개선후 중대성','개선후 위험성','상태','신청자(담당자)','비고'];
+  const rows = list.map(r=>{
+    const score = (Number(r.frequency)||0)*(Number(r.severity)||0);
+    const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
+    return [
+      r.process||'', r.task||'', r.hazardCategory||'', r.hazardDetailType||'',
+      r.hazard||'', r.currentMeasures||'',
+      r.frequency||'', r.severity||'', score||'',
+      r.measures||'',
+      r.afterFrequency||'', r.afterSeverity||'', afterScore,
+      statusLabel(r.status)||'', r.reporter||'', ''
+    ];
+  });
+  const wb = XLSX.utils.book_new();
+  // 공정별로 시트를 나눔 (선택된 공정이 있으면 해당 시트 하나만, 전체면 공정별로 분리)
+  const byProcess = {};
+  list.forEach((r, idx)=>{
+    const key = r.process || '기타';
+    if(!byProcess[key]) byProcess[key] = [];
+    byProcess[key].push(rows[idx]);
+  });
+  Object.keys(byProcess).forEach(proc=>{
+    const sheetData = [header, ...byProcess[proc]];
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = [
+      {wch:10},{wch:14},{wch:12},{wch:14},{wch:32},{wch:26},
+      {wch:7},{wch:7},{wch:7},{wch:28},{wch:9},{wch:9},{wch:9},{wch:12},{wch:12},{wch:14}
+    ];
+    const safeSheetName = proc.slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'');
+    XLSX.utils.book_append_sheet(wb, ws, safeSheetName || 'Sheet');
+  });
+  XLSX.writeFile(wb, `위험성평가_${todayStr()}.xlsx`);
+}
+
+const HAZARD_CATEGORIES = ['기계적요인','화학적요인','작업특성요인','작업환경요인'];
 
 function openRiskModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
+  const isAdmin = State.mode==='admin';
   showModal(`
-    <div class="modal-head"><h3>${isEdit?'위험성평가 수정':'위험성평가 등록'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?t('risk_edit_title'):t('risk_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
-        <div class="field"><label>공정명 *</label><input type="text" id="f_process" value="${esc(v.process||'')}" placeholder="예: 조형공정"></div>
-        <div class="field"><label>세부 작업</label><input type="text" id="f_task" value="${esc(v.task||'')}" placeholder="예: 주형 이동"></div>
+        <div class="field"><label>${t('lbl_processname')} *</label>
+          <select id="f_process">
+            <option value="">${t('opt_select_please')}</option>
+            ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${v.process===p?'selected':''}>${esc(p)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>${t('lbl_subtask')}</label><input type="text" id="f_task" value="${esc(v.task||'')}" placeholder="예: 주형 이동"></div>
       </div>
-      <div class="field"><label>유해위험요인 *</label><textarea id="f_hazard">${esc(v.hazard||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_hazard')} *</label><textarea id="f_hazard">${esc(v.hazard||'')}</textarea></div>
       <div class="row2">
-        <div class="field"><label>빈도 (발생 가능성) *</label>
+        <div class="field"><label>${t('lbl_frequency')} *</label>
           <select id="f_frequency">
-            ${[
-              [1,'1 - 거의 없음 (연 1회 미만)'],
-              [2,'2 - 드묾 (연 1~2회)'],
-              [3,'3 - 가끔 (분기 1회 정도)'],
-              [4,'4 - 자주 (월 1회 이상)'],
-              [5,'5 - 매우 잦음 (상시 노출)']
-            ].map(([n,label])=>`<option value="${n}" ${Number(v.frequency)===n?'selected':''}>${label}</option>`).join('')}
+            ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(v.frequency)===n?'selected':''}>${t('freq_'+n)}</option>`).join('')}
           </select>
         </div>
-        <div class="field"><label>강도 (피해 정도) *</label>
+        <div class="field"><label>${t('lbl_severity')} *</label>
           <select id="f_severity">
-            ${[
-              [1,'1 - 경미 (응급처치 수준)'],
-              [2,'2 - 경상 (병원 치료 필요)'],
-              [3,'3 - 중상 (장기 요양·후유증)'],
-              [4,'4 - 치명적 (사망·중대재해)']
-            ].map(([n,label])=>`<option value="${n}" ${Number(v.severity)===n?'selected':''}>${label}</option>`).join('')}
+            ${[1,2,3,4].map(n=>`<option value="${n}" ${Number(v.severity)===n?'selected':''}>${t('sev_'+n)}</option>`).join('')}
           </select>
         </div>
       </div>
-      <div class="field"><label>개선대책 *</label><textarea id="f_measures">${esc(v.measures||'')}</textarea></div>
-      <div class="field"><label>현장 사진 (선택)</label><input type="file" accept="image/*" id="f_photoBefore">
-        ${v.photoBefore?`<p class="hint">기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.</p>`:''}
+      <div class="field"><label>${t('lbl_measures_only')} *</label><textarea id="f_measures">${esc(v.measures||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_photo_before')}</label><input type="file" accept="image/*" id="f_photoBefore">
+        ${v.photoBefore?`<p class="hint">${t('hint_photo_replace')}</p>`:''}
       </div>
       <div class="row2">
-        <div class="field"><label>신청자 *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
-        ${State.mode==='admin' ? `
-        <div class="field"><label>진행현황 (관리자)</label>
-          <select id="f_status">${['등록','접수완료','조치중','완료'].map(s=>`<option ${v.status===s?'selected':''}>${s}</option>`).join('')}</select>
+        <div class="field"><label>${t('th_reporter_applicant')} *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
+        ${isAdmin ? `
+        <div class="field"><label>${t('lbl_progress_admin')}</label>
+          <select id="f_status">${['등록','접수완료','조치중','완료'].map(s=>`<option value="${s}" ${(v.status===s || (s==='완료' && v.status==='일부개선완료'))?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
         </div>` : ''}
       </div>
-      ${State.mode==='admin' ? `
-      <div class="field"><label>개선 후 사진 (선택 · 완료 처리 시)</label><input type="file" accept="image/*" id="f_photoAfter">
-        ${v.photoAfter?`<p class="hint">기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.</p>`:''}
-      </div>` : ''}
+      ${isAdmin ? `
+      <div class="divider"></div>
+      <p class="hint" style="margin-bottom:8px;font-weight:700;color:var(--ink-soft);">관리자 전용 항목 (서류용 상세분류)</p>
+      <div class="row2">
+        <div class="field"><label>위험분류</label>
+          <select id="f_hazardCategory">
+            <option value="">선택 안 함</option>
+            ${HAZARD_CATEGORIES.map(c=>`<option value="${c}" ${v.hazardCategory===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>위험세부분류</label><input type="text" id="f_hazardDetailType" value="${esc(v.hazardDetailType||'')}" placeholder="예: 끼임, 낙하, 절단·베임, 고온 등"></div>
+      </div>
+      <div class="field"><label>현재의 안전보건조치</label><textarea id="f_currentMeasures" placeholder="현재 이미 시행 중인 안전조치 (개선대책과 별도)">${esc(v.currentMeasures||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_photo_after')}</label><input type="file" accept="image/*" id="f_photoAfter">
+        ${v.photoAfter?`<p class="hint">${t('hint_photo_replace')}</p>`:''}
+      </div>
+      <div id="afterEvalFields" style="${v.status==='완료'||v.status==='일부개선완료'?'':'display:none'};background:#F7F8FA;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:6px;">
+        <p class="hint" style="margin-bottom:8px;font-weight:700;">개선후 재평가 — 완료 처리 시 반드시 입력해주세요</p>
+        <div class="row2">
+          <div class="field"><label>개선후 가능성</label>
+            <select id="f_afterFrequency">
+              <option value="">${t('opt_select_please')}</option>
+              ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(v.afterFrequency)===n?'selected':''}>${t('freq_'+n)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>개선후 강도</label>
+            <select id="f_afterSeverity">
+              <option value="">${t('opt_select_please')}</option>
+              ${[1,2,3,4].map(n=>`<option value="${n}" ${Number(v.afterSeverity)===n?'selected':''}>${t('sev_'+n)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <p class="hint">재평가 점수가 6점 이하면 "완료"로, 7점 이상이면 "일부개선완료"로 자동 저장되며 계속 관리 대상에 남습니다.</p>
+      </div>
+      ` : ''}
     </div>
     <div class="modal-foot">
-      <button class="btn" data-close>취소</button>
-      <button class="btn btn-primary" id="saveRiskBtn">저장</button>
+      <button class="btn" data-close>${t('btn_cancel')}</button>
+      <button class="btn btn-primary" id="saveRiskBtn">${t('btn_save')}</button>
     </div>
   `);
+  if(isAdmin){
+    const statusSel = document.getElementById('f_status');
+    const afterFields = document.getElementById('afterEvalFields');
+    statusSel.addEventListener('change', e=>{
+      afterFields.style.display = e.target.value==='완료' ? '' : 'none';
+    });
+  }
   document.getElementById('saveRiskBtn').addEventListener('click', async ()=>{
     const data = {
       process: document.getElementById('f_process').value.trim(),
@@ -1613,15 +2214,41 @@ function openRiskModal(existing){
       measures: document.getElementById('f_measures').value.trim(),
       reporter: document.getElementById('f_reporter').value.trim(),
     };
-    if(State.mode==='admin' && document.getElementById('f_status')){
-      data.status = document.getElementById('f_status').value;
+    let chosenStatus = null;
+    if(isAdmin && document.getElementById('f_status')){
+      chosenStatus = document.getElementById('f_status').value;
+      data.status = chosenStatus;
     }else if(!isEdit){
       data.status = '등록';
     }
-    if(!data.process || !data.hazard || !data.measures || !data.reporter){ toast('필수 항목(*)을 입력해주세요'); return; }
+    if(!data.process || !data.hazard || !data.measures || !data.reporter){ toast(t('toast_fill_required')); return; }
+
+    if(isAdmin){
+      data.hazardCategory = document.getElementById('f_hazardCategory').value;
+      data.hazardDetailType = document.getElementById('f_hazardDetailType').value.trim();
+      data.currentMeasures = document.getElementById('f_currentMeasures').value.trim();
+    }
+
+    // 완료 처리 시 개선후 재평가 필수 + 점수에 따라 자동 분기(완료/일부개선완료), 경고는 뜨되 저장은 계속 진행
+    if(isAdmin && chosenStatus==='완료'){
+      const af = document.getElementById('f_afterFrequency').value;
+      const as = document.getElementById('f_afterSeverity').value;
+      if(!af || !as){ toast('완료 처리하려면 개선후 재평가(가능성·강도)를 입력해주세요'); return; }
+      const afterFrequency = Number(af), afterSeverity = Number(as);
+      const afterScore = afterFrequency * afterSeverity;
+      data.afterFrequency = afterFrequency;
+      data.afterSeverity = afterSeverity;
+      if(afterScore <= 6){
+        data.status = '완료';
+      }else{
+        data.status = '일부개선완료';
+        toast('재평가 결과 위험도가 아직 높습니다 (추가 개선 필요) — 일부개선완료로 저장됩니다');
+      }
+    }
+
     const photoBeforeFile = document.getElementById('f_photoBefore').files[0];
     if(photoBeforeFile){
-      if(photoBeforeFile.size > 5*1024*1024){ toast('사진 용량이 너무 큽니다 (5MB 이내)'); return; }
+      if(photoBeforeFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       data.photoBefore = await new Promise((resolve,reject)=>{
         const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photoBeforeFile);
       });
@@ -1630,7 +2257,7 @@ function openRiskModal(existing){
     if(photoAfterInput){
       const photoAfterFile = photoAfterInput.files[0];
       if(photoAfterFile){
-        if(photoAfterFile.size > 5*1024*1024){ toast('사진 용량이 너무 큽니다 (5MB 이내)'); return; }
+        if(photoAfterFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
         data.photoAfter = await new Promise((resolve,reject)=>{
           const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photoAfterFile);
         });
@@ -1638,11 +2265,11 @@ function openRiskModal(existing){
     }
     if(isEdit){
       await DataStore.update(PATHS.risks, existing.id, data);
-      toast('위험성평가를 수정했습니다');
+      toast(t('toast_risk_updated'));
     }else{
       data.createdAt = Date.now();
       await DataStore.push(PATHS.risks, data);
-      toast('위험성평가가 등록되었습니다');
+      toast(t('toast_risk_registered'));
     }
     closeModal(); renderRisks();
   });
@@ -1653,35 +2280,46 @@ function openRiskDetail(id){
   if(!raw) return;
   markRead(PATHS.risks, id);
   const r = Object.assign({id}, raw);
+  const isAdmin = State.mode==='admin';
+  const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : null;
   showModal(`
-    <div class="modal-head"><h3>위험성평가 상세</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${t('risk_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <dl class="detail-grid">
-        <dt>공정 · 작업</dt><dd>${esc(r.process)} ${r.task?('· '+esc(r.task)):''}</dd>
-        <dt>유해위험요인</dt><dd>${esc(r.hazard)}</dd>
-        <dt>위험도</dt><dd>${riskChip(r)} &nbsp;(빈도 ${r.frequency} × 강도 ${r.severity})</dd>
-        <dt>개선대책</dt><dd>
-          ${esc(r.measures)}
-          ${(r.photoBefore||r.photoAfter) ? `
-          <div style="display:flex;gap:10px;margin-top:10px;">
-            ${r.photoBefore ? `<div style="flex:1;"><div class="hint" style="margin-bottom:4px;">현장 사진</div><img src="${r.photoBefore}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid var(--line);"></div>` : ''}
-            ${r.photoAfter ? `<div style="flex:1;"><div class="hint" style="margin-bottom:4px;">개선 후 사진</div><img src="${r.photoAfter}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid var(--line);"></div>` : ''}
-          </div>` : ''}
-        </dd>
-        <dt>신청자</dt><dd>${esc(r.reporter||'-')}</dd>
-        <dt>상태</dt><dd>${statusBadge('risk', r.status)}</dd>
+        <dt>${t('th_process_task')}</dt><dd>${esc(r.process)} ${r.task?('· '+esc(r.task)):''}</dd>
+        <dt>${t('lbl_hazard')}</dt><dd>${esc(r.hazard)}</dd>
+        <dt>${t('th_risklevel')}</dt><dd>${riskLevelBadge(r)} &nbsp;(${t('th_frequency')} ${r.frequency} × ${t('th_severity')} ${r.severity})</dd>
+        <dt>${t('lbl_measures_only')}</dt><dd>${esc(r.measures)}</dd>
+        <dt>${t('th_reporter_applicant')}</dt><dd>${esc(r.reporter||'-')}</dd>
+        <dt>${t('th_status')}</dt><dd>${statusBadge('risk', r.status)}</dd>
+        ${isAdmin && (r.hazardCategory||r.hazardDetailType) ? `<dt>위험분류</dt><dd>${esc(r.hazardCategory||'-')} ${r.hazardDetailType?('· '+esc(r.hazardDetailType)):''}</dd>` : ''}
+        ${isAdmin && r.currentMeasures ? `<dt>현재의 안전보건조치</dt><dd>${esc(r.currentMeasures)}</dd>` : ''}
+        ${afterScore!=null ? `<dt>개선후 재평가</dt><dd>${riskChip({frequency:r.afterFrequency,severity:r.afterSeverity})} (가능성 ${r.afterFrequency} × 강도 ${r.afterSeverity})</dd>` : ''}
       </dl>
+      ${(r.photoBefore||r.photoAfter) ? `
+      <div class="divider"></div>
+      <div class="row2">
+        <div>
+          <div class="hint" style="margin-bottom:6px;font-weight:700;">${t('dt_photo_site')}</div>
+          ${r.photoBefore ? `<img src="${r.photoBefore}" class="risk-photo-lg" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;">` : `<div class="empty" style="padding:30px 10px;">-</div>`}
+        </div>
+        <div>
+          <div class="hint" style="margin-bottom:6px;font-weight:700;">${t('dt_photo_after')}</div>
+          ${r.photoAfter ? `<img src="${r.photoAfter}" class="risk-photo-lg" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;">` : `<div class="empty" style="padding:30px 10px;">-</div>`}
+        </div>
+      </div>` : ''}
     </div>
     <div class="modal-foot">
-      ${State.mode==='admin' ? `<button class="btn" id="delBtn">삭제</button><button class="btn btn-primary" id="editBtn">수정</button>` : ''}
-      <button class="btn" data-close>닫기</button>
+      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
+  bindImageZoom(document.getElementById('modalBox') || document);
   if(State.mode==='admin'){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openRiskModal(r); });
     document.getElementById('delBtn').addEventListener('click', async ()=>{
-      if(confirm('이 항목을 삭제하시겠습니까?')){
-        await DataStore.remove(PATHS.risks, id); closeModal(); toast('삭제되었습니다'); renderRisks();
+      if(confirm(t('confirm_delete'))){
+        await DataStore.remove(PATHS.risks, id); closeModal(); toast(t('toast_deleted')); renderRisks();
       }
     });
   }
@@ -1697,17 +2335,17 @@ function renderIncidents(){
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="incTabs">
-        ${['전체','접수','조사중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s}</button>`).join('')}
+        ${['전체','접수','조사중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      <button class="btn btn-primary" id="addIncBtn">${icon('plus',15)} 사고 접수</button>
+      <button class="btn btn-primary" id="addIncBtn">${icon('plus',15)} ${t('incidents_add_btn')}</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>발생일시</th><th>공정</th><th>장소</th><th>내용</th>
-        ${isAdmin?'<th>신고자</th>':''}
-        <th>사고유형</th><th>부상정도</th>
-        ${isAdmin?'<th>상태</th>':''}
-        <th class="tight">관리</th>
+        <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
+        ${isAdmin?`<th>${t('th_reporter')}</th>`:''}
+        <th>${t('th_accidenttype')}</th><th>${t('th_injuryseverity')}</th>
+        ${isAdmin?`<th>${t('th_status')}</th>`:''}
+        <th class="tight">${t('btn_manage_col')}</th>
       </tr></thead>
       <tbody id="incBody"></tbody>
     </table></div>
@@ -1722,7 +2360,7 @@ function renderIncidents(){
   const body = document.getElementById('incBody');
   const colCount = isAdmin ? 8 : 6;
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>등록된 접수가 없습니다</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>${t('incidents_empty')}</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(i=>`
@@ -1732,10 +2370,10 @@ function renderIncidents(){
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
       ${isAdmin?`<td>${esc(i.reporter||'-')}</td>`:''}
-      <td><span class="badge b-gray">${esc(i.accidentType||'-')}</span></td>
+      <td><span class="badge b-gray">${esc(i.accidentType ? (TRANSLATIONS['accidenttype_'+i.accidentType]?t('accidenttype_'+i.accidentType):i.accidentType) : '-')}</span></td>
       <td>${esc(i.injurySeverity||'-')}</td>
       ${isAdmin?`<td>${statusBadge('incident', i.status)}</td>`:''}
-      <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${i.id}">보기</button></td>
+      <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${i.id}">${t('btn_view')}</button></td>
     </tr>
   `).join('');
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openIncidentDetail(b.dataset.viewId)));
@@ -1748,49 +2386,49 @@ function openIncidentModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
   showModal(`
-    <div class="modal-head"><h3>${isEdit?'접수 내용 수정':'사고 접수'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?t('incident_edit_title'):t('incident_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
-        <div class="field"><label>공정 *</label><input type="text" id="f_process" value="${esc(v.process||'')}" placeholder="예: 조형공정"></div>
-        <div class="field"><label>발생일시 *</label><input type="datetime-local" id="f_datetime" value="${v.datetime||''}"></div>
+        <div class="field"><label>${t('th_process')} *</label><input type="text" id="f_process" value="${esc(v.process||'')}" placeholder="예: 조형공정"></div>
+        <div class="field"><label>${t('th_datetime')} *</label><input type="datetime-local" id="f_datetime" value="${v.datetime||''}"></div>
       </div>
-      <div class="field"><label>발생장소 *</label><input type="text" id="f_location" value="${esc(v.location||'')}" placeholder="예: 열처리공정 앞"></div>
-      <div class="field"><label>사고유형 *</label>
+      <div class="field"><label>${t('th_location')} *</label><input type="text" id="f_location" value="${esc(v.location||'')}" placeholder="예: 열처리공정 앞"></div>
+      <div class="field"><label>${t('th_accidenttype')} *</label>
         <select id="f_accidentType">
-          <option value="">선택해주세요</option>
-          ${ACCIDENT_TYPES.map(t=>`<option ${v.accidentType===t?'selected':''}>${t}</option>`).join('')}
+          <option value="">${t('opt_select_please')}</option>
+          ${ACCIDENT_TYPES.map(at=>`<option value="${esc(at)}" ${v.accidentType===at?'selected':''}>${t('accidenttype_'+at)}</option>`).join('')}
         </select>
-        <input type="text" id="f_accidentTypeOther" value="${esc(v.accidentTypeOther||'')}" placeholder="기타 사고유형을 입력하세요" style="margin-top:8px;${v.accidentType==='기타(직접입력)'?'':'display:none'}">
+        <input type="text" id="f_accidentTypeOther" value="${esc(v.accidentTypeOther||'')}" placeholder="${t('placeholder_accidenttype_other')}" style="margin-top:8px;${v.accidentType==='기타(직접입력)'?'':'display:none'}">
       </div>
-      <div class="field"><label>상세 내용 *</label>
+      <div class="field"><label>${t('lbl_description')} *</label>
         <textarea id="f_description">${esc(v.description||'')}</textarea>
-        <p class="hint">어떻게 작업하다가 사고가 발생했는지 적어주세요 (예: 사다리 위에서 배관 점검 중 균형을 잃고 약 1.5m 아래로 떨어짐)</p>
+        <p class="hint">${t('hint_description_example')}</p>
       </div>
-      <div class="field"><label>신고자 *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
-      <div class="field"><label><input type="checkbox" id="f_sameAsReporter" ${v.reporter && v.reporter===v.injuredPerson ? 'checked':''}> 신고자와 재해자가 동일합니다</label></div>
+      <div class="field"><label>${t('lbl_reporter_input')} *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
+      <div class="field"><label><input type="checkbox" id="f_sameAsReporter" ${v.reporter && v.reporter===v.injuredPerson ? 'checked':''}> ${t('lbl_same_as_reporter')}</label></div>
       <div class="divider"></div>
       <div class="row2">
-        <div class="field"><label>재해자 *</label><input type="text" id="f_injuredPerson" value="${esc(v.injuredPerson||'')}" placeholder="이름"></div>
-        <div class="field"><label>부상정도</label>
+        <div class="field"><label>${t('lbl_injured_person')} *</label><input type="text" id="f_injuredPerson" value="${esc(v.injuredPerson||'')}" placeholder="이름"></div>
+        <div class="field"><label>${t('lbl_injury_severity')}</label>
           <select id="f_injurySeverity">
-            <option value="">선택 안 함</option>
-            ${['경미(응급처치)','경상(통원치료)','중상(입원치료)','기타'].map(s=>`<option ${v.injurySeverity===s?'selected':''}>${s}</option>`).join('')}
+            <option value="">${t('opt_none_selected')}</option>
+            ${['경미(응급처치)','경상(통원치료)','중상(입원치료)','기타'].map(s=>`<option value="${s}" ${v.injurySeverity===s?'selected':''}>${t('injury_'+s)}</option>`).join('')}
           </select>
         </div>
       </div>
-      <div class="field"><label>부상내용</label><textarea id="f_injuryDetail" placeholder="예: 우측 손가락 협착, 열상 등">${esc(v.injuryDetail||'')}</textarea></div>
-      <p class="hint" style="margin:-8px 0 4px;">※ 재해자·부상 정보는 개인정보로 분류되어 관리자만 열람할 수 있습니다.</p>
+      <div class="field"><label>${t('lbl_injury_detail')}</label><textarea id="f_injuryDetail" placeholder="예: 우측 손가락 협착, 열상 등">${esc(v.injuryDetail||'')}</textarea></div>
+      <p class="hint" style="margin:-8px 0 4px;">${t('hint_privacy_notice')}</p>
       ${State.mode==='admin' ? `
       <div class="divider"></div>
-      <div class="field"><label>처리 상태 (관리자)</label>
-        <select id="f_status">${['접수','조사중','완료'].map(s=>`<option ${v.status===s?'selected':''}>${s}</option>`).join('')}</select>
+      <div class="field"><label>${t('lbl_status_admin')}</label>
+        <select id="f_status">${['접수','조사중','완료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
       </div>
-      <div class="field"><label>조치 내용 (관리자)</label><textarea id="f_action">${esc(v.action||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_action_admin')}</label><textarea id="f_action">${esc(v.action||'')}</textarea></div>
       ` : ''}
     </div>
     <div class="modal-foot">
-      <button class="btn" data-close>취소</button>
-      <button class="btn btn-primary" id="saveIncBtn">저장</button>
+      <button class="btn" data-close>${t('btn_cancel')}</button>
+      <button class="btn btn-primary" id="saveIncBtn">${t('btn_save')}</button>
     </div>
   `);
   document.getElementById('f_accidentType').addEventListener('change', e=>{
@@ -1827,15 +2465,15 @@ function openIncidentModal(existing){
       data.status = '접수';
     }
     if(!data.process || !data.location || !data.description || !data.datetime || !data.reporter || !data.injuredPerson || !accidentType || (accidentType==='기타(직접입력)' && !data.accidentTypeOther)){
-      toast('필수 항목(*)을 입력해주세요'); return;
+      toast(t('toast_fill_required')); return;
     }
     if(isEdit){
       await DataStore.update(PATHS.incidents, existing.id, data);
-      toast('접수 내용을 수정했습니다');
+      toast(t('toast_incident_updated'));
     }else{
       data.createdAt = Date.now();
       await DataStore.push(PATHS.incidents, data);
-      toast('신고가 접수되었습니다. 안전환경부가 확인 후 조치합니다.');
+      toast(t('toast_incident_registered'));
     }
     closeModal(); renderIncidents();
   });
@@ -1846,36 +2484,36 @@ function openIncidentDetail(id){
   if(!raw) return;
   markRead(PATHS.incidents, id);
   const i = Object.assign({id}, raw);
-  const typeText = i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||'-');
+  const typeText = i.accidentType ? (i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||t('injury_기타')) : t('accidenttype_'+i.accidentType)) : '-';
   showModal(`
-    <div class="modal-head"><h3>사고 접수 상세</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${t('incident_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <dl class="detail-grid">
-        <dt>발생일시</dt><dd class="mono">${fmtDateTime(i.datetime)}</dd>
-        <dt>공정</dt><dd>${esc(i.process||'-')}</dd>
-        <dt>장소</dt><dd>${esc(i.location)}</dd>
-        <dt>내용</dt><dd>${esc(i.description)}</dd>
-        <dt>사고유형</dt><dd>${esc(typeText)}</dd>
-        <dt>부상정도</dt><dd>${esc(i.injurySeverity||'-')}</dd>
+        <dt>${t('th_datetime')}</dt><dd class="mono">${fmtDateTime(i.datetime)}</dd>
+        <dt>${t('th_process')}</dt><dd>${esc(i.process||'-')}</dd>
+        <dt>${t('th_location')}</dt><dd>${esc(i.location)}</dd>
+        <dt>${t('th_content')}</dt><dd>${esc(i.description)}</dd>
+        <dt>${t('th_accidenttype')}</dt><dd>${esc(typeText)}</dd>
+        <dt>${t('th_injuryseverity')}</dt><dd>${esc(i.injurySeverity||'-')}</dd>
         ${State.mode==='admin' ? `
-        <dt>신고자</dt><dd>${esc(i.reporter||'-')}</dd>
-        <dt>재해자</dt><dd>${esc(i.injuredPerson||'-')}</dd>
-        <dt>부상내용</dt><dd>${esc(i.injuryDetail||'-')}</dd>
-        <dt>상태</dt><dd>${statusBadge('incident', i.status)}</dd>
-        ${i.action?`<dt>조치내용</dt><dd>${esc(i.action)}</dd>`:''}
+        <dt>${t('th_reporter')}</dt><dd>${esc(i.reporter||'-')}</dd>
+        <dt>${t('lbl_injured_person')}</dt><dd>${esc(i.injuredPerson||'-')}</dd>
+        <dt>${t('lbl_injury_detail')}</dt><dd>${esc(i.injuryDetail||'-')}</dd>
+        <dt>${t('th_status')}</dt><dd>${statusBadge('incident', i.status)}</dd>
+        ${i.action?`<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>`:''}
         ` : ''}
       </dl>
     </div>
     <div class="modal-foot">
-      ${State.mode==='admin' ? `<button class="btn" id="delBtn">삭제</button><button class="btn btn-primary" id="editBtn">처리 · 수정</button>` : ''}
-      <button class="btn" data-close>닫기</button>
+      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_process_edit')}</button>` : ''}
+      <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
   if(State.mode==='admin'){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openIncidentModal(i); });
     document.getElementById('delBtn').addEventListener('click', async ()=>{
-      if(confirm('이 접수 항목을 삭제하시겠습니까?')){
-        await DataStore.remove(PATHS.incidents, id); closeModal(); toast('삭제되었습니다'); renderIncidents();
+      if(confirm(t('confirm_delete_incident'))){
+        await DataStore.remove(PATHS.incidents, id); closeModal(); toast(t('toast_deleted')); renderIncidents();
       }
     });
   }
@@ -1888,22 +2526,22 @@ function renderContractors(){
   const el = document.getElementById('view-contractors');
   el.innerHTML = `
     <div class="toolbar">
-      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">등록 업체 및 협의체 회의록 · 순회점검일지</div>
+      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('contractors_list_title')} · ${t('contractors_records_title')}</div>
       <div style="display:flex;gap:8px;">
-        <button class="btn" id="addContractorBtn">${icon('plus',15)} 업체 등록</button>
-        <button class="btn btn-primary" id="addRecordBtn">${icon('plus',15)} 회의록 · 점검일지 등록</button>
+        <button class="btn" id="addContractorBtn">${icon('plus',15)} ${t('contractors_add_company_btn')}</button>
+        <button class="btn btn-primary" id="addRecordBtn">${icon('plus',15)} ${t('contractors_add_record_btn')}</button>
       </div>
     </div>
 
-    <div class="section-title"><span class="n">01</span> 도급업체 목록</div>
+    <div class="section-title"><span class="n">01</span> ${t('contractors_list_title')}</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>업체명</th><th>유형</th><th>담당업무</th><th>연락처</th><th class="tight">관리</th></tr></thead>
+      <thead><tr><th>${t('th_company')}</th><th>${t('th_type')}</th><th>${t('th_role')}</th><th>${t('th_contact')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
       <tbody id="contractorBody"></tbody>
     </table></div>
 
-    <div class="section-title"><span class="n">02</span> 회의록 · 점검일지</div>
+    <div class="section-title"><span class="n">02</span> ${t('contractors_records_title')}</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>구분</th><th>대상업체</th><th>일자</th><th>작성자</th><th>내용</th><th class="tight">관리</th></tr></thead>
+      <thead><tr><th>${t('th_recordtype')}</th><th>${t('th_targetcompany')}</th><th>${t('th_date')}</th><th>${t('th_author')}</th><th>${t('th_content')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
       <tbody id="recordBody"></tbody>
     </table></div>
   `;
@@ -1921,17 +2559,17 @@ function renderContractors(){
   cBody.innerHTML = contractors.length ? contractors.map(c=>`
     <tr>
       <td class="cell-strong">${esc(c.name)}</td>
-      <td><span class="badge b-info">${esc(c.type||'-')}</span></td>
+      <td><span class="badge b-info">${c.type?esc(contractorTypeLabel(c.type)):'-'}</span></td>
       <td>${esc(c.role||'-')}</td>
       <td class="mono">${esc(c.contact||'-')}</td>
       <td class="tight row-btns">
-        ${State.mode==='admin'?`<button class="btn btn-sm" data-edit-c="${c.id}">수정</button><button class="btn btn-sm" data-del-c="${c.id}">삭제</button>`:'-'}
+        ${State.mode==='admin'?`<button class="btn btn-sm" data-edit-c="${c.id}">${t('btn_edit')}</button><button class="btn btn-sm" data-del-c="${c.id}">${t('btn_delete')}</button>`:'-'}
       </td>
     </tr>
-  `).join('') : `<tr><td colspan="5"><div class="empty"><span class="big">${icon('hard-hat',22)}</span>등록된 업체가 없습니다</div></td></tr>`;
+  `).join('') : `<tr><td colspan="5"><div class="empty"><span class="big">${icon('hard-hat',22)}</span>${t('contractors_empty')}</div></td></tr>`;
   cBody.querySelectorAll('[data-edit-c]').forEach(b=>b.addEventListener('click', ()=> openContractorModal(contractors.find(c=>c.id===b.dataset.editC))));
   cBody.querySelectorAll('[data-del-c]').forEach(b=>b.addEventListener('click', async ()=>{
-    if(confirm('삭제하시겠습니까?')){ await DataStore.remove(PATHS.contractors, b.dataset.delC); toast('삭제되었습니다'); renderContractors(); }
+    if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contractors, b.dataset.delC); toast(t('toast_deleted')); renderContractors(); }
   }));
 
   const records = objToArr(DataStore.get(PATHS.contractorRecords)).sort((a,b)=> new Date(b.date||0)-new Date(a.date||0));
@@ -1939,14 +2577,14 @@ function renderContractors(){
   rBody.innerHTML = records.length ? records.map(r=>{
     const c = contractors.find(x=>x.id===r.contractorId);
     return `<tr>
-      <td><span class="badge b-gray">${esc(r.recordType||'-')}</span></td>
+      <td><span class="badge b-gray">${r.recordType?esc(recordTypeLabel(r.recordType)):'-'}</span></td>
       <td>${newBadge(r, PATHS.contractorRecords)}${esc(c?c.name:'(전체)')}</td>
       <td class="mono">${fmtDate(r.date)}</td>
       <td>${esc(r.author||'-')}</td>
       <td>${esc((r.content||'-').slice(0,30))}${(r.content||'').length>30?'…':''}</td>
-      <td class="tight row-btns"><button class="btn btn-sm" data-view-r="${r.id}">보기</button></td>
+      <td class="tight row-btns"><button class="btn btn-sm" data-view-r="${r.id}">${t('btn_view')}</button></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="6"><div class="empty"><span class="big">${icon('file-check',22)}</span>등록된 기록이 없습니다</div></td></tr>`;
+  }).join('') : `<tr><td colspan="6"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('records_empty')}</div></td></tr>`;
   rBody.querySelectorAll('[data-view-r]').forEach(b=> b.addEventListener('click', ()=> openRecordDetail(b.dataset.viewR)));
 }
 
@@ -1954,18 +2592,18 @@ function openContractorModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
   showModal(`
-    <div class="modal-head"><h3>${isEdit?'업체 정보 수정':'도급업체 등록'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?t('contractor_edit_title'):t('contractor_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>업체명 *</label><input type="text" id="f_name" value="${esc(v.name||'')}"></div>
+      <div class="field"><label>${t('lbl_companyname')} *</label><input type="text" id="f_name" value="${esc(v.name||'')}"></div>
       <div class="row2">
-        <div class="field"><label>유형</label>
-          <select id="f_type">${['상주(용역)','정기납품','물류운송','공사·정비','기타'].map(t=>`<option ${v.type===t?'selected':''}>${t}</option>`).join('')}</select>
+        <div class="field"><label>${t('th_type')}</label>
+          <select id="f_type">${['상주(용역)','정기납품','물류운송','공사·정비','기타'].map(ct=>`<option value="${ct}" ${v.type===ct?'selected':''}>${contractorTypeLabel(ct)}</option>`).join('')}</select>
         </div>
-        <div class="field"><label>연락처</label><input type="text" id="f_contact" value="${esc(v.contact||'')}"></div>
+        <div class="field"><label>${t('th_contact')}</label><input type="text" id="f_contact" value="${esc(v.contact||'')}"></div>
       </div>
-      <div class="field"><label>담당업무</label><input type="text" id="f_role" value="${esc(v.role||'')}" placeholder="예: 주물용 중자 납품"></div>
+      <div class="field"><label>${t('th_role')}</label><input type="text" id="f_role" value="${esc(v.role||'')}" placeholder="예: 주물용 중자 납품"></div>
     </div>
-    <div class="modal-foot"><button class="btn" data-close>취소</button><button class="btn btn-primary" id="saveContractorBtn">저장</button></div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveContractorBtn">${t('btn_save')}</button></div>
   `);
   document.getElementById('saveContractorBtn').addEventListener('click', async ()=>{
     const data = {
@@ -1974,9 +2612,9 @@ function openContractorModal(existing){
       contact: document.getElementById('f_contact').value.trim(),
       role: document.getElementById('f_role').value.trim(),
     };
-    if(!data.name){ toast('업체명을 입력해주세요'); return; }
-    if(isEdit){ await DataStore.update(PATHS.contractors, existing.id, data); toast('수정되었습니다'); }
-    else{ data.createdAt = Date.now(); await DataStore.push(PATHS.contractors, data); toast('업체가 등록되었습니다'); }
+    if(!data.name){ toast(t('toast_company_name_required')); return; }
+    if(isEdit){ await DataStore.update(PATHS.contractors, existing.id, data); toast(t('toast_updated_generic')); }
+    else{ data.createdAt = Date.now(); await DataStore.push(PATHS.contractors, data); toast(t('toast_company_registered')); }
     closeModal(); renderContractors();
   });
 }
@@ -1984,21 +2622,21 @@ function openContractorModal(existing){
 function openRecordModal(){
   const contractors = objToArr(DataStore.get(PATHS.contractors));
   showModal(`
-    <div class="modal-head"><h3>회의록 · 순회점검일지 등록</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${t('record_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
-        <div class="field"><label>구분 *</label>
-          <select id="f_recordType">${['협의체 회의록','합동점검일지','순회점검일지'].map(t=>`<option>${t}</option>`).join('')}</select>
+        <div class="field"><label>${t('th_recordtype')} *</label>
+          <select id="f_recordType">${['협의체 회의록','합동점검일지','순회점검일지'].map(rt=>`<option value="${rt}">${recordTypeLabel(rt)}</option>`).join('')}</select>
         </div>
-        <div class="field"><label>일자 *</label><input type="date" id="f_date" value="${todayStr()}"></div>
+        <div class="field"><label>${t('th_date')} *</label><input type="date" id="f_date" value="${todayStr()}"></div>
       </div>
-      <div class="field"><label>대상 업체</label>
-        <select id="f_contractorId"><option value="">전체 / 해당없음</option>${contractors.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+      <div class="field"><label>${t('lbl_target_company')}</label>
+        <select id="f_contractorId"><option value="">${t('opt_all_notapplicable')}</option>${contractors.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
       </div>
-      <div class="field"><label>작성자</label><input type="text" id="f_author"></div>
-      <div class="field"><label>내용 *</label><textarea id="f_content" style="min-height:120px" placeholder="회의 안건, 점검 결과, 지적사항 등"></textarea></div>
+      <div class="field"><label>${t('th_author')}</label><input type="text" id="f_author"></div>
+      <div class="field"><label>${t('th_content')} *</label><textarea id="f_content" style="min-height:120px" placeholder="${t('placeholder_record_content')}"></textarea></div>
     </div>
-    <div class="modal-foot"><button class="btn" data-close>취소</button><button class="btn btn-primary" id="saveRecordBtn">저장</button></div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveRecordBtn">${t('btn_save')}</button></div>
   `);
   document.getElementById('saveRecordBtn').addEventListener('click', async ()=>{
     const data = {
@@ -2008,10 +2646,10 @@ function openRecordModal(){
       author: document.getElementById('f_author').value.trim(),
       content: document.getElementById('f_content').value.trim(),
     };
-    if(!data.date || !data.content){ toast('필수 항목(*)을 입력해주세요'); return; }
+    if(!data.date || !data.content){ toast(t('toast_fill_required')); return; }
     data.createdAt = Date.now();
     await DataStore.push(PATHS.contractorRecords, data);
-    toast('기록이 등록되었습니다');
+    toast(t('toast_record_registered'));
     closeModal(); renderContractors();
   });
 }
@@ -2021,24 +2659,24 @@ function openRecordDetail(id){
   markRead(PATHS.contractorRecords, id);
   const c = DataStore.get(PATHS.contractors)[r.contractorId];
   showModal(`
-    <div class="modal-head"><h3>${esc(r.recordType)}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${esc(recordTypeLabel(r.recordType))}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <dl class="detail-grid">
-        <dt>일자</dt><dd class="mono">${fmtDate(r.date)}</dd>
-        <dt>대상업체</dt><dd>${esc(c?c.name:'전체 / 해당없음')}</dd>
-        <dt>작성자</dt><dd>${esc(r.author||'-')}</dd>
+        <dt>${t('th_date')}</dt><dd class="mono">${fmtDate(r.date)}</dd>
+        <dt>${t('lbl_target_company')}</dt><dd>${esc(c?c.name:t('opt_all_notapplicable'))}</dd>
+        <dt>${t('th_author')}</dt><dd>${esc(r.author||'-')}</dd>
       </dl>
       <div class="divider"></div>
       <p style="white-space:pre-wrap;font-size:13.5px;line-height:1.7;">${esc(r.content)}</p>
     </div>
     <div class="modal-foot">
-      ${State.mode==='admin'?`<button class="btn" id="delBtn">삭제</button>`:''}
-      <button class="btn" data-close>닫기</button>
+      ${State.mode==='admin'?`<button class="btn" id="delBtn">${t('btn_delete')}</button>`:''}
+      <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
   if(State.mode==='admin'){
     document.getElementById('delBtn').addEventListener('click', async ()=>{
-      if(confirm('삭제하시겠습니까?')){ await DataStore.remove(PATHS.contractorRecords, id); closeModal(); toast('삭제되었습니다'); renderContractors(); }
+      if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contractorRecords, id); closeModal(); toast(t('toast_deleted')); renderContractors(); }
     });
   }
 }
@@ -2071,20 +2709,20 @@ function renderNotices(){
   const tab = State.filters.noticeTab || 'notice';
   el.innerHTML = `
     <div class="tabs" style="margin-bottom:14px;">
-      <button class="tab ${tab==='notice'?'active':''}" data-tab="notice">공지사항</button>
-      <button class="tab ${tab==='contact'?'active':''}" data-tab="contact">☎ 비상연락망</button>
+      <button class="tab ${tab==='notice'?'active':''}" data-tab="notice">${t('notices_tab')}</button>
+      <button class="tab ${tab==='contact'?'active':''}" data-tab="contact">${t('contacts_tab')}</button>
     </div>
     <div id="noticePane" style="${tab==='notice'?'':'display:none'}">
       <div class="toolbar">
-        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">안전 공지사항</div>
-        <button class="btn btn-primary" id="addNoticeBtn">${icon('plus',15)} 공지 등록</button>
+        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('notices_tab')}</div>
+        <button class="btn btn-primary" id="addNoticeBtn">${icon('plus',15)} ${t('notice_add_btn')}</button>
       </div>
       <div id="noticeList"></div>
     </div>
     <div id="contactPane" style="${tab==='contact'?'':'display:none'}">
       <div class="toolbar" style="margin-bottom:12px;">
-        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">비상연락망</div>
-        <button class="btn btn-primary" id="addContactBtn">${icon('plus',15)} 연락처 등록</button>
+        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('contacts_tab')}</div>
+        <button class="btn btn-primary" id="addContactBtn">${icon('plus',15)} ${t('contact_add_btn')}</button>
       </div>
       <div class="contact-grid" id="contactGrid"></div>
     </div>
@@ -2113,10 +2751,10 @@ function renderNotices(){
           : `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
       ) : ''}
       <div class="notice-meta">${esc(n.author||'안전환경부')} · ${fmtDate(n.createdAt)}
-        ${State.mode==='admin'?` · <a href="#" data-edit-n="${n.id}" style="color:var(--info)">수정</a> · <a href="#" data-del-n="${n.id}" style="color:var(--danger)">삭제</a>`:''}
+        ${State.mode==='admin'?` · <a href="#" data-edit-n="${n.id}" style="color:var(--info)">${t('btn_edit')}</a> · <a href="#" data-del-n="${n.id}" style="color:var(--danger)">${t('btn_delete')}</a>`:''}
       </div>
     </div>
-  `).join('') : `<div class="empty"><span class="big">${icon('megaphone',22)}</span>등록된 공지사항이 없습니다</div>`;
+  `).join('') : `<div class="empty"><span class="big">${icon('megaphone',22)}</span>${t('notices_empty')}</div>`;
   list.querySelectorAll('[data-view-n]').forEach(h=> h.addEventListener('click', ()=> openNoticeDetail(h.dataset.viewN)));
   list.querySelectorAll('[data-edit-n]').forEach(a=> a.addEventListener('click', e=>{
     e.preventDefault();
@@ -2125,7 +2763,7 @@ function renderNotices(){
   }));
   list.querySelectorAll('[data-del-n]').forEach(a=> a.addEventListener('click', async e=>{
     e.preventDefault();
-    if(confirm('공지를 삭제하시겠습니까?')){ await DataStore.remove(PATHS.notices, a.dataset.delN); toast('삭제되었습니다'); renderNotices(); }
+    if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.notices, a.dataset.delN); toast(t('toast_deleted')); renderNotices(); }
   }));
 
   const contacts = objToArr(DataStore.get(PATHS.contacts));
@@ -2135,12 +2773,12 @@ function renderNotices(){
       <div class="c-role">${esc(c.role||'담당')}</div>
       <div class="c-name">${esc(c.name)}</div>
       <div class="c-phone">${esc(c.phone||'-')}</div>
-      ${State.mode==='admin'?`<div style="margin-top:8px"><a href="#" data-del-c2="${c.id}" style="font-size:11.5px;color:var(--danger)">삭제</a></div>`:''}
+      ${State.mode==='admin'?`<div style="margin-top:8px"><a href="#" data-del-c2="${c.id}" style="font-size:11.5px;color:var(--danger)">${t('btn_delete')}</a></div>`:''}
     </div>
-  `).join('') : `<div class="empty"><span class="big">☎</span>등록된 비상연락처가 없습니다</div>`;
+  `).join('') : `<div class="empty"><span class="big">☎</span>${t('contacts_empty')}</div>`;
   grid.querySelectorAll('[data-del-c2]').forEach(a=> a.addEventListener('click', async e=>{
     e.preventDefault();
-    if(confirm('삭제하시겠습니까?')){ await DataStore.remove(PATHS.contacts, a.dataset.delC2); toast('삭제되었습니다'); renderNotices(); }
+    if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contacts, a.dataset.delC2); toast(t('toast_deleted')); renderNotices(); }
   }));
 }
 
@@ -2157,12 +2795,12 @@ function openNoticeDetail(id){
       <div class="notice-content">${n.content||''}</div>
       ${n.fileData ? (
         n.fileType && n.fileType.startsWith('image/')
-          ? `<div class="notice-meta"><img src="${n.fileData}" alt="${esc(n.fileName||'첨부이미지')}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin:8px 0;display:block;"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
-          : `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||'첨부파일')}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||'첨부파일')} 다운로드</a></div>`
+          ? `<div class="notice-meta"><img src="${n.fileData}" alt="${esc(n.fileName||t('attach_image'))}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin:8px 0;display:block;"><a href="${n.fileData}" download="${esc(n.fileName||t('attach_file'))}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||t('attach_file'))} ${t('attach_download')}</a></div>`
+          : `<div class="notice-meta"><a href="${n.fileData}" download="${esc(n.fileName||t('attach_file'))}" style="color:var(--info);font-weight:700;">📎 ${esc(n.fileName||t('attach_file'))} ${t('attach_download')}</a></div>`
       ) : ''}
       <p class="hint" style="margin-top:12px;">${esc(n.author||'안전환경부')} · ${fmtDate(n.createdAt)}</p>
     </div>
-    <div class="modal-foot"><button class="btn" data-close>닫기</button></div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_close')}</button></div>
   `);
 }
 
@@ -2170,32 +2808,32 @@ function openNoticeModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
   showModal(`
-    <div class="modal-head"><h3>${isEdit?'공지사항 수정':'공지사항 등록'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?t('notice_edit_title'):t('notice_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>제목 *</label><input type="text" id="f_title" value="${esc(v.title||'')}"></div>
+      <div class="field"><label>${t('lbl_title')} *</label><input type="text" id="f_title" value="${esc(v.title||'')}"></div>
       <div class="field">
-        <label>내용 *</label>
+        <label>${t('lbl_content')} *</label>
         <div class="rte-toolbar" style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm" data-cmd="bold" title="굵게" style="font-weight:800;">B</button>
-          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#E5484D" title="빨강" style="color:#E5484D;font-weight:800;">A</button>
-          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#2D7DD2" title="파랑" style="color:#2D7DD2;font-weight:800;">A</button>
-          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#1DA46F" title="초록" style="color:#1DA46F;font-weight:800;">A</button>
-          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#14192B" title="기본색" style="color:#14192B;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="bold" title="${t('rte_bold')}" style="font-weight:800;">B</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#E5484D" title="${t('rte_red')}" style="color:#E5484D;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#2D7DD2" title="${t('rte_blue')}" style="color:#2D7DD2;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#1DA46F" title="${t('rte_green')}" style="color:#1DA46F;font-weight:800;">A</button>
+          <button type="button" class="btn btn-sm" data-cmd="forecolor" data-val="#14192B" title="${t('rte_default')}" style="color:#14192B;font-weight:800;">A</button>
           <span style="width:1px;background:var(--line);margin:0 2px;"></span>
-          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="2" title="작게">작게</button>
-          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="4" title="보통">보통</button>
-          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="6" title="크게">크게</button>
+          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="2" title="${t('rte_small')}">${t('rte_small')}</button>
+          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="4" title="${t('rte_normal')}">${t('rte_normal')}</button>
+          <button type="button" class="btn btn-sm" data-cmd="fontsize" data-val="6" title="${t('rte_large')}">${t('rte_large')}</button>
         </div>
         <div id="f_content" contenteditable="true" style="min-height:120px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13.5px;line-height:1.6;">${v.content||''}</div>
       </div>
-      <div class="field"><label>작성자</label><input type="text" id="f_author" value="${esc(v.author||'안전환경부')}"></div>
-      <div class="field"><label>첨부파일 (이미지, PDF 등)</label><input type="file" id="f_file">
-        ${v.fileName ? `<p class="hint">기존 첨부: ${esc(v.fileName)} (새로 선택하면 교체됩니다)</p>` : ''}
-        <p class="hint">용량이 큰 파일은 느려질 수 있어요. 5MB 이내 문서·이미지 위주로 첨부해주세요.</p>
+      <div class="field"><label>${t('lbl_author')}</label><input type="text" id="f_author" value="${esc(v.author||'안전환경부')}"></div>
+      <div class="field"><label>${t('lbl_attachment')}</label><input type="file" id="f_file">
+        ${v.fileName ? `<p class="hint">${t('hint_existing_attachment').replace('{name}', esc(v.fileName))}</p>` : ''}
+        <p class="hint">${t('hint_attachment_size')}</p>
       </div>
-      <div class="field"><label><input type="checkbox" id="f_pinned" ${v.pinned?'checked':''}> 상단 고정</label></div>
+      <div class="field"><label><input type="checkbox" id="f_pinned" ${v.pinned?'checked':''}> ${t('lbl_pin_top')}</label></div>
     </div>
-    <div class="modal-foot"><button class="btn" data-close>취소</button><button class="btn btn-primary" id="saveNoticeBtn">${isEdit?'저장':'등록'}</button></div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveNoticeBtn">${isEdit?t('btn_save'):t('btn_register')}</button></div>
   `);
   document.querySelectorAll('.rte-toolbar [data-cmd]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -2207,7 +2845,7 @@ function openNoticeModal(existing){
     const title = document.getElementById('f_title').value.trim();
     const contentEl = document.getElementById('f_content');
     const content = contentEl.innerHTML.trim();
-    if(!title || !contentEl.textContent.trim()){ toast('필수 항목(*)을 입력해주세요'); return; }
+    if(!title || !contentEl.textContent.trim()){ toast(t('toast_fill_required')); return; }
     const data = {
       title, content,
       author: document.getElementById('f_author').value.trim() || '안전환경부',
@@ -2217,7 +2855,7 @@ function openNoticeModal(existing){
     const file = fileInput.files && fileInput.files[0];
     if(file){
       if(file.size > 5*1024*1024){
-        toast('파일 용량이 너무 큽니다 (5MB 이내로 첨부해주세요)'); return;
+        toast(t('toast_file_toobig')); return;
       }
       const dataUrl = await new Promise((resolve, reject)=>{
         const reader = new FileReader();
@@ -2231,11 +2869,11 @@ function openNoticeModal(existing){
     }
     if(isEdit){
       await DataStore.update(PATHS.notices, existing.id, data);
-      toast('공지사항이 수정되었습니다');
+      toast(t('toast_notice_updated'));
     }else{
       data.createdAt = Date.now();
       await DataStore.push(PATHS.notices, data);
-      toast('공지사항이 등록되었습니다');
+      toast(t('toast_notice_registered'));
     }
     closeModal(); renderNotices();
   });
@@ -2243,13 +2881,13 @@ function openNoticeModal(existing){
 
 function openContactModal(){
   showModal(`
-    <div class="modal-head"><h3>비상연락처 등록</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${t('contact_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>역할 *</label><input type="text" id="f_role" placeholder="예: 안전환경부장, 소방서, 119"></div>
-      <div class="field"><label>이름/기관명 *</label><input type="text" id="f_name"></div>
-      <div class="field"><label>연락처 *</label><input type="text" id="f_phone" placeholder="010-0000-0000"></div>
+      <div class="field"><label>${t('lbl_role')} *</label><input type="text" id="f_role" placeholder="예: 안전환경부장, 소방서, 119"></div>
+      <div class="field"><label>${t('lbl_name_org')} *</label><input type="text" id="f_name"></div>
+      <div class="field"><label>${t('lbl_phone')} *</label><input type="text" id="f_phone" placeholder="010-0000-0000"></div>
     </div>
-    <div class="modal-foot"><button class="btn" data-close>취소</button><button class="btn btn-primary" id="saveContactBtn">등록</button></div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveContactBtn">${t('btn_register')}</button></div>
   `);
   document.getElementById('saveContactBtn').addEventListener('click', async ()=>{
     const data = {
@@ -2257,9 +2895,9 @@ function openContactModal(){
       name: document.getElementById('f_name').value.trim(),
       phone: document.getElementById('f_phone').value.trim(),
     };
-    if(!data.name || !data.phone){ toast('필수 항목(*)을 입력해주세요'); return; }
+    if(!data.name || !data.phone){ toast(t('toast_fill_required')); return; }
     await DataStore.push(PATHS.contacts, data);
-    toast('비상연락처가 등록되었습니다');
+    toast(t('toast_contact_registered'));
     closeModal(); renderNotices();
   });
 }
@@ -2282,12 +2920,20 @@ const ADMIN_PW_KEY = 'isc_admin_pw';
 const DEPTS = ['관리부','생산부','품질관리부'];
 function deptPwKey(dept){ return 'isc_dept_pw_' + dept; }
 
-document.getElementById('gateLang').value = State.lang;
-document.getElementById('gateLang').addEventListener('change', e=>{
-  State.lang = e.target.value;
-  localStorage.setItem('isc_lang', State.lang);
-  applyI18n();
+function updateLangPicker(){
+  document.querySelectorAll('#langPicker .lang-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang === State.lang);
+  });
+}
+document.querySelectorAll('#langPicker .lang-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    State.lang = btn.dataset.lang;
+    localStorage.setItem('isc_lang', State.lang);
+    updateLangPicker();
+    applyI18n();
+  });
 });
+updateLangPicker();
 applyI18n();
 
 document.getElementById('gateMode').addEventListener('change', e=>{
@@ -2416,7 +3062,7 @@ function applyI18n(){
 }
 
 document.getElementById('deptPwSettingBtn').addEventListener('click', ()=>{
-  if(State.mode!=='admin'){ toast('전체관리자만 설정할 수 있습니다'); return; }
+  if(State.mode!=='admin'){ toast(t('toast_admin_only')); return; }
   openDeptPasswordModal();
 });
 
