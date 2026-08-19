@@ -392,11 +392,18 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
   width:34px;height:26px;border-radius:6px;font-weight:800;font-size:12.5px;
   font-family:'JetBrains Mono',monospace;color:#fff;
 }
-.risk-low{background:var(--ok);}
-.risk-mid{background:var(--caution);color:#5C4400;}
-.risk-high{background:var(--safety);}
-.risk-crit{background:var(--danger);}
-.risk-level-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;}
+.risk-level-badge{
+  display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:50px;padding:3px 5px;border-radius:8px;color:#fff;line-height:1.15;
+}
+.risk-level-badge .rlb-score{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;}
+.risk-level-badge .rlb-action{font-size:9px;font-weight:700;white-space:nowrap;}
+.risk-1{background:var(--ok);}
+.risk-2{background:#2D7DD2;}
+.risk-3{background:var(--caution);color:#5C4400;}
+.risk-4{background:var(--safety);}
+.risk-5{background:#E8590C;}
+.risk-6{background:var(--danger);}
 .risk-legend{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 16px;padding:14px 16px;background:#F7F8FA;border:1px solid var(--line);border-radius:10px;margin-bottom:14px;}
 @media(max-width:620px){.risk-legend{grid-template-columns:1fr;}}
 .risk-legend-item{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;}
@@ -949,24 +956,24 @@ const TRANSLATIONS = {
   lbl_hazard:{ko:'유해위험요인',en:'Hazard',th:'อันตราย',id:'Bahaya',mn:'Эрсдэлийн хүчин зүйл'},
   lbl_frequency:{ko:'빈도 (발생 가능성)',en:'Frequency (Likelihood)',th:'ความถี่ (โอกาสเกิด)',id:'Frekuensi (Kemungkinan)',mn:'Давтамж (Тохиолдох магадлал)'},
   lbl_severity:{ko:'강도 (피해 정도)',en:'Severity (Degree of Harm)',th:'ความรุนแรง (ระดับความเสียหาย)',id:'Tingkat Keparahan (Derajat Kerugian)',mn:'Хүнд байдал (Хохирлын хэмжээ)'},
-  freq_1:{ko:'1 - 거의 없음 (연 1회 미만)',en:'1 - Rare (less than once/year)',th:'1 - แทบไม่เกิด (น้อยกว่า 1 ครั้ง/ปี)',id:'1 - Jarang (kurang dari 1 kali/tahun)',mn:'1 - Ховор (жилд 1-ээс цөөн удаа)'},
-  freq_2:{ko:'2 - 드묾 (연 1~2회)',en:'2 - Occasional (1-2 times/year)',th:'2 - นานๆ ครั้ง (1-2 ครั้ง/ปี)',id:'2 - Jarang (1-2 kali/tahun)',mn:'2 - Ховорхон (жилд 1-2 удаа)'},
-  freq_3:{ko:'3 - 가끔 (분기 1회 정도)',en:'3 - Sometimes (about once/quarter)',th:'3 - บางครั้ง (ประมาณ 1 ครั้ง/ไตรมาส)',id:'3 - Kadang-kadang (sekitar 1 kali/kuartal)',mn:'3 - Заримдаа (улиралд ойролцоогоор 1 удаа)'},
-  freq_4:{ko:'4 - 자주 (월 1회 이상)',en:'4 - Frequent (1+ times/month)',th:'4 - บ่อยครั้ง (มากกว่า 1 ครั้ง/เดือน)',id:'4 - Sering (1+ kali/bulan)',mn:'4 - Байнга (сард 1-ээс дээш удаа)'},
-  freq_5:{ko:'5 - 매우 잦음 (상시 노출)',en:'5 - Very Frequent (constant exposure)',th:'5 - บ่อยมาก (สัมผัสตลอดเวลา)',id:'5 - Sangat Sering (paparan konstan)',mn:'5 - Маш байнга (тогтмол өртөх)'},
-  sev_1:{ko:'1 - 경미 (응급처치 수준)',en:'1 - Minor (first aid level)',th:'1 - เล็กน้อย (ระดับปฐมพยาบาล)',id:'1 - Ringan (tingkat P3K)',mn:'1 - Бага зэрэг (яаралтай тусламжийн түвшин)'},
-  sev_2:{ko:'2 - 경상 (병원 치료 필요)',en:'2 - Moderate (hospital treatment needed)',th:'2 - บาดเจ็บปานกลาง (ต้องรักษาที่โรงพยาบาล)',id:'2 - Sedang (perlu perawatan rumah sakit)',mn:'2 - Дунд зэрэг (эмнэлгийн эмчилгээ шаардлагатай)'},
-  sev_3:{ko:'3 - 중상 (장기 요양·후유증)',en:'3 - Serious (long-term care/after-effects)',th:'3 - บาดเจ็บสาหัส (รักษาระยะยาว/ผลข้างเคียง)',id:'3 - Serius (perawatan jangka panjang/efek lanjutan)',mn:'3 - Хүнд (урт хугацааны эмчилгээ/үр дагавар)'},
-  sev_4:{ko:'4 - 치명적 (사망·중대재해)',en:'4 - Fatal (death/serious accident)',th:'4 - ร้ายแรงถึงชีวิต (เสียชีวิต/อุบัติเหตุร้ายแรง)',id:'4 - Fatal (kematian/kecelakaan serius)',mn:'4 - Аюултай (нас баралт/хүнд осол)'},
+  freq_1:{ko:'1 - 매우낮음 (방호조치 완료, 보호구 지급착용, 경고표지 부착 등)',en:'1 - Very Low (protection completed, PPE provided/worn, warning signs posted)',th:'1 - ต่ำมาก (มีการป้องกันครบถ้วน สวมอุปกรณ์ป้องกัน มีป้ายเตือน)',id:'1 - Sangat Rendah (perlindungan lengkap, APD dipakai, tanda peringatan terpasang)',mn:'1 - Маш бага (хамгаалалт бүрэн хийгдсэн, хамгаалах хэрэгсэл өмссөн, анхааруулах тэмдэг байрлуулсан)'},
+  freq_2:{ko:'2 - 낮음 (피해가 발생할 가능성이 낮음)',en:'2 - Low (low likelihood of harm)',th:'2 - ต่ำ (โอกาสเกิดอันตรายต่ำ)',id:'2 - Rendah (kemungkinan bahaya rendah)',mn:'2 - Бага (хохирол учрах магадлал бага)'},
+  freq_3:{ko:'3 - 보통 (부주의하면 피해가 발생할 가능성이 있음)',en:'3 - Medium (harm possible if careless)',th:'3 - ปานกลาง (อาจเกิดอันตรายได้หากประมาท)',id:'3 - Sedang (bahaya mungkin terjadi jika lengah)',mn:'3 - Дунд (болгоомжгүй бол хохирол учрах магадлалтай)'},
+  freq_4:{ko:'4 - 높음 (피해가 발생할 가능성이 높음)',en:'4 - High (high likelihood of harm)',th:'4 - สูง (โอกาสเกิดอันตรายสูง)',id:'4 - Tinggi (kemungkinan bahaya tinggi)',mn:'4 - Өндөр (хохирол учрах магадлал өндөр)'},
+  freq_5:{ko:'5 - 매우높음 (피해가 발생할 가능성이 매우 높음)',en:'5 - Very High (very high likelihood of harm)',th:'5 - สูงมาก (โอกาสเกิดอันตรายสูงมาก)',id:'5 - Sangat Tinggi (kemungkinan bahaya sangat tinggi)',mn:'5 - Маш өндөр (хохирол учрах магадлал маш өндөр)'},
+  sev_1:{ko:'1 - 비치료 (휴업 4일 미만, 처치 후 바로 복귀 가능)',en:'1 - No Treatment (under 4 days off, return to work right after first aid)',th:'1 - ไม่ต้องรักษา (หยุดงานน้อยกว่า 4 วัน กลับมาทำงานได้ทันทีหลังปฐมพยาบาล)',id:'1 - Tanpa Perawatan (kurang dari 4 hari cuti, kembali kerja setelah P3K)',mn:'1 - Эмчилгээгүй (4 хоногоос бага чөлөө, анхны тусламжийн дараа шууд ажилдаа орно)'},
+  sev_2:{ko:'2 - 병원치료 (휴업 4일~3개월 미만 부상·질병)',en:'2 - Hospital Treatment (4 days to under 3 months off)',th:'2 - รักษาที่โรงพยาบาล (หยุดงาน 4 วันถึงน้อยกว่า 3 เดือน)',id:'2 - Perawatan Rumah Sakit (cuti 4 hari sampai kurang dari 3 bulan)',mn:'2 - Эмнэлгийн эмчилгээ (4 хоногоос 3 сар хүртэлх чөлөө)'},
+  sev_3:{ko:'3 - 장해발생 (휴업 3개월 이상 부상·질병)',en:'3 - Disability (3+ months off work)',th:'3 - พิการ (หยุดงานตั้งแต่ 3 เดือนขึ้นไป)',id:'3 - Disabilitas (cuti 3 bulan atau lebih)',mn:'3 - Хөгжлийн бэрхшээл (3 сараас дээш чөлөө)'},
+  sev_4:{ko:'4 - 사망 (사망 또는 영구적 장애로 업무복귀 불가능)',en:'4 - Fatal (death or permanent disability, unable to return to work)',th:'4 - เสียชีวิต (เสียชีวิตหรือพิการถาวร ไม่สามารถกลับมาทำงานได้)',id:'4 - Fatal (kematian atau disabilitas permanen, tidak dapat kembali bekerja)',mn:'4 - Нас баралт (нас барах эсвэл байнгын хөгжлийн бэрхшээлтэй болж ажилдаа буцаж орох боломжгүй)'},
   lbl_measures_only:{ko:'개선대책',en:'Improvement Measures',th:'มาตรการปรับปรุง',id:'Tindakan Perbaikan',mn:'Сайжруулах арга хэмжээ'},
-  lbl_photo_before:{ko:'현장 사진 (선택)',en:'Site Photo (Optional)',th:'รูปถ่ายหน้างาน (ไม่บังคับ)',id:'Foto Lokasi (Opsional)',mn:'Талбайн зураг (Заавал биш)'},
+  lbl_photo_before:{ko:'개선 전 사진 (선택)',en:'Before-Improvement Photo (Optional)',th:'รูปถ่ายก่อนปรับปรุง (ไม่บังคับ)',id:'Foto Sebelum Perbaikan (Opsional)',mn:'Сайжруулахын өмнөх зураг (Заавал биш)'},
   hint_photo_replace:{ko:'기존 첨부 사진이 있습니다. 새로 선택하면 교체됩니다.',en:'A photo is already attached. Selecting a new one will replace it.',th:'มีรูปแนบอยู่แล้ว หากเลือกใหม่จะเป็นการแทนที่',id:'Foto sudah terlampir. Memilih yang baru akan menggantinya.',mn:'Аль хэдийн зураг хавсаргасан байна. Шинээр сонговол солигдоно.'},
   lbl_photo_after:{ko:'개선 후 사진 (선택 · 완료 처리 시)',en:'After-Improvement Photo (Optional, on Completion)',th:'รูปถ่ายหลังปรับปรุง (ไม่บังคับ · เมื่อเสร็จสิ้น)',id:'Foto Setelah Perbaikan (Opsional, saat Selesai)',mn:'Сайжруулсны дараах зураг (Заавал биш, дуусахад)'},
   toast_photo_toobig:{ko:'사진 용량이 너무 큽니다 (5MB 이내)',en:'Photo file is too large (max 5MB)',th:'ไฟล์รูปภาพใหญ่เกินไป (สูงสุด 5MB)',id:'File foto terlalu besar (maks 5MB)',mn:'Зургийн хэмжээ хэт том байна (5MB хүртэл)'},
   toast_risk_updated:{ko:'위험성평가를 수정했습니다',en:'Risk assessment has been updated',th:'อัปเดตการประเมินความเสี่ยงแล้ว',id:'Penilaian risiko telah diperbarui',mn:'Эрсдэлийн үнэлгээ шинэчлэгдлээ'},
   toast_risk_registered:{ko:'위험성평가가 등록되었습니다',en:'Risk assessment has been registered',th:'ลงทะเบียนการประเมินความเสี่ยงแล้ว',id:'Penilaian risiko telah didaftarkan',mn:'Эрсдэлийн үнэлгээ бүртгэгдлээ'},
   risk_detail_title:{ko:'위험성평가 상세',en:'Risk Assessment Details',th:'รายละเอียดการประเมินความเสี่ยง',id:'Detail Penilaian Risiko',mn:'Эрсдэлийн үнэлгээний дэлгэрэнгүй'},
-  dt_photo_site:{ko:'현장 사진',en:'Site Photo',th:'รูปถ่ายหน้างาน',id:'Foto Lokasi',mn:'Талбайн зураг'},
+  dt_photo_site:{ko:'개선 전 사진',en:'Before-Improvement Photo',th:'รูปถ่ายก่อนปรับปรุง',id:'Foto Sebelum Perbaikan',mn:'Сайжруулахын өмнөх зураг'},
   dt_photo_after:{ko:'개선 후 사진',en:'After-Improvement Photo',th:'รูปถ่ายหลังปรับปรุง',id:'Foto Setelah Perbaikan',mn:'Сайжруулсны дараах зураг'},
 
   /* ===== 3단계: 사고접수 모달 ===== */
@@ -1049,18 +1056,24 @@ const TRANSLATIONS = {
   toast_admin_only:{ko:'전체관리자만 설정할 수 있습니다',en:'Only the full administrator can configure this',th:'เฉพาะผู้ดูแลระบบทั้งหมดเท่านั้นที่ตั้งค่าได้',id:'Hanya administrator utama yang dapat mengatur ini',mn:'Зөвхөн бүх эрхтэй админ тохируулах боломжтой'},
 
   /* ===== 4단계: 위험도 등급 기준 ===== */
-  risklevel_label_crit:{ko:'매우높음',en:'Very High',th:'สูงมาก',id:'Sangat Tinggi',mn:'Маш өндөр'},
-  risklevel_label_high:{ko:'높음',en:'High',th:'สูง',id:'Tinggi',mn:'Өндөр'},
-  risklevel_label_mid:{ko:'보통',en:'Medium',th:'ปานกลาง',id:'Sedang',mn:'Дунд'},
-  risklevel_label_low:{ko:'낮음',en:'Low',th:'ต่ำ',id:'Rendah',mn:'Бага'},
-  risklevel_action_crit:{ko:'즉시개선',en:'Immediate Action',th:'ปรับปรุงทันที',id:'Tindakan Segera',mn:'Даруй сайжруулах'},
-  risklevel_action_high:{ko:'긴급개선',en:'Urgent Action',th:'ปรับปรุงเร่งด่วน',id:'Tindakan Mendesak',mn:'Яаралтай сайжруулах'},
-  risklevel_action_mid:{ko:'개선',en:'Improve',th:'ปรับปรุง',id:'Perbaikan',mn:'Сайжруулах'},
-  risklevel_action_low:{ko:'관리',en:'Monitor',th:'เฝ้าระวัง',id:'Pantau',mn:'Хянах'},
-  risklevel_desc_crit:{ko:'즉시 작업을 중지하고 개선 후 재개해야 합니다.',en:'Work must stop immediately and resume only after improvement.',th:'ต้องหยุดงานทันทีและกลับมาทำงานหลังปรับปรุงแล้วเท่านั้น',id:'Pekerjaan harus dihentikan segera dan dilanjutkan hanya setelah perbaikan.',mn:'Ажлыг даруй зогсоож, сайжруулсны дараа л үргэлжлүүлнэ.'},
-  risklevel_desc_high:{ko:'단기간(1주 이내) 내 개선 조치가 필요합니다.',en:'Improvement action is needed within a short period (within 1 week).',th:'ต้องดำเนินการปรับปรุงในระยะสั้น (ภายใน 1 สัปดาห์)',id:'Tindakan perbaikan diperlukan dalam waktu singkat (dalam 1 minggu).',mn:'Богино хугацаанд (1 долоо хоногийн дотор) сайжруулах арга хэмжээ шаардлагатай.'},
-  risklevel_desc_mid:{ko:'계획을 수립하여 개선 조치를 진행합니다.',en:'Establish a plan and proceed with improvement action.',th:'จัดทำแผนและดำเนินการปรับปรุง',id:'Susun rencana dan lanjutkan tindakan perbaikan.',mn:'Төлөвлөгөө боловсруулж, сайжруулах арга хэмжээ авна.'},
-  risklevel_desc_low:{ko:'현재 상태를 유지하며 관리·감독합니다.',en:'Maintain current status with ongoing monitoring.',th:'รักษาสภาพปัจจุบันพร้อมเฝ้าระวังอย่างต่อเนื่อง',id:'Pertahankan status saat ini dengan pemantauan berkelanjutan.',mn:'Одоогийн байдлыг хадгалж, тогтмол хянана.'},
+  risklevel_label_1:{ko:'매우낮음',en:'Very Low',th:'ต่ำมาก',id:'Sangat Rendah',mn:'Маш бага'},
+  risklevel_label_2:{ko:'낮음',en:'Low',th:'ต่ำ',id:'Rendah',mn:'Бага'},
+  risklevel_label_3:{ko:'보통',en:'Medium',th:'ปานกลาง',id:'Sedang',mn:'Дунд'},
+  risklevel_label_4:{ko:'약간높음',en:'Slightly High',th:'ค่อนข้างสูง',id:'Agak Tinggi',mn:'Арай өндөр'},
+  risklevel_label_5:{ko:'높음',en:'High',th:'สูง',id:'Tinggi',mn:'Өндөр'},
+  risklevel_label_6:{ko:'매우높음',en:'Very High',th:'สูงมาก',id:'Sangat Tinggi',mn:'Маш өндөр'},
+  risklevel_action_1:{ko:'현행유지',en:'Maintain',th:'คงสภาพเดิม',id:'Pertahankan',mn:'Хэвээр хадгалах'},
+  risklevel_action_2:{ko:'필요시개선',en:'Improve if Needed',th:'ปรับปรุงหากจำเป็น',id:'Perbaiki jika Perlu',mn:'Шаардлагатай бол сайжруулах'},
+  risklevel_action_3:{ko:'관찰',en:'Observe',th:'เฝ้าสังเกต',id:'Amati',mn:'Ажиглах'},
+  risklevel_action_4:{ko:'빠른개선',en:'Improve Soon',th:'ปรับปรุงโดยเร็ว',id:'Perbaiki Segera',mn:'Түргэн сайжруулах'},
+  risklevel_action_5:{ko:'신속개선',en:'Urgent Action',th:'ปรับปรุงเร่งด่วน',id:'Tindakan Mendesak',mn:'Яаралтай сайжруулах'},
+  risklevel_action_6:{ko:'즉시개선',en:'Immediate Action',th:'ปรับปรุงทันที',id:'Tindakan Segera',mn:'Даруй сайжруулах'},
+  risklevel_desc_1:{ko:'현재의 대책을 지속적으로 유지관리합니다.',en:'Continue to maintain current measures.',th:'รักษามาตรการปัจจุบันอย่างต่อเนื่อง',id:'Terus pertahankan tindakan saat ini.',mn:'Одоогийн арга хэмжээг тогтмол хадгална.'},
+  risklevel_desc_2:{ko:'현재 대책을 유지하고, 필요시 안전보건정보 제공·교육을 실시합니다.',en:'Maintain current measures; provide safety information/training if needed.',th:'รักษามาตรการปัจจุบัน และให้ข้อมูล/อบรมความปลอดภัยเพิ่มเติมหากจำเป็น',id:'Pertahankan tindakan saat ini; berikan info/pelatihan keselamatan jika perlu.',mn:'Одоогийн арга хэмжээг хадгалж, шаардлагатай бол аюулгүй ажиллагааны мэдээлэл/сургалт өгнө.'},
+  risklevel_desc_3:{ko:'기술적 제약에 따라 지속적으로 관찰합니다.',en:'Continue to observe due to technical constraints.',th:'เฝ้าสังเกตอย่างต่อเนื่องเนื่องจากข้อจำกัดทางเทคนิค',id:'Amati terus karena keterbatasan teknis.',mn:'Техникийн хязгаарлалтаас шалтгаалан тогтмол ажиглана.'},
+  risklevel_desc_4:{ko:'안전보건대책을 수립하여 가급적 빨리 개선해야 합니다.',en:'Establish safety measures and improve as soon as possible.',th:'จัดทำมาตรการความปลอดภัยและปรับปรุงโดยเร็วที่สุด',id:'Susun tindakan keselamatan dan perbaiki secepat mungkin.',mn:'Аюулгүй ажиллагааны арга хэмжээ боловсруулж аль болох хурдан сайжруулна.'},
+  risklevel_desc_5:{ko:'긴급 안전보건대책 수립 후 작업하고, 신속히 개선해야 합니다.',en:'Take urgent safety measures before working, and improve quickly.',th:'ดำเนินมาตรการความปลอดภัยเร่งด่วนก่อนทำงาน และปรับปรุงโดยเร็ว',id:'Ambil tindakan keselamatan mendesak sebelum bekerja, dan perbaiki segera.',mn:'Яаралтай аюулгүй ажиллагааны арга хэмжээ авсны дараа ажиллаж, түргэн сайжруулна.'},
+  risklevel_desc_6:{ko:'작업을 지속하려면 즉시 개선을 실행해야 합니다.',en:'Work must be improved immediately to continue.',th:'ต้องปรับปรุงทันทีจึงจะทำงานต่อได้',id:'Pekerjaan harus segera diperbaiki untuk dapat dilanjutkan.',mn:'Ажлыг үргэлжлүүлэхийн тулд даруй сайжруулах шаардлагатай.'},
   risk_legend_title:{ko:'위험도 판단 기준',en:'Risk Level Criteria',th:'เกณฑ์ระดับความเสี่ยง',id:'Kriteria Tingkat Risiko',mn:'Эрсдэлийн түвшний шалгуур'},
   btn_print:{ko:'인쇄',en:'Print',th:'พิมพ์',id:'Cetak',mn:'Хэвлэх'},
   btn_excel:{ko:'엑셀 다운로드',en:'Download Excel',th:'ดาวน์โหลด Excel',id:'Unduh Excel',mn:'Excel татах'},
@@ -1271,7 +1284,7 @@ function renderDashboard(){
 
   const openPermits = permits.filter(p=>p.status==='신청'||p.status==='검토중').length;
   const openRisks = risks.filter(r=>r.status!=='완료').length;
-  const highRisks = risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit').length;
+  const highRisks = risks.filter(r=>riskLevel(r)>=4).length;
   const openIncidents = incidents.filter(i=>i.status!=='완료').length;
   const thisMonthIncidents = incidents.filter(i=> (i.datetime||'').slice(0,7) === todayStr().slice(0,7)).length;
 
@@ -1308,7 +1321,7 @@ function renderDashboard(){
         <div class="k-sub">${t('kpi_permits_sub')}</div>
       </div>
       <div class="card kpi c-caution">
-        <div class="k-label">${icon('alert-triangle',14)} ${t('kpi_risks')} ${hasNewInList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), PATHS.risks) ? '<span class="badge-new">NEW</span>' : ''}</div>
+        <div class="k-label">${icon('alert-triangle',14)} ${t('kpi_risks')} ${hasNewInList(risks.filter(r=>riskLevel(r)>=4), PATHS.risks) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${highRisks}</div>
         <div class="k-sub">${t('kpi_risks_sub')}</div>
       </div>
@@ -1345,7 +1358,7 @@ function renderDashboard(){
     <div class="dash-lower">
       <div class="list-card">
         <div class="lc-head"><h3>${t('dash_risks_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="risks">${t('view_all')}</button></div>
-        <div class="lc-body">${renderMiniList(risks.filter(r=>riskLevel(r)==='high'||riskLevel(r)==='crit'), r=>({
+        <div class="lc-body">${renderMiniList(risks.filter(r=>riskLevel(r)>=4), r=>({
           title:`${r.process||'-'} · ${r.hazard||'-'}`,
           meta:`위험도 ${r.frequency||0}×${r.severity||0}`, badge: statusBadge('risk', r.status)
         }), PATHS.risks)}</div>
@@ -1523,18 +1536,22 @@ const PROCESS_DEPT_MAP = {
 };
 function processDept(process){ return PROCESS_DEPT_MAP[process] || '-'; }
 
+// 위험도 등급 — 회사 「위험성평가 실시규정」의 빈도강도법(6단계, Ⅰ~Ⅵ) 기준
 function riskLevel(r){
   const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
-  if(score>=15) return 'crit';
-  if(score>=8) return 'high';
-  if(score>=4) return 'mid';
-  return 'low';
+  if(score>=16) return 6; // Ⅵ 매우높음 (16~20)
+  if(score>=13) return 5; // Ⅴ 높음 (15)
+  if(score>=9) return 4;  // Ⅳ 약간높음 (9~12)
+  if(score===8) return 3; // Ⅲ 보통 (8)
+  if(score>=4) return 2;  // Ⅱ 낮음 (4~6)
+  return 1;                // Ⅰ 매우낮음 (1~3)
 }
-// 위험도 등급별 조치기준 — 색상·라벨·조치내용을 한 곳에서 관리 (표시 텍스트는 다국어)
-const RISK_LEVEL_SCORE_RANGE = { crit:'15~20', high:'8~14', mid:'4~7', low:'1~3' };
+const RISK_LEVEL_SCORE_RANGE = {1:'1~3',2:'4~6',3:'8',4:'9~12',5:'15',6:'16~20'};
+const RISK_LEVEL_ROMAN = {1:'Ⅰ',2:'Ⅱ',3:'Ⅲ',4:'Ⅳ',5:'Ⅴ',6:'Ⅵ'};
 function riskLevelInfo(lv){
   return {
     scoreRange: RISK_LEVEL_SCORE_RANGE[lv],
+    roman: RISK_LEVEL_ROMAN[lv],
     label: t('risklevel_label_'+lv),
     action: t('risklevel_action_'+lv),
     desc: t('risklevel_desc_'+lv),
@@ -1544,21 +1561,24 @@ function riskChip(r){
   const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
   const lv = riskLevel(r);
   const info = riskLevelInfo(lv);
-  return `<span class="risk-chip risk-${lv}" title="위험도 ${info.label} · ${info.action}">${score}</span>`;
+  return `<span class="risk-chip risk-${lv}" title="위험도 ${info.roman} ${info.label} · ${info.action}">${score}</span>`;
 }
-// 위험도 등급을 색상+글자로 함께 보여주는 뱃지 (목록/상세에서 사용)
+// 위험도 등급을 세로형 배지로 (점수 위 · 조치명 아래) — 폭을 줄여 목록에서 옆으로 안 길어지게
 function riskLevelBadge(r){
+  const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
   const lv = riskLevel(r);
   const info = riskLevelInfo(lv);
-  return `<span class="risk-level-badge risk-${lv}">${riskChip(r)} ${esc(info.action)}</span>`;
+  return `<span class="risk-level-badge risk-${lv}" title="위험도 ${info.roman} ${info.label}">
+    <span class="rlb-score">${score}</span><span class="rlb-action">(${esc(info.action)})</span>
+  </span>`;
 }
 function riskLegendHtml(){
   return `<div class="risk-legend">
-    ${['crit','high','mid','low'].map(lv=>{
+    ${[6,5,4,3,2,1].map(lv=>{
       const info = riskLevelInfo(lv);
       return `<div class="risk-legend-item">
-        <span class="risk-chip risk-${lv}">${info.scoreRange}</span>
-        <div><b>${esc(info.label)} · ${esc(info.action)}</b><div class="hint" style="margin:1px 0 0;">${esc(info.desc)}</div></div>
+        <span class="risk-chip risk-${lv}">${info.roman}</span>
+        <div><b>${esc(info.label)}(${info.scoreRange}) · ${esc(info.action)}</b><div class="hint" style="margin:1px 0 0;">${esc(info.desc)}</div></div>
       </div>`;
     }).join('')}
   </div>`;
@@ -1890,9 +1910,7 @@ function renderRisks(){
 
   function getFilteredRisks(){
     const arr = objToArr(DataStore.get(PATHS.risks)).sort((a,b)=>{
-      const s = riskLevel(b)==='crit'?4:riskLevel(b)==='high'?3:riskLevel(b)==='mid'?2:1;
-      const s2 = riskLevel(a)==='crit'?4:riskLevel(a)==='high'?3:riskLevel(a)==='mid'?2:1;
-      return s - s2;
+      return riskLevel(b) - riskLevel(a);
     });
     let f = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
     if(processFilter!=='전체') f = f.filter(r=>r.process===processFilter);
@@ -2018,58 +2036,82 @@ function openImageLightbox(src){
 // ※ 정식 위험성평가 양식(docx)을 주시면, 작업허가서처럼 그 양식에 그대로 값을 채워 넣는 방식으로 업그레이드할 수 있습니다.
 function printRisks(list){
   if(!list || list.length===0){ toast(t('print_no_data')); return; }
-  const rows = list.map(r=>{
-    const info = riskLevelInfo(riskLevel(r));
+
+  // 2부: 위험성평가표 — 목록만, 사진 없음
+  const part2Rows = list.map((r,idx)=>{
     const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
     const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : null;
+    const hazardCat = [r.hazardCategory, r.hazardDetailType].filter(Boolean).join(' · ') || '-';
     return `
       <tr>
+        <td class="ctr">${idx+1}</td>
         <td>${esc(r.process||'-')}${r.task?('<br><span class="sub">'+esc(r.task)+'</span>'):''}</td>
-        <td>${esc(r.hazardCategory||'-')}</td>
-        <td>${esc(r.hazardDetailType||'-')}</td>
+        <td>${esc(hazardCat)}</td>
         <td>${esc(r.hazard||'-')}</td>
         <td>${esc(r.currentMeasures||'-')}</td>
         <td class="ctr">${r.frequency||0}</td>
         <td class="ctr">${r.severity||0}</td>
         <td class="ctr"><span class="lv-badge lv-${riskLevel(r)}">${score}</span></td>
         <td>${esc(r.measures||'-')}</td>
-        <td class="ctr">${r.afterFrequency||'-'}</td>
-        <td class="ctr">${r.afterSeverity||'-'}</td>
         <td class="ctr">${afterScore!=null?afterScore:'-'}</td>
-        <td class="ctr">${esc(r.reporter||'-')}</td>
         <td class="ctr">${esc(statusLabel(r.status))}</td>
-        <td class="photos">
-          ${r.photoBefore?`<img src="${r.photoBefore}">`:''}
-          ${r.photoAfter?`<img src="${r.photoAfter}">`:''}
-        </td>
       </tr>`;
   }).join('');
+
+  // 3부: 위험성평가 개선계획서 — 개선전/후 사진 포함
+  const part3Rows = list.map(r=>{
+    const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
+    const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : null;
+    return `
+      <tr>
+        <td>${esc(r.process||'-')}${r.task?('<br><span class="sub">'+esc(r.task)+'</span>'):''}</td>
+        <td>${esc(r.hazard||'-')}</td>
+        <td>${esc(r.measures||'-')}</td>
+        <td class="photos">${r.photoBefore?`<img src="${r.photoBefore}">`:'<span class="sub">-</span>'}</td>
+        <td class="photos">${r.photoAfter?`<img src="${r.photoAfter}">`:'<span class="sub">-</span>'}</td>
+        <td class="ctr">${score}${afterScore!=null?` → ${afterScore}`:''}</td>
+        <td class="ctr">${esc(statusLabel(r.status))}</td>
+        <td class="ctr">${esc(r.reporter||'-')}</td>
+      </tr>`;
+  }).join('');
+
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>${t('print_report_title')}</title>
     <style>
       body{font-family:'Malgun Gothic',sans-serif;padding:24px;color:#14192B;}
       h1{font-size:19px;margin:0 0 4px;}
+      h2{font-size:14px;margin:26px 0 8px;}
       .meta{font-size:11.5px;color:#667085;margin-bottom:18px;}
       table{width:100%;border-collapse:collapse;font-size:10px;}
-      th,td{border:1px solid #C7CEDB;padding:5px 6px;vertical-align:top;text-align:left;}
+      th,td{border:1px solid #C7CEDB;padding:5px 6px;vertical-align:middle;text-align:left;font-size:10px;}
       th{background:#F1F3F7;font-weight:700;}
-      td.ctr{text-align:center;white-space:nowrap;}
-      td.photos{display:flex;gap:4px;}
-      td.photos img{width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #C7CEDB;}
+      td.ctr,th.ctr{text-align:center;white-space:nowrap;}
+      td.photos{text-align:center;}
+      td.photos img{width:52px;height:52px;object-fit:cover;border-radius:4px;border:1px solid #C7CEDB;}
       .sub{color:#667085;font-size:9.5px;}
-      .lv-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-weight:700;color:#fff;font-size:10px;}
-      .lv-crit{background:#E5484D;} .lv-high{background:#FF6A13;} .lv-mid{background:#FFC93C;color:#5C4400;} .lv-low{background:#1DA46F;}
-      @media print{ body{padding:8mm;} table{font-size:8.5px;} }
+      .lv-badge{display:inline-block;padding:1px 7px;border-radius:4px;font-weight:700;color:#fff;font-size:10px;line-height:1.6;}
+      .lv-1{background:#1DA46F;} .lv-2{background:#2D7DD2;} .lv-3{background:#FFC93C;color:#5C4400;} .lv-4{background:#FF6A13;} .lv-5{background:#E8590C;} .lv-6{background:#E5484D;}
+      @media print{ body{padding:8mm;} table{font-size:8.5px;} th,td{font-size:8.5px;} }
     </style>
   </head><body>
     <h1>${t('print_report_title')}</h1>
     <div class="meta">${t('print_generated_on')}: ${fmtDate(todayStr())}</div>
+
+    <h2>2부. 위험성평가표</h2>
     <table>
       <thead><tr>
-        <th>${t('th_process_task')}</th><th>위험분류</th><th>위험세부분류</th><th>${t('th_hazard')}</th><th>현재조치</th><th>${t('th_frequency')}</th><th>${t('th_severity')}</th><th>${t('th_risklevel')}</th><th>${t('th_measures')}</th><th>개선후가능성</th><th>개선후강도</th><th>개선후위험성</th><th>${t('th_reporter_applicant')}</th><th>${t('th_status')}</th><th>${t('dt_photo_site')}/${t('dt_photo_after')}</th>
+        <th class="ctr">No.</th><th>${t('th_process_task')}</th><th>위험분류</th><th>${t('th_hazard')}</th><th>현재의 안전보건조치</th><th class="ctr">${t('th_frequency')}</th><th class="ctr">${t('th_severity')}</th><th class="ctr">${t('th_risklevel')}</th><th>${t('th_measures')}</th><th class="ctr">개선후위험성</th><th class="ctr">${t('th_status')}</th>
       </tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody>${part2Rows}</tbody>
+    </table>
+
+    <h2>3부. 위험성평가 개선계획서</h2>
+    <table>
+      <thead><tr>
+        <th>${t('th_process_task')}</th><th>점검사항(유해위험요인)</th><th>개선방법</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th><th class="ctr">위험성 변화</th><th class="ctr">${t('th_status')}</th><th class="ctr">담당자</th>
+      </tr></thead>
+      <tbody>${part3Rows}</tbody>
     </table>
   </body></html>`);
   win.document.close();
@@ -2080,36 +2122,55 @@ function printRisks(list){
 function exportRisksExcel(list){
   if(!list || list.length===0){ toast(t('print_no_data')); return; }
   if(typeof XLSX==='undefined'){ toast('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
-  const header = ['공정명','세부작업내용','위험분류','위험세부분류','유해위험요인(위험발생상황 및 결과)','현재의 안전보건조치','가능성','중대성','위험성','위험성 감소대책(개선대책)','개선후 가능성','개선후 중대성','개선후 위험성','상태','신청자(담당자)','비고'];
-  const rows = list.map(r=>{
-    const score = (Number(r.frequency)||0)*(Number(r.severity)||0);
-    const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
-    return [
-      r.process||'', r.task||'', r.hazardCategory||'', r.hazardDetailType||'',
-      r.hazard||'', r.currentMeasures||'',
-      r.frequency||'', r.severity||'', score||'',
-      r.measures||'',
-      r.afterFrequency||'', r.afterSeverity||'', afterScore,
-      statusLabel(r.status)||'', r.reporter||'', ''
-    ];
-  });
-  const wb = XLSX.utils.book_new();
-  // 공정별로 시트를 나눔 (선택된 공정이 있으면 해당 시트 하나만, 전체면 공정별로 분리)
+
+  // 2부: 위험성평가표 — 실제 사용 양식(순번/공정명/세부작업명/위험분류/유해위험요인파악/현재조치/가능성/중대성/위험성/감소대책/개선후위험성/접수일/완료일/담당자) 컬럼 구조 그대로
+  const header2 = ['순번','공정명','세부작업명','위험분류','유해위험요인 파악(위험발생상황 및 결과)','현재의 안전보건조치','가능성','중대성','위험성','위험성 감소대책','개선후 위험성','접수일','완료일','담당자'];
+  // 3부: 위험성평가 개선계획서 — 개선전/후 사진 유무, 위험성 변화, 상태 중심
+  const header3 = ['공정명','점검사항(유해위험요인)','개선방법','개선전 사진','개선후 사진','개선전 위험성','개선후 위험성','상태','담당자'];
+
   const byProcess = {};
-  list.forEach((r, idx)=>{
+  list.forEach(r=>{
     const key = r.process || '기타';
     if(!byProcess[key]) byProcess[key] = [];
-    byProcess[key].push(rows[idx]);
+    byProcess[key].push(r);
   });
+
+  const wb = XLSX.utils.book_new();
   Object.keys(byProcess).forEach(proc=>{
-    const sheetData = [header, ...byProcess[proc]];
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    ws['!cols'] = [
-      {wch:10},{wch:14},{wch:12},{wch:14},{wch:32},{wch:26},
-      {wch:7},{wch:7},{wch:7},{wch:28},{wch:9},{wch:9},{wch:9},{wch:12},{wch:12},{wch:14}
-    ];
-    const safeSheetName = proc.slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'');
-    XLSX.utils.book_append_sheet(wb, ws, safeSheetName || 'Sheet');
+    const items = byProcess[proc];
+    const rows2 = items.map((r, idx)=>{
+      const score = (Number(r.frequency)||0)*(Number(r.severity)||0);
+      const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
+      const hazardCat = [r.hazardCategory, r.hazardDetailType].filter(Boolean).join(' · ');
+      return [
+        idx+1, r.process||'', r.task||'', hazardCat,
+        r.hazard||'', r.currentMeasures||'',
+        r.frequency||'', r.severity||'', score||'',
+        r.measures||'',
+        afterScore,
+        r.createdAt ? fmtDate(r.createdAt) : '', '',
+        r.reporter||''
+      ];
+    });
+    const ws2 = XLSX.utils.aoa_to_sheet([header2, ...rows2]);
+    ws2['!cols'] = [{wch:5},{wch:10},{wch:14},{wch:16},{wch:32},{wch:24},{wch:7},{wch:7},{wch:7},{wch:28},{wch:9},{wch:11},{wch:11},{wch:10}];
+    const safeSheetName2 = (proc+'_평가표').slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'');
+    XLSX.utils.book_append_sheet(wb, ws2, safeSheetName2 || 'Sheet');
+
+    const rows3 = items.map(r=>{
+      const score = (Number(r.frequency)||0)*(Number(r.severity)||0);
+      const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
+      return [
+        r.process||'', r.hazard||'', r.measures||'',
+        r.photoBefore ? '있음' : '-', r.photoAfter ? '있음' : '-',
+        score, afterScore,
+        statusLabel(r.status)||'', r.reporter||''
+      ];
+    });
+    const ws3 = XLSX.utils.aoa_to_sheet([header3, ...rows3]);
+    ws3['!cols'] = [{wch:10},{wch:32},{wch:28},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10}];
+    const safeSheetName3 = (proc+'_개선계획').slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'');
+    XLSX.utils.book_append_sheet(wb, ws3, safeSheetName3 || 'Sheet2');
   });
   XLSX.writeFile(wb, `위험성평가_${todayStr()}.xlsx`);
 }
@@ -2188,7 +2249,7 @@ function openRiskModal(existing){
             </select>
           </div>
         </div>
-        <p class="hint">재평가 점수가 6점 이하면 "완료"로, 7점 이상이면 "일부개선완료"로 자동 저장되며 계속 관리 대상에 남습니다.</p>
+        <p class="hint">재평가 점수가 6점 이하면 "완료"로 저장됩니다. 7점 이상이면 저장 전에 확인창이 뜨고, 확인하면 "일부개선완료"로 저장됩니다.</p>
       </div>
       ` : ''}
     </div>
@@ -2229,20 +2290,21 @@ function openRiskModal(existing){
       data.currentMeasures = document.getElementById('f_currentMeasures').value.trim();
     }
 
-    // 완료 처리 시 개선후 재평가 필수 + 점수에 따라 자동 분기(완료/일부개선완료), 경고는 뜨되 저장은 계속 진행
+    // 완료 처리 시 개선후 재평가 필수. 점수가 7점 이상이면 바로 저장하지 않고 확인 팝업을 먼저 띄움
+    let pendingPartial = false, afterScore = null;
     if(isAdmin && chosenStatus==='완료'){
       const af = document.getElementById('f_afterFrequency').value;
       const as = document.getElementById('f_afterSeverity').value;
       if(!af || !as){ toast('완료 처리하려면 개선후 재평가(가능성·강도)를 입력해주세요'); return; }
       const afterFrequency = Number(af), afterSeverity = Number(as);
-      const afterScore = afterFrequency * afterSeverity;
+      afterScore = afterFrequency * afterSeverity;
       data.afterFrequency = afterFrequency;
       data.afterSeverity = afterSeverity;
       if(afterScore <= 6){
         data.status = '완료';
       }else{
         data.status = '일부개선완료';
-        toast('재평가 결과 위험도가 아직 높습니다 (추가 개선 필요) — 일부개선완료로 저장됩니다');
+        pendingPartial = true;
       }
     }
 
@@ -2263,16 +2325,46 @@ function openRiskModal(existing){
         });
       }
     }
-    if(isEdit){
-      await DataStore.update(PATHS.risks, existing.id, data);
-      toast(t('toast_risk_updated'));
-    }else{
-      data.createdAt = Date.now();
-      await DataStore.push(PATHS.risks, data);
-      toast(t('toast_risk_registered'));
+
+    if(pendingPartial){
+      openPartialImprovementConfirm(afterScore, ()=> finalizeRiskSave(data, isEdit, existing));
+      return;
     }
-    closeModal(); renderRisks();
+    await finalizeRiskSave(data, isEdit, existing);
   });
+}
+
+// 개선후 재평가 점수가 7점 이상일 때 뜨는 확인 팝업 — 확인을 눌러야 실제 저장됨
+function openPartialImprovementConfirm(afterScore, onConfirm){
+  showModal(`
+    <div class="modal-head"><h3>추가 개선 필요 안내</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:13.5px;line-height:1.7;">
+        재평가 결과 위험도가 <b>${afterScore}점</b>으로 아직 높습니다.<br>
+        <b>"일부개선완료"</b>로 저장되며, 계속 관리 대상에 남아 추가 개선이 필요합니다.
+      </p>
+      <p class="hint">그대로 진행하시겠습니까?</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="confirmPartialBtn">확인하고 저장</button>
+    </div>
+  `);
+  document.getElementById('confirmPartialBtn').addEventListener('click', async ()=>{
+    await onConfirm();
+  });
+}
+
+async function finalizeRiskSave(data, isEdit, existing){
+  if(isEdit){
+    await DataStore.update(PATHS.risks, existing.id, data);
+    toast(t('toast_risk_updated'));
+  }else{
+    data.createdAt = Date.now();
+    await DataStore.push(PATHS.risks, data);
+    toast(t('toast_risk_registered'));
+  }
+  closeModal(); renderRisks();
 }
 
 function openRiskDetail(id){
