@@ -566,6 +566,10 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
     </div>
     <nav class="nav" id="navList"></nav>
     <div class="sidebar-foot">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="btn btn-sm" id="sidebarLangBtn" style="flex:1;">🌐 <span data-i18n="gate_lang_label">언어 선택</span></button>
+        <button class="btn btn-sm" id="sidebarInstallBtn" style="flex:1;">📲 <span data-i18n="gate_install_btn">앱으로 설치하기</span></button>
+      </div>
       <div class="mode-pill">
         <span id="modeLabel">일반 열람 모드</span>
         <button class="mode-btn" id="modeSwitchBtn" data-i18n="mode_switch">전환</button>
@@ -770,6 +774,8 @@ const TRANSLATIONS = {
   generic_install_step2:{ko:'"홈 화면에 추가" 또는 "앱 설치"를 선택하세요',en:'Select "Add to Home Screen" or "Install App"',th:'เลือก "เพิ่มไปยังหน้าจอหลัก" หรือ "ติดตั้งแอป"',id:'Pilih "Tambahkan ke Layar Utama" atau "Instal Aplikasi"',mn:'"Нүүр дэлгэц рүү нэмэх" эсвэл "Апп суулгах"-ыг сонгоно уу'},
   generic_install_step3:{ko:'안내에 따라 완료하시면 됩니다',en:'Follow the prompts to finish',th:'ทำตามคำแนะนำจนเสร็จสิ้น',id:'Ikuti petunjuk hingga selesai',mn:'Зааврын дагуу дуусгана уу'},
   toast_app_installed:{ko:'앱이 설치되었습니다',en:'App installed',th:'ติดตั้งแอปแล้ว',id:'Aplikasi terpasang',mn:'Апп суулгагдлаа'},
+  exit_confirm_msg:{ko:'앱을 종료하시겠습니까?',en:'Do you want to exit the app?',th:'ต้องการออกจากแอปหรือไม่?',id:'Apakah Anda ingin keluar dari aplikasi?',mn:'Аппыг хаах уу?'},
+  btn_exit_app:{ko:'종료',en:'Exit',th:'ออก',id:'Keluar',mn:'Гарах'},
 
   brand_tag:{ko:'ILSHIN CASTING',en:'ILSHIN CASTING',th:'ILSHIN CASTING',id:'ILSHIN CASTING',mn:'ILSHIN CASTING'},
   brand_title:{ko:'통합 안전관리',en:'Integrated Safety',th:'บริหารความปลอดภัยรวม',id:'Manajemen Keselamatan Terpadu',mn:'Нэгдсэн Аюулгүй Байдал'},
@@ -875,6 +881,8 @@ const TRANSLATIONS = {
   th_frequency:{ko:'빈도',en:'Frequency',th:'ความถี่',id:'Frekuensi',mn:'Давтамж'},
   th_severity:{ko:'강도',en:'Severity',th:'ความรุนแรง',id:'Tingkat Keparahan',mn:'Хүнд байдал'},
   th_risklevel:{ko:'위험도',en:'Risk Level',th:'ระดับความเสี่ยง',id:'Tingkat Risiko',mn:'Эрсдэлийн түвшин'},
+  th_risklevel_before:{ko:'개선전 위험도',en:'Risk Level (Before)',th:'ระดับความเสี่ยง (ก่อน)',id:'Tingkat Risiko (Sebelum)',mn:'Эрсдэлийн түвшин (Өмнө)'},
+  th_risklevel_after:{ko:'개선후 위험도',en:'Risk Level (After)',th:'ระดับความเสี่ยง (หลัง)',id:'Tingkat Risiko (Setelah)',mn:'Эрсдэлийн түвшин (Дараа)'},
   th_measures:{ko:'개선대책',en:'Improvement Measures',th:'มาตรการปรับปรุง',id:'Tindakan Perbaikan',mn:'Сайжруулах арга хэмжээ'},
   th_photo:{ko:'사진',en:'Photo',th:'รูปภาพ',id:'Foto',mn:'Зураг'},
   th_reporter_applicant:{ko:'신청자',en:'Applicant',th:'ผู้ยื่นคำขอ',id:'Pemohon',mn:'Хүсэлт гаргагч'},
@@ -1048,6 +1056,7 @@ const TRANSLATIONS = {
   toast_incident_registered:{ko:'신고가 접수되었습니다. 안전환경부가 확인 후 조치합니다.',en:'The report has been received. The Safety & Environment Dept. will review and take action.',th:'รับรายงานแล้ว ฝ่ายความปลอดภัยและสิ่งแวดล้อมจะตรวจสอบและดำเนินการ',id:'Laporan telah diterima. Departemen Keselamatan & Lingkungan akan meninjau dan mengambil tindakan.',mn:'Мэдээлэл хүлээн авлаа. Аюулгүй байдал, орчны хэлтэс шалгаж, арга хэмжээ авна.'},
   incident_detail_title:{ko:'사고 접수 상세',en:'Incident Report Details',th:'รายละเอียดรายงานอุบัติเหตุ',id:'Detail Laporan Insiden',mn:'Ослын мэдээллийн дэлгэрэнгүй'},
   btn_process_edit:{ko:'처리 · 수정',en:'Process · Edit',th:'ดำเนินการ · แก้ไข',id:'Proses · Ubah',mn:'Боловсруулах · Засах'},
+  btn_view_linked_risk:{ko:'연결된 위험성평가 보기',en:'View Linked Risk Assessment',th:'ดูการประเมินความเสี่ยงที่เชื่อมโยง',id:'Lihat Penilaian Risiko Terkait',mn:'Холбогдох эрсдэлийн үнэлгээг харах'},
   confirm_delete_incident:{ko:'이 접수 항목을 삭제하시겠습니까?',en:'Are you sure you want to delete this report?',th:'ต้องการลบรายงานนี้ใช่หรือไม่?',id:'Apakah Anda yakin ingin menghapus laporan ini?',mn:'Энэ мэдээллийг устгахдаа итгэлтэй байна уу?'},
 
   /* ===== 3단계: 도급업체 모달 ===== */
@@ -1621,15 +1630,7 @@ function riskLevelBadge(r){
     <span class="rlb-score">${score}</span><span class="rlb-action">(${esc(info.action)})</span>
   </span>`;
 }
-// 목록에서 사용 — 개선후 재평가가 있으면 개선전→개선후를 나란히 표시
-function riskLevelCell(r){
-  const before = riskLevelBadge(r);
-  if(r.afterFrequency && r.afterSeverity){
-    const after = riskLevelBadge({frequency:r.afterFrequency, severity:r.afterSeverity});
-    return `<div style="display:flex;align-items:center;gap:4px;">${before}<span style="color:var(--ink-faint);font-size:13px;">→</span>${after}</div>`;
-  }
-  return before;
-}
+// 목록/상세보기에서 개선전·개선후 위험도를 각각 별도 칸/항목으로 표시 (riskLevelBadge를 직접 호출)
 function riskLegendHtml(){
   return `<div class="risk-legend">
     ${[6,5,4,3,2,1].map(lv=>{
@@ -2049,14 +2050,14 @@ function renderRisks(){
   area.innerHTML = `
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th><th>${t('th_reporter_applicant')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
+        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel_before')}</th><th class="tight">${t('th_risklevel_after')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th><th>${t('th_reporter_applicant')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
       </tr></thead>
       <tbody id="riskBody"></tbody>
     </table></div>
   `;
   const body = document.getElementById('riskBody');
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="11"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="12"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(r=>`
@@ -2065,7 +2066,8 @@ function renderRisks(){
       <td>${esc(r.hazard||'-')}</td>
       <td class="tight mono">${r.frequency||0}</td>
       <td class="tight mono">${r.severity||0}</td>
-      <td class="tight">${riskLevelCell(r)}</td>
+      <td class="tight">${riskLevelBadge(r)}</td>
+      <td class="tight">${(r.afterFrequency && r.afterSeverity) ? riskLevelBadge({frequency:r.afterFrequency, severity:r.afterSeverity}) : '<span style="color:var(--ink-faint);font-size:11.5px;">-</span>'}</td>
       <td>${esc(r.measures||'-')}</td>
       <td>${riskThumb(r.photoBefore)}</td>
       <td>${riskThumb(r.photoAfter)}</td>
@@ -2309,6 +2311,7 @@ function openRiskModal(existing){
           <select id="f_severity">
             ${[1,2,3,4].map(n=>`<option value="${n}" ${Number(v.severity)===n?'selected':''}>${t('sev_'+n)}</option>`).join('')}
           </select>
+          ${(v.linkedAccidentType && ACCIDENT_SEVERITY_HINT[v.linkedAccidentType]) ? `<p style="color:var(--danger);font-size:11.5px;font-weight:700;margin:5px 0 0;">⚠ 추천: 강도 ${ACCIDENT_SEVERITY_HINT[v.linkedAccidentType]} (사고유형 "${esc(t('accidenttype_'+v.linkedAccidentType))}" 기준 — 참고용, 직접 판단해 선택하세요)</p>` : ''}
         </div>
       </div>
       <div class="field"><label>${t('lbl_measures_only')} *</label><textarea id="f_measures">${esc(v.measures||'')}</textarea></div>
@@ -2493,13 +2496,13 @@ function openRiskDetail(id){
       <dl class="detail-grid">
         <dt>${t('th_process_task')}</dt><dd>${esc(r.process)} ${r.task?('· '+esc(r.task)):''}</dd>
         <dt>${t('lbl_hazard')}</dt><dd>${esc(r.hazard)}</dd>
-        <dt>${t('th_risklevel')}</dt><dd>${riskLevelBadge(r)} &nbsp;(${t('th_frequency')} ${r.frequency} × ${t('th_severity')} ${r.severity})</dd>
+        <dt>${t('th_risklevel_before')}</dt><dd>${riskLevelBadge(r)} &nbsp;(${t('th_frequency')} ${r.frequency} × ${t('th_severity')} ${r.severity})</dd>
         <dt>${t('lbl_measures_only')}</dt><dd>${esc(r.measures)}</dd>
         <dt>${t('th_reporter_applicant')}</dt><dd>${esc(r.reporter||'-')}</dd>
         <dt>${t('th_status')}</dt><dd>${statusBadge('risk', r.status)}</dd>
         ${isAdmin && (r.hazardCategory||r.hazardDetailType) ? `<dt>위험분류</dt><dd>${esc(r.hazardCategory||'-')} ${r.hazardDetailType?('· '+esc(r.hazardDetailType)):''}</dd>` : ''}
         ${isAdmin && r.currentMeasures ? `<dt>현재의 안전보건조치</dt><dd>${esc(r.currentMeasures)}</dd>` : ''}
-        ${afterScore!=null ? `<dt>위험도 변화</dt><dd>${riskChip(r)} → ${riskChip({frequency:r.afterFrequency,severity:r.afterSeverity})} <span class="hint" style="margin-left:6px;">(가능성 ${r.afterFrequency} × 강도 ${r.afterSeverity})</span></dd>` : ''}
+        ${afterScore!=null ? `<dt>${t('th_risklevel_after')}</dt><dd>${riskChip({frequency:r.afterFrequency,severity:r.afterSeverity})} &nbsp;(${t('th_frequency')} ${r.afterFrequency} × ${t('th_severity')} ${r.afterSeverity})</dd>` : ''}
       </dl>
       ${(r.photoBefore||r.photoAfter) ? `
       <div class="divider"></div>
@@ -2596,6 +2599,11 @@ function renderIncidents(){
 }
 
 const ACCIDENT_TYPES = ['추락','넘어짐','부딪힘','끼임(협착)','감전','화상','절단·베임','기타(직접입력)'];
+// 사고유형별 강도(중대성) 추천 범위 — 어디까지나 참고용, 자동입력하지 않음(관리자가 직접 선택)
+const ACCIDENT_SEVERITY_HINT = {
+  '추락':'3~4', '넘어짐':'1~2', '부딪힘':'1~2', '끼임(협착)':'3~4',
+  '감전':'3~4', '화상':'2~3', '절단·베임':'2~3'
+};
 
 function calcLeaveDays(incidentDatetime, returnDate){
   if(!incidentDatetime || !returnDate) return null;
@@ -2721,15 +2729,19 @@ function openIncidentModal(existing){
       data.createdAt = Date.now();
       const newId = await DataStore.push(PATHS.incidents, data);
       // 사고접수가 등록되면 위험성평가에도 자동 연동 등록 (관리자가 이어서 평가만 하면 됨)
+      // - 부상정도(injurySeverity)를 강도(severity)에 그대로 반영 (같은 척도를 쓰므로)
+      // - 사고유형은 세부작업 칸에 참고로 표시, linkedAccidentType으로 저장해 추천점수 등에 활용
+      const typeLabel = accidentType==='기타(직접입력)' ? data.accidentTypeOther : t('accidenttype_'+accidentType);
       await DataStore.push(PATHS.risks, {
         process: data.process,
-        task: '',
-        hazard: `[사고접수 연동] ${data.description}`,
-        frequency: '', severity: '',
+        task: typeLabel || '',
+        hazard: `사고 접수로 등록됨: ${data.description}`,
+        frequency: '', severity: data.injurySeverity || '',
         measures: '',
         reporter: data.reporter,
         status: '접수완료',
         linkedIncidentId: newId,
+        linkedAccidentType: accidentType==='기타(직접입력)' ? '' : accidentType,
         createdAt: Date.now(),
       });
       closeModal();
@@ -2749,6 +2761,7 @@ function openIncidentDetail(id){
   markRead(PATHS.incidents, id);
   const i = Object.assign({id}, raw);
   const typeText = i.accidentType ? (i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||t('injury_기타')) : t('accidenttype_'+i.accidentType)) : '-';
+  const linkedRisk = objToArr(DataStore.get(PATHS.risks)).find(r=>r.linkedIncidentId===id);
   showModal(`
     <div class="modal-head"><h3>${t('incident_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
@@ -2770,10 +2783,14 @@ function openIncidentDetail(id){
       </dl>
     </div>
     <div class="modal-foot">
+      ${linkedRisk ? `<button class="btn" id="viewLinkedRiskBtn">${t('btn_view_linked_risk')}</button>` : ''}
       ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_process_edit')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
+  if(linkedRisk){
+    document.getElementById('viewLinkedRiskBtn').addEventListener('click', ()=>{ closeModal(); openRiskDetail(linkedRisk.id); });
+  }
   if(State.mode==='admin'){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openIncidentModal(i); });
     document.getElementById('delBtn').addEventListener('click', async ()=>{
@@ -2789,67 +2806,77 @@ function openIncidentDetail(id){
 ============================================================= */
 function renderContractors(){
   const el = document.getElementById('view-contractors');
+  const isAdmin = State.mode==='admin';
+  const contractors = objToArr(DataStore.get(PATHS.contractors));
+  const activeTab = State.filters.contractorTab || 'all';
+
   el.innerHTML = `
     <div class="toolbar">
       <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('contractors_list_title')} · ${t('contractors_records_title')}</div>
+      ${isAdmin ? `
       <div style="display:flex;gap:8px;">
         <button class="btn" id="addContractorBtn">${icon('plus',15)} ${t('contractors_add_company_btn')}</button>
         <button class="btn btn-primary" id="addRecordBtn">${icon('plus',15)} ${t('contractors_add_record_btn')}</button>
-      </div>
+      </div>` : ''}
     </div>
 
     <div class="section-title"><span class="n">01</span> ${t('contractors_list_title')}</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>${t('th_company')}</th><th>${t('th_type')}</th><th>${t('th_role')}</th><th>${t('th_contact')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
+      <thead><tr><th>${t('th_company')}</th>${isAdmin?`<th>${t('th_type')}</th><th>${t('th_role')}</th><th>${t('th_contact')}</th><th class="tight">${t('btn_manage_col')}</th>`:''}</tr></thead>
       <tbody id="contractorBody"></tbody>
     </table></div>
 
     <div class="section-title"><span class="n">02</span> ${t('contractors_records_title')}</div>
+    <div class="tabs" id="contractorTabs" style="margin-bottom:14px;flex-wrap:wrap;">
+      <button class="tab ${activeTab==='all'?'active':''}" data-tab="all">${t('opt_all_notapplicable')}</button>
+      ${contractors.map(c=>`<button class="tab ${activeTab===c.id?'active':''}" data-tab="${c.id}">${esc(c.name)}</button>`).join('')}
+    </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>${t('th_recordtype')}</th><th>${t('th_targetcompany')}</th><th>${t('th_date')}</th><th>${t('th_author')}</th><th>${t('th_content')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
+      <thead><tr><th>${t('th_recordtype')}</th><th>${t('th_date')}</th><th>${t('th_author')}</th><th>${t('th_content')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
       <tbody id="recordBody"></tbody>
     </table></div>
   `;
-  document.getElementById('addContractorBtn').addEventListener('click', ()=>{
-    if(!requireAdmin('업체 등록')) return;
-    openContractorModal();
-  });
-  document.getElementById('addRecordBtn').addEventListener('click', ()=>{
-    if(!requireAdmin('회의록 등록')) return;
-    openRecordModal();
-  });
+  if(isAdmin){
+    document.getElementById('addContractorBtn').addEventListener('click', ()=>{
+      openContractorModal();
+    });
+    document.getElementById('addRecordBtn').addEventListener('click', ()=>{
+      openRecordModal();
+    });
+  }
+  document.querySelectorAll('#contractorTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
+    State.filters.contractorTab = t.dataset.tab; renderContractors();
+  }));
 
-  const contractors = objToArr(DataStore.get(PATHS.contractors));
   const cBody = document.getElementById('contractorBody');
   cBody.innerHTML = contractors.length ? contractors.map(c=>`
     <tr>
       <td class="cell-strong">${esc(c.name)}</td>
+      ${isAdmin ? `
       <td><span class="badge b-info">${c.type?esc(contractorTypeLabel(c.type)):'-'}</span></td>
       <td>${esc(c.role||'-')}</td>
       <td class="mono">${esc(c.contact||'-')}</td>
-      <td class="tight row-btns">
-        ${State.mode==='admin'?`<button class="btn btn-sm" data-edit-c="${c.id}">${t('btn_edit')}</button><button class="btn btn-sm" data-del-c="${c.id}">${t('btn_delete')}</button>`:'-'}
-      </td>
+      <td class="tight row-btns"><button class="btn btn-sm" data-edit-c="${c.id}">${t('btn_edit')}</button><button class="btn btn-sm" data-del-c="${c.id}">${t('btn_delete')}</button></td>
+      ` : ''}
     </tr>
-  `).join('') : `<tr><td colspan="5"><div class="empty"><span class="big">${icon('hard-hat',22)}</span>${t('contractors_empty')}</div></td></tr>`;
+  `).join('') : `<tr><td colspan="${isAdmin?5:1}"><div class="empty"><span class="big">${icon('hard-hat',22)}</span>${t('contractors_empty')}</div></td></tr>`;
   cBody.querySelectorAll('[data-edit-c]').forEach(b=>b.addEventListener('click', ()=> openContractorModal(contractors.find(c=>c.id===b.dataset.editC))));
   cBody.querySelectorAll('[data-del-c]').forEach(b=>b.addEventListener('click', async ()=>{
     if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contractors, b.dataset.delC); toast(t('toast_deleted')); renderContractors(); }
   }));
 
-  const records = objToArr(DataStore.get(PATHS.contractorRecords)).sort((a,b)=> new Date(b.date||0)-new Date(a.date||0));
+  const allRecords = objToArr(DataStore.get(PATHS.contractorRecords)).sort((a,b)=> new Date(b.date||0)-new Date(a.date||0));
+  const records = activeTab==='all' ? allRecords.filter(r=>!r.contractorId) : allRecords.filter(r=>r.contractorId===activeTab);
   const rBody = document.getElementById('recordBody');
-  rBody.innerHTML = records.length ? records.map(r=>{
-    const c = contractors.find(x=>x.id===r.contractorId);
-    return `<tr>
+  rBody.innerHTML = records.length ? records.map(r=>`
+    <tr>
       <td><span class="badge b-gray">${r.recordType?esc(recordTypeLabel(r.recordType)):'-'}</span></td>
-      <td>${newBadge(r, PATHS.contractorRecords)}${esc(c?c.name:'(전체)')}</td>
-      <td class="mono">${fmtDate(r.date)}</td>
+      <td class="mono">${newBadge(r, PATHS.contractorRecords)}${fmtDate(r.date)}</td>
       <td>${esc(r.author||'-')}</td>
       <td>${esc((r.content||'-').slice(0,30))}${(r.content||'').length>30?'…':''}</td>
       <td class="tight row-btns"><button class="btn btn-sm" data-view-r="${r.id}">${t('btn_view')}</button></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="6"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('records_empty')}</div></td></tr>`;
+    </tr>
+  `).join('') : `<tr><td colspan="5"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('records_empty')}</div></td></tr>`;
   rBody.querySelectorAll('[data-view-r]').forEach(b=> b.addEventListener('click', ()=> openRecordDetail(b.dataset.viewR)));
 }
 
@@ -3184,6 +3211,37 @@ function showModal(html){
 function closeModal(){ document.getElementById('overlay').hidden = true; document.getElementById('modalBox').innerHTML=''; }
 document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
 
+// 뒤로가기 버튼을 눌러도 앱이 바로 꺼지지 않도록 — 히스토리에 더미 상태를 쌓아두고
+// 뒤로가기를 감지하면 종료 확인 팝업을 띄운 뒤, "종료"를 눌러야 실제로 나가짐
+(function setupBackExitGuard(){
+  history.pushState({ trap:true }, '');
+  window.addEventListener('popstate', ()=>{
+    const overlay = document.getElementById('overlay');
+    if(overlay && !overlay.hidden){
+      // 다른 모달이 열려있던 중이면 그 모달만 닫고 트랩을 다시 쌓음
+      closeModal();
+      history.pushState({ trap:true }, '');
+      return;
+    }
+    showModal(`
+      <div class="modal-body" style="text-align:center;padding:30px 20px 22px;">
+        <p style="font-size:14.5px;font-weight:700;margin:0;">${t('exit_confirm_msg')}</p>
+      </div>
+      <div class="modal-foot" style="justify-content:center;gap:10px;">
+        <button class="btn" id="exitCancelBtn" style="min-width:100px;justify-content:center;">${t('btn_cancel')}</button>
+        <button class="btn btn-primary" id="exitConfirmBtn" style="min-width:100px;justify-content:center;background:var(--danger);">${t('btn_exit_app')}</button>
+      </div>
+    `);
+    document.getElementById('exitCancelBtn').addEventListener('click', ()=>{
+      closeModal();
+      history.pushState({ trap:true }, '');
+    });
+    document.getElementById('exitConfirmBtn').addEventListener('click', ()=>{
+      history.back();
+    });
+  });
+})();
+
 // 일반사용자가 접수/등록을 완료했을 때 뜨는 확인 팝업 (토스트보다 확실하게 인지시키기 위함)
 function showSuccessPopup(message){
   showModal(`
@@ -3482,6 +3540,36 @@ window.addEventListener('appinstalled', ()=>{
 });
 
 updateInstallBtn();
+
+// 로그인 상태에서도 사이드바에서 언어변경/설치 접근 가능 (앱을 껐다 켤 필요 없이)
+document.getElementById('sidebarInstallBtn').addEventListener('click', ()=>{
+  document.getElementById('gateInstallBtn').click();
+});
+document.getElementById('sidebarLangBtn').addEventListener('click', ()=>{
+  showModal(`
+    <div class="modal-head"><h3>${t('gate_lang_label')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="lang-picker" id="sidebarLangPicker">
+        <button type="button" class="lang-btn ${State.lang==='ko'?'active':''}" data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span></button>
+        <button type="button" class="lang-btn ${State.lang==='en'?'active':''}" data-lang="en"><span class="flag">🇺🇸</span><span>English</span></button>
+        <button type="button" class="lang-btn ${State.lang==='th'?'active':''}" data-lang="th"><span class="flag">🇹🇭</span><span>ไทย</span></button>
+        <button type="button" class="lang-btn ${State.lang==='id'?'active':''}" data-lang="id"><span class="flag">🇮🇩</span><span>Indonesia</span></button>
+        <button type="button" class="lang-btn ${State.lang==='mn'?'active':''}" data-lang="mn"><span class="flag">🇲🇳</span><span>Монгол</span></button>
+      </div>
+    </div>
+  `);
+  document.querySelectorAll('#sidebarLangPicker .lang-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      State.lang = btn.dataset.lang;
+      localStorage.setItem('isc_lang', State.lang);
+      applyI18n();
+      updateModeUI();
+      renderNav();
+      renderCurrentView();
+      closeModal();
+    });
+  });
+});
 </script>
 
 <!-- ============================================================
