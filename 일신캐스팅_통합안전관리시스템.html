@@ -2102,8 +2102,19 @@ function openPermitModal(existing){
     }else if(!isEdit){
       data.status = '신청';
     }
-    if(!data.company || !data.workContent || !data.location || !data.startDate || !data.endDate || !data.headcount || !data.processManager || !data.hazardDetail || (equipment.length===0 && !equipmentOther)){
-      toast(t('toast_fill_required')); return;
+    const missingFields = [];
+    if(!data.company) missingFields.push(t('lbl_company'));
+    if(!data.workContent) missingFields.push(t('lbl_workname'));
+    if(!data.location) missingFields.push(t('lbl_worklocation'));
+    if(!data.startDate) missingFields.push(t('lbl_startdate'));
+    if(!data.endDate) missingFields.push(t('lbl_enddate'));
+    if(!data.headcount) missingFields.push(t('lbl_headcount'));
+    if(!data.processManager) missingFields.push(t('lbl_processmanager'));
+    if(!data.hazardDetail) missingFields.push(t('lbl_hazard_measures'));
+    if(equipment.length===0 && !equipmentOther) missingFields.push(t('lbl_hazard_equipment'));
+    if(missingFields.length){
+      alert(t('toast_fill_required') + '\n\n[비어있는 항목]\n- ' + missingFields.join('\n- '));
+      return;
     }
     if(isEdit){
       await DataStore.update(PATHS.permits, existing.id, data);
