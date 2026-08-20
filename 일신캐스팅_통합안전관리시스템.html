@@ -779,6 +779,10 @@ const TRANSLATIONS = {
   gate_pw_hint:{ko:'비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.',en:'You will automatically log in as either the full administrator or the relevant department administrator, depending on the password.',th:'ระบบจะเข้าสู่ระบบเป็นผู้ดูแลระบบทั้งหมดหรือผู้ดูแลแผนกที่เกี่ยวข้องโดยอัตโนมัติ ขึ้นอยู่กับรหัสผ่าน',id:'Anda akan otomatis masuk sebagai administrator utama atau administrator departemen terkait, tergantung kata sandi yang dimasukkan.',mn:'Нууц үгээс хамааран та бүх эрхтэй админ эсвэл харьяа хэлтсийн админ болж автоматаар нэвтэрнэ.'},
   gate_enter:{ko:'입장하기',en:'Enter',th:'เข้าสู่ระบบ',id:'Masuk',mn:'Нэвтрэх'},
   gate_install_btn:{ko:'앱으로 설치하기',en:'Install as App',th:'ติดตั้งเป็นแอป',id:'Pasang sebagai Aplikasi',mn:'Апп болгон суулгах'},
+  mode_label_partner:{ko:'외주업체 열람',en:'Partner Company View',th:'มุมมองบริษัทคู่ค้า',id:'Tampilan Perusahaan Mitra',mn:'Гэрээт компанийн харах горим'},
+  partner_loading:{ko:'불러오는 중...',en:'Loading...',th:'กำลังโหลด...',id:'Memuat...',mn:'Ачаалж байна...'},
+  partner_invalid_title:{ko:'유효하지 않거나 만료된 링크입니다',en:'This link is invalid or has expired',th:'ลิงก์นี้ไม่ถูกต้องหรือหมดอายุแล้ว',id:'Tautan ini tidak valid atau sudah kedaluwarsa',mn:'Энэ холбоос хүчингүй эсвэл хугацаа дууссан байна'},
+  partner_invalid_desc:{ko:'담당자에게 새 링크를 요청해주세요.',en:'Please ask your contact for a new link.',th:'กรุณาขอลิงก์ใหม่จากผู้ดูแล',id:'Silakan minta tautan baru dari penanggung jawab.',mn:'Хариуцсан ажилтнаас шинэ холбоос авна уу.'},
   ios_install_title:{ko:'홈 화면에 추가하는 방법',en:'How to Add to Home Screen',th:'วิธีเพิ่มไปยังหน้าจอหลัก',id:'Cara Menambahkan ke Layar Utama',mn:'Нүүр дэлгэц рүү нэмэх заавар'},
   ios_install_step1:{ko:'하단(또는 상단)의 공유 버튼을 누르세요',en:'Tap the Share button at the bottom (or top)',th:'แตะปุ่มแชร์ที่ด้านล่าง (หรือด้านบน)',id:'Ketuk tombol Bagikan di bawah (atau atas)',mn:'Доод (эсвэл дээд) хэсэгт байрлах Хуваалцах товчийг дарна уу'},
   ios_install_step2:{ko:'"홈 화면에 추가"를 선택하세요',en:'Select "Add to Home Screen"',th:'เลือก "เพิ่มไปยังหน้าจอหลัก"',id:'Pilih "Tambahkan ke Layar Utama"',mn:'"Нүүр дэлгэц рүү нэмэх"-ийг сонгоно уу'},
@@ -790,6 +794,7 @@ const TRANSLATIONS = {
   toast_app_installed:{ko:'앱이 설치되었습니다',en:'App installed',th:'ติดตั้งแอปแล้ว',id:'Aplikasi terpasang',mn:'Апп суулгагдлаа'},
   exit_confirm_msg:{ko:'앱을 종료하시겠습니까?',en:'Do you want to exit the app?',th:'ต้องการออกจากแอปหรือไม่?',id:'Apakah Anda ingin keluar dari aplikasi?',mn:'Аппыг хаах уу?'},
   btn_exit_app:{ko:'종료',en:'Exit',th:'ออก',id:'Keluar',mn:'Гарах'},
+  exit_press_again:{ko:'뒤로가기를 한번 더 누르면 종료됩니다',en:'Press back once more to exit',th:'กดย้อนกลับอีกครั้งเพื่อออก',id:'Tekan kembali sekali lagi untuk keluar',mn:'Гарахын тулд буцах товчийг дахин дарна уу'},
 
   brand_tag:{ko:'ILSHIN CASTING',en:'ILSHIN CASTING',th:'ILSHIN CASTING',id:'ILSHIN CASTING',mn:'ILSHIN CASTING'},
   brand_title:{ko:'통합 안전관리',en:'Integrated Safety',th:'บริหารความปลอดภัยรวม',id:'Manajemen Keselamatan Terpadu',mn:'Нэгдсэн Аюулгүй Байдал'},
@@ -809,6 +814,21 @@ const TRANSLATIONS = {
   nav_tbm_sub:{ko:'작업 전 안전점검회의(Tool Box Meeting)',en:'Tool Box Meeting before work starts',th:'การประชุม Tool Box ก่อนเริ่มงาน',id:'Tool Box Meeting sebelum mulai kerja',mn:'Ажил эхлэхийн өмнөх Tool Box хурал'},
   nav_notices:{ko:'공지사항 · 비상연락망',en:'Notices · Emergency Contacts',th:'ประกาศ · เบอร์ติดต่อฉุกเฉิน',id:'Pengumuman · Kontak Darurat',mn:'Мэдэгдэл · Онцгой байдлын холбоо барих'},
   nav_notices_sub:{ko:'안전 공지사항 및 비상연락체계',en:'Safety notices and emergency contact system',th:'ประกาศความปลอดภัยและระบบติดต่อฉุกเฉิน',id:'Pengumuman keselamatan dan sistem kontak darurat',mn:'Аюулгүй байдлын мэдэгдэл болон онцгой байдлын холбоо'},
+  nav_suggestions:{ko:'안전제안',en:'Safety Suggestions',th:'ข้อเสนอแนะด้านความปลอดภัย',id:'Saran Keselamatan',mn:'Аюулгүй байдлын санал'},
+  nav_suggestions_sub:{ko:'현장 개선 아이디어를 실명으로 제안해주세요',en:'Submit workplace improvement ideas under your real name',th:'เสนอไอเดียปรับปรุงหน้างานด้วยชื่อจริงของคุณ',id:'Ajukan ide perbaikan tempat kerja dengan nama asli Anda',mn:'Ажлын байрны сайжруулах санаагаа жинхэнэ нэрээрээ санал болгоно уу'},
+  sug_th_title:{ko:'제목',en:'Title',th:'หัวข้อ',id:'Judul',mn:'Гарчиг'},
+  sug_th_reporter:{ko:'제안자',en:'Submitted by',th:'ผู้เสนอ',id:'Diajukan oleh',mn:'Санал гаргагч'},
+  sug_empty:{ko:'등록된 제안이 없습니다',en:'No suggestions submitted yet',th:'ยังไม่มีข้อเสนอแนะ',id:'Belum ada saran yang diajukan',mn:'Ирүүлсэн санал алга байна'},
+  sug_my_title:{ko:'내 제안 현황',en:'My Suggestions',th:'ข้อเสนอแนะของฉัน',id:'Saran Saya',mn:'Миний санал'},
+  sug_add_btn:{ko:'안전제안 등록',en:'Submit Suggestion',th:'ส่งข้อเสนอแนะ',id:'Kirim Saran',mn:'Санал илгээх'},
+  sug_my_hint:{ko:'제안은 실명으로만 접수되며, 이 기기에서 등록한 내 제안의 진행상황만 조회할 수 있습니다.',en:'Suggestions must be submitted under your real name. You can only view the status of suggestions you submitted from this device.',th:'ต้องส่งข้อเสนอแนะด้วยชื่อจริงเท่านั้น คุณสามารถดูสถานะได้เฉพาะข้อเสนอแนะที่ส่งจากอุปกรณ์นี้',id:'Saran harus diajukan dengan nama asli. Anda hanya dapat melihat status saran yang diajukan dari perangkat ini.',mn:'Санал зөвхөн жинхэнэ нэрээр илгээгдэнэ. Та зөвхөн энэ төхөөрөмжөөс илгээсэн саналынхаа явцыг харах боломжтой.'},
+  sug_answer_label:{ko:'처리결과',en:'Response',th:'ผลการดำเนินการ',id:'Hasil Tindak Lanjut',mn:'Шийдвэрлэлтийн үр дүн'},
+  sug_my_empty:{ko:'이 기기에서 등록한 제안이 없습니다',en:'No suggestions submitted from this device',th:'ไม่มีข้อเสนอแนะที่ส่งจากอุปกรณ์นี้',id:'Tidak ada saran yang diajukan dari perangkat ini',mn:'Энэ төхөөрөмжөөс илгээсэн санал алга байна'},
+  sug_new_title:{ko:'안전제안 등록',en:'Submit Safety Suggestion',th:'ส่งข้อเสนอแนะด้านความปลอดภัย',id:'Kirim Saran Keselamatan',mn:'Аюулгүй байдлын санал илгээх'},
+  sug_lbl_content:{ko:'제안 내용',en:'Suggestion Details',th:'รายละเอียดข้อเสนอแนะ',id:'Detail Saran',mn:'Саналын дэлгэрэнгүй'},
+  sug_content_placeholder:{ko:'현장에서 개선했으면 하는 안전 관련 내용을 자유롭게 작성해주세요',en:'Freely describe the safety-related improvement you would like to see',th:'กรุณาอธิบายสิ่งที่ต้องการให้ปรับปรุงด้านความปลอดภัยได้อย่างอิสระ',id:'Silakan jelaskan dengan bebas perbaikan keselamatan yang Anda inginkan',mn:'Ажлын байранд сайжруулахыг хүсч буй аюулгүй байдлын зүйлээ чөлөөтэй бичнэ үү'},
+  sug_realname_notice:{ko:'※ 안전제안은 실명으로만 접수됩니다 (익명 접수 불가)',en:'※ Suggestions are accepted under real names only (anonymous submissions are not allowed)',th:'※ รับข้อเสนอแนะด้วยชื่อจริงเท่านั้น (ไม่รับแบบไม่ระบุชื่อ)',id:'※ Saran hanya diterima dengan nama asli (tidak menerima pengajuan anonim)',mn:'※ Санал зөвхөн жинхэнэ нэрээр хүлээн авагдана (нэргүй хүлээн авахгүй)'},
+  sug_registered_msg:{ko:'안전제안이 등록되었습니다',en:'Your suggestion has been submitted',th:'ส่งข้อเสนอแนะแล้ว',id:'Saran Anda telah dikirim',mn:'Таны санал илгээгдлээ'},
 
   mode_label_user:{ko:'일반 열람 모드',en:'General View Mode',th:'โหมดผู้ใช้ทั่วไป',id:'Mode Pengguna Umum',mn:'Энгийн үзэх горим'},
   mode_label_admin:{ko:'전체관리자 모드',en:'Full Administrator Mode',th:'โหมดผู้ดูแลระบบทั้งหมด',id:'Mode Administrator Utama',mn:'Бүх эрхтэй админ горим'},
@@ -1172,7 +1192,9 @@ const PATHS = {
   contractorRecords:'contractor_records',
   tbm:'tbm_records', // TBM(Tool Box Meeting) — 기능 개발 전, 경로만 예약
   notices:'notices',
-  contacts:'emergency_contacts'
+  contacts:'emergency_contacts',
+  permitPartners:'permit_partners', // 작업허가 조회 전용 외주업체 (도급협의체와는 별개 — 고유링크로 접속)
+  suggestions:'safety_suggestions' // 안전제안제도 (실명 접수, 일반사용자는 본인 제안만 조회)
 };
 
 /* 위험요인(사용설비) 체크리스트 옵션 — 마지막은 항상 기타(직접입력) */
@@ -1248,7 +1270,8 @@ const NAV_ITEMS = [
   {id:'incidents', labelKey:'nav_incidents', icon:'siren', subKey:'nav_incidents_sub'},
   {id:'contractors', labelKey:'nav_contractors', icon:'hard-hat', subKey:'nav_contractors_sub'},
   {id:'tbm', labelKey:'nav_tbm', icon:'users', subKey:'nav_tbm_sub'},
-  {id:'notices', labelKey:'nav_notices', icon:'megaphone', subKey:'nav_notices_sub'}
+  {id:'notices', labelKey:'nav_notices', icon:'megaphone', subKey:'nav_notices_sub'},
+  {id:'suggestions', labelKey:'nav_suggestions', icon:'lightbulb', subKey:'nav_suggestions_sub'}
 ];
 
 const ICONS = {
@@ -1260,7 +1283,8 @@ const ICONS = {
   'megaphone':'<path d="M3 10v4a1 1 0 0 0 1 1h2l7 4V5L6 9H4a1 1 0 0 0-1 1z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M18 9a3 3 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
   'plus':'<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   'pin':'<path d="M12 2a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5z" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="7" r="1.6" fill="currentColor"/>',
-  'users':'<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="17" cy="8" r="2.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.5 14.2c2.6.3 4.7 2.5 4.9 5.3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+  'users':'<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="17" cy="8" r="2.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.5 14.2c2.6.3 4.7 2.5 4.9 5.3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+  'lightbulb':'<path d="M9 18h6M10 21h4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M12 3a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.7v.5h6v-.5c0-.7.3-1.3.8-1.7A6.5 6.5 0 0 0 12 3z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>'
 };
 function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" height="${size}">${ICONS[name]||''}</svg>`; }
 
@@ -1269,7 +1293,8 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 ============================================================= */
 function renderNav(){
   const nav = document.getElementById('navList');
-  nav.innerHTML = NAV_ITEMS.map(item=>{
+  const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits') : NAV_ITEMS;
+  nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
     const isNew = hasNewItems(item.id);
     return `<button class="nav-item ${State.view===item.id?'active':''}" data-view="${item.id}">
@@ -1282,6 +1307,7 @@ function renderNav(){
   });
 }
 function hasNewItems(viewId){
+  if(viewId==='suggestions') return State.mode==='admin' && hasNewInList(objToArr(DataStore.get(PATHS.suggestions)), PATHS.suggestions);
   const pathMap = {
     permits: [PATHS.permits],
     risks: [PATHS.risks],
@@ -1313,6 +1339,7 @@ function navBadgeCount(viewId){
 }
 
 function switchView(id){
+  if(State.mode==='partner' && id!=='permits') id = 'permits';
   State.view = id;
   const item = NAV_ITEMS.find(n=>n.id===id);
   const isDashboard = id==='dashboard';
@@ -1332,7 +1359,8 @@ function renderCurrentView(){
     incidents: renderIncidents,
     contractors: renderContractors,
     tbm: renderTbm,
-    notices: renderNotices
+    notices: renderNotices,
+    suggestions: renderSuggestions
   }[State.view]||function(){})();
 }
 
@@ -1347,6 +1375,7 @@ document.getElementById('views').innerHTML = `
   <section class="view" id="view-contractors" hidden></section>
   <section class="view" id="view-tbm" hidden></section>
   <section class="view" id="view-notices" hidden></section>
+  <section class="view" id="view-suggestions" hidden></section>
 `;
 
 /* ============================================================
@@ -1597,7 +1626,8 @@ function statusBadge(kind, status){
   const map = {
     permit:{'신청':'b-info','검토중':'b-caution','승인':'b-ok','반려':'b-danger','종료':'b-gray'},
     risk:{'등록':'b-info','접수완료':'b-safety','조치중':'b-caution','완료':'b-ok','일부개선완료':'b-caution2'},
-    incident:{'접수':'b-info','조사중':'b-caution','완료':'b-ok'}
+    incident:{'접수':'b-info','조사중':'b-caution','완료':'b-ok'},
+    suggestion:{'접수':'b-info','검토중':'b-caution','완료':'b-ok'}
   };
   const cls = (map[kind]||{})[status] || 'b-gray';
   return `<span class="badge ${cls}">${esc(statusLabel(status))}</span>`;
@@ -1668,12 +1698,15 @@ function riskLegendHtml(){
 function renderPermits(){
   const el = document.getElementById('view-permits');
   const filter = State.filters.permits || '전체';
+  const isPartner = State.mode==='partner';
+  const isAdmin = State.mode==='admin';
+  const canManagePartners = State.mode==='admin' || State.mode==='dept';
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="permitTabs">
         ${['전체','신청','검토중','승인','반려','종료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      <button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} ${t('permits_add_btn')}</button>
+      ${!isPartner ? `<button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} ${t('permits_add_btn')}</button>` : ''}
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
@@ -1681,36 +1714,113 @@ function renderPermits(){
       </tr></thead>
       <tbody id="permitBody"></tbody>
     </table></div>
+    ${canManagePartners ? `
+    <div class="section-title" style="margin-top:26px;"><span class="n">🔗</span> 외주업체 조회링크 관리</div>
+    <p class="hint" style="margin:-6px 0 12px;">등록한 업체는 별도 비밀번호 없이 고유 링크로 접속해 자기 업체의 작업허가만 조회할 수 있습니다. 신청서의 "외주업체명"과 정확히 일치해야 필터링됩니다.</p>
+    <div class="toolbar" style="margin-bottom:10px;">
+      <div></div>
+      <button class="btn btn-sm" id="addPartnerBtn">${icon('plus',14)} 업체 등록</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>업체명</th><th>조회 링크</th><th class="tight">관리</th></tr></thead>
+      <tbody id="partnerBody"></tbody>
+    </table></div>
+    ` : ''}
   `;
   el.querySelectorAll('#permitTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.permits = t.dataset.s; renderPermits();
   }));
-  el.querySelector('#addPermitBtn').addEventListener('click', ()=>{
-    openPermitModal();
-  });
+  if(!isPartner){
+    el.querySelector('#addPermitBtn').addEventListener('click', ()=>{
+      openPermitModal();
+    });
+  }
 
-  const arr = objToArr(DataStore.get(PATHS.permits)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  let arr = objToArr(DataStore.get(PATHS.permits)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(isPartner) arr = arr.filter(p=>p.company===State.partnerCompany);
   const filtered = filter==='전체' ? arr : arr.filter(p=>p.status===filter);
   const body = document.getElementById('permitBody');
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="8"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('permits_empty')}</div></td></tr>`;
-    return;
+  }else{
+    body.innerHTML = filtered.map(p=>`
+      <tr>
+        <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}</td>
+        <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
+        <td>${esc(p.workType||'-')}</td>
+        <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
+        <td>${esc(p.processManager||'-')}</td>
+        <td>${p.fireWork? '<span class="badge b-safety">🔥</span>' : '<span class="badge b-gray">-</span>'}</td>
+        <td>${statusBadge('permit', p.status)}</td>
+        <td class="tight row-btns">
+          <button class="btn btn-sm" data-view-id="${p.id}">${t('btn_view')}</button>
+        </td>
+      </tr>
+    `).join('');
+    body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openPermitDetail(b.dataset.viewId)));
   }
-  body.innerHTML = filtered.map(p=>`
+
+  if(canManagePartners){
+    renderPartnerList();
+    document.getElementById('addPartnerBtn').addEventListener('click', openPartnerModal);
+  }
+}
+
+function genPartnerToken(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g,'').slice(0,16);
+  return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+}
+function partnerLinkUrl(token){
+  return `${location.origin}${location.pathname}?p=${token}`;
+}
+function renderPartnerList(){
+  const partners = objToArr(DataStore.get(PATHS.permitPartners)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const tbody = document.getElementById('partnerBody');
+  if(!tbody) return;
+  tbody.innerHTML = partners.length ? partners.map(p=>`
     <tr>
-      <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}</td>
-      <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
-      <td>${esc(p.workType||'-')}</td>
-      <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
-      <td>${esc(p.processManager||'-')}</td>
-      <td>${p.fireWork? '<span class="badge b-safety">🔥</span>' : '<span class="badge b-gray">-</span>'}</td>
-      <td>${statusBadge('permit', p.status)}</td>
+      <td class="cell-strong">${esc(p.name)}</td>
+      <td class="mono" style="font-size:11px;word-break:break-all;">${partnerLinkUrl(p.token)}</td>
       <td class="tight row-btns">
-        <button class="btn btn-sm" data-view-id="${p.id}">${t('btn_view')}</button>
+        <button class="btn btn-sm" data-copy-p="${p.id}">복사</button>
+        <button class="btn btn-sm" data-reissue-p="${p.id}">재발급</button>
+        <button class="btn btn-sm" data-del-p="${p.id}">${t('btn_delete')}</button>
       </td>
     </tr>
-  `).join('');
-  body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openPermitDetail(b.dataset.viewId)));
+  `).join('') : `<tr><td colspan="3"><div class="empty">등록된 업체가 없습니다</div></td></tr>`;
+  tbody.querySelectorAll('[data-copy-p]').forEach(b=> b.addEventListener('click', async ()=>{
+    const p = partners.find(x=>x.id===b.dataset.copyP);
+    try{ await navigator.clipboard.writeText(partnerLinkUrl(p.token)); toast('링크가 복사되었습니다'); }
+    catch(e){ toast('복사에 실패했습니다. 링크를 직접 선택해 복사해주세요'); }
+  }));
+  tbody.querySelectorAll('[data-reissue-p]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('기존 링크는 더 이상 사용할 수 없게 됩니다. 새 링크를 발급할까요?')) return;
+    await DataStore.update(PATHS.permitPartners, b.dataset.reissueP, { token: genPartnerToken() });
+    toast('링크가 재발급되었습니다');
+    renderPartnerList();
+  }));
+  tbody.querySelectorAll('[data-del-p]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm(t('confirm_delete'))) return;
+    await DataStore.remove(PATHS.permitPartners, b.dataset.delP);
+    toast(t('toast_deleted'));
+    renderPartnerList();
+  }));
+}
+function openPartnerModal(){
+  showModal(`
+    <div class="modal-head"><h3>외주업체 등록</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>업체명 *</label><input type="text" id="f_partnerName" placeholder="작업허가 신청서의 외주업체명과 정확히 동일하게 입력"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="savePartnerBtn">${t('btn_register')}</button></div>
+  `);
+  document.getElementById('savePartnerBtn').addEventListener('click', async ()=>{
+    const name = document.getElementById('f_partnerName').value.trim();
+    if(!name){ toast(t('toast_fill_required')); return; }
+    await DataStore.push(PATHS.permitPartners, { name, token: genPartnerToken(), createdAt: Date.now() });
+    toast(t('toast_company_registered'));
+    closeModal(); renderPermits();
+  });
 }
 
 function openPermitModal(existing){
@@ -3248,6 +3358,149 @@ function openContactModal(){
 }
 
 /* ============================================================
+   13-1. 안전제안제도 — 실명 접수, 익명 불가
+   일반사용자는 목록을 볼 수 없고 본인이 이 기기에서 등록한 제안만 조회 가능(로컬 저장 기반)
+============================================================= */
+const MY_SUGGESTIONS_KEY = 'isc_my_suggestions';
+function getMySuggestionIds(){
+  try{ return JSON.parse(localStorage.getItem(MY_SUGGESTIONS_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+function addMySuggestionId(id){
+  const ids = getMySuggestionIds();
+  ids.unshift(id);
+  localStorage.setItem(MY_SUGGESTIONS_KEY, JSON.stringify(ids.slice(0,100)));
+}
+
+function renderSuggestions(){
+  const el = document.getElementById('view-suggestions');
+  const isAdmin = State.mode==='admin';
+  const filter = State.filters.suggestions || '전체';
+
+  if(isAdmin){
+    el.innerHTML = `
+      <div class="toolbar">
+        <div class="tabs" id="sugTabs">
+          ${['전체','접수','검토중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>${t('sug_th_title')}</th><th>${t('sug_th_reporter')}</th><th>${t('th_date')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
+        <tbody id="sugBody"></tbody>
+      </table></div>
+    `;
+    el.querySelectorAll('#sugTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
+      State.filters.suggestions = t.dataset.s; renderSuggestions();
+    }));
+    const arr = objToArr(DataStore.get(PATHS.suggestions)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const filtered = filter==='전체' ? arr : arr.filter(s=>s.status===filter);
+    const body = document.getElementById('sugBody');
+    body.innerHTML = filtered.length ? filtered.map(s=>`
+      <tr>
+        <td class="cell-strong">${newBadge(s, PATHS.suggestions)}${esc(s.title)}</td>
+        <td>${esc(s.reporter||'-')}</td>
+        <td class="mono">${fmtDate(s.createdAt)}</td>
+        <td>${statusBadge('suggestion', s.status)}</td>
+        <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${s.id}">${t('btn_view')}</button></td>
+      </tr>
+    `).join('') : `<tr><td colspan="5"><div class="empty"><span class="big">${icon('lightbulb',22)}</span>${t('sug_empty')}</div></td></tr>`;
+    body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openSuggestionDetail(b.dataset.viewId)));
+    return;
+  }
+
+  // 일반사용자: 등록 + 본인이 이 기기에서 낸 제안만 조회
+  el.innerHTML = `
+    <div class="toolbar">
+      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('sug_my_title')}</div>
+      <button class="btn btn-primary" id="addSugBtn">${icon('plus',15)} ${t('sug_add_btn')}</button>
+    </div>
+    <p class="hint" style="margin:-8px 0 14px;">${t('sug_my_hint')}</p>
+    <div id="mySugList"></div>
+  `;
+  document.getElementById('addSugBtn').addEventListener('click', openSuggestionModal);
+  const all = DataStore.get(PATHS.suggestions) || {};
+  const myIds = getMySuggestionIds();
+  const mine = myIds.map(id=> all[id] ? Object.assign({id}, all[id]) : null).filter(Boolean);
+  const list = document.getElementById('mySugList');
+  list.innerHTML = mine.length ? mine.map(s=>`
+    <div class="notice-item">
+      <h4>${esc(s.title)} ${statusBadge('suggestion', s.status)}</h4>
+      <div class="notice-content">${esc(s.content)}</div>
+      ${s.answer ? `<div class="notice-meta" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);"><b>${t('sug_answer_label')}:</b> ${esc(s.answer)}</div>` : ''}
+      <div class="notice-meta">${fmtDate(s.createdAt)}</div>
+    </div>
+  `).join('') : `<div class="empty"><span class="big">${icon('lightbulb',22)}</span>${t('sug_my_empty')}</div>`;
+}
+
+function openSuggestionModal(){
+  showModal(`
+    <div class="modal-head"><h3>${t('sug_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>${t('lbl_title')} *</label><input type="text" id="f_sugTitle"></div>
+      <div class="field"><label>${t('sug_lbl_content')} *</label><textarea id="f_sugContent" style="min-height:120px" placeholder="${t('sug_content_placeholder')}"></textarea></div>
+      <div class="field"><label>${t('lbl_reporter_input')} *</label><input type="text" id="f_sugReporter" placeholder="이름"></div>
+      <p class="hint">${t('sug_realname_notice')}</p>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveSugBtn">${t('btn_register')}</button></div>
+  `);
+  document.getElementById('saveSugBtn').addEventListener('click', async ()=>{
+    const data = {
+      title: document.getElementById('f_sugTitle').value.trim(),
+      content: document.getElementById('f_sugContent').value.trim(),
+      reporter: document.getElementById('f_sugReporter').value.trim(),
+      status: '접수',
+    };
+    if(!data.title || !data.content || !data.reporter){ toast(t('toast_fill_required')); return; }
+    data.createdAt = Date.now();
+    const newId = await DataStore.push(PATHS.suggestions, data);
+    addMySuggestionId(newId);
+    closeModal();
+    showSuccessPopup(t('sug_registered_msg'));
+    renderSuggestions();
+  });
+}
+
+function openSuggestionDetail(id){
+  const raw = DataStore.get(PATHS.suggestions)[id];
+  if(!raw) return;
+  markRead(PATHS.suggestions, id);
+  const s = Object.assign({id}, raw);
+  showModal(`
+    <div class="modal-head"><h3>${esc(s.title)}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <dl class="detail-grid">
+        <dt>${t('sug_th_reporter')}</dt><dd>${esc(s.reporter||'-')}</dd>
+        <dt>${t('th_date')}</dt><dd class="mono">${fmtDate(s.createdAt)}</dd>
+        <dt>${t('th_status')}</dt><dd>
+          <select id="f_sugStatus">${['접수','검토중','완료'].map(st=>`<option value="${st}" ${s.status===st?'selected':''}>${statusLabel(st)}</option>`).join('')}</select>
+        </dd>
+      </dl>
+      <div class="divider"></div>
+      <p style="white-space:pre-wrap;font-size:13.5px;line-height:1.7;">${esc(s.content)}</p>
+      <div class="field" style="margin-top:14px;"><label>${t('sug_answer_label')} (관리자)</label><textarea id="f_sugAnswer">${esc(s.answer||'')}</textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="delSugBtn">${t('btn_delete')}</button>
+      <button class="btn btn-primary" id="saveSugStatusBtn">${t('btn_save')}</button>
+      <button class="btn" data-close>${t('btn_close')}</button>
+    </div>
+  `);
+  document.getElementById('saveSugStatusBtn').addEventListener('click', async ()=>{
+    await DataStore.update(PATHS.suggestions, id, {
+      status: document.getElementById('f_sugStatus').value,
+      answer: document.getElementById('f_sugAnswer').value.trim(),
+    });
+    toast(t('toast_updated_generic'));
+    closeModal(); renderSuggestions();
+  });
+  document.getElementById('delSugBtn').addEventListener('click', async ()=>{
+    if(confirm(t('confirm_delete'))){
+      await DataStore.remove(PATHS.suggestions, id); closeModal(); toast(t('toast_deleted')); renderSuggestions();
+    }
+  });
+}
+
+/* ============================================================
    14. 모달 공용 함수
 ============================================================= */
 function showModal(html){
@@ -3284,7 +3537,11 @@ document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id
       history.pushState({ trap:true }, '');
     });
     document.getElementById('exitConfirmBtn').addEventListener('click', ()=>{
-      history.back();
+      closeModal();
+      try{ window.close(); }catch(e){}
+      // 스크립트로 앱(탭)을 강제 종료할 방법이 없어, 트랩을 다시 쌓지 않고 안내만 표시
+      // → 지금 여기가 히스토리의 가장 처음이라 다음 뒤로가기 시 실제로 앱이 종료(최소화)됨
+      toast(t('exit_press_again'));
     });
   });
 })();
@@ -3406,8 +3663,32 @@ document.getElementById('modeSwitchBtn').addEventListener('click', ()=>{
   renderCurrentView(); renderNav();
 });
 
+// 외주업체 전용 고유링크 접속 감지 (?p=토큰) — 매칭되면 게이트를 건너뛰고 작업허가만 보이는 열람모드로 진입
+const partnerToken = new URLSearchParams(location.search).get('p');
+if(partnerToken){
+  document.getElementById('gate').style.display = 'none';
+  document.body.insertAdjacentHTML('beforeend', `<div id="partnerLoadingScreen" style="position:fixed;inset:0;background:#F4F6F8;display:flex;align-items:center;justify-content:center;z-index:300;font-size:13px;color:#667085;">${t('partner_loading')}</div>`);
+  let partnerDecided = false;
+  DataStore.listen(PATHS.permitPartners, (val)=>{
+    if(partnerDecided) return;
+    partnerDecided = true;
+    const entry = Object.values(val||{}).find(p=>p.token===partnerToken);
+    const screen = document.getElementById('partnerLoadingScreen');
+    if(entry){
+      State.mode = 'partner';
+      State.partnerCompany = entry.name;
+      if(screen) screen.remove();
+      updateModeUI();
+      boot();
+    }else if(screen){
+      screen.innerHTML = `<div style="text-align:center;padding:20px;"><p style="font-weight:700;margin-bottom:6px;">${t('partner_invalid_title')}</p><p style="font-size:12px;color:#98A2B3;">${t('partner_invalid_desc')}</p></div>`;
+    }
+  });
+}
+
 // 이 기기에 "로그인 유지"가 저장되어 있으면 게이트를 건너뛰고 바로 접속
 (function tryAutoLogin(){
+  if(partnerToken) return; // 외주업체 링크로 접속한 경우는 이 흐름을 타지 않음
   const rememberedMode = localStorage.getItem(REMEMBER_MODE_KEY);
   if(rememberedMode==='admin' || rememberedMode==='dept'){
     State.mode = rememberedMode;
@@ -3455,9 +3736,11 @@ function openDeptPasswordModal(){
 function updateModeUI(){
   const label = State.mode==='admin' ? t('mode_label_admin')
     : State.mode==='dept' ? `${t('mode_label_dept')} (${State.dept})`
+    : State.mode==='partner' ? `${t('mode_label_partner')} (${State.partnerCompany})`
     : t('mode_label_user');
   document.getElementById('modeLabel').textContent = label;
   document.getElementById('deptPwSettingBtn').style.display = State.mode==='admin' ? '' : 'none';
+  document.getElementById('modeSwitchBtn').style.display = State.mode==='partner' ? 'none' : '';
   document.getElementById('modeSwitchBtn').textContent = State.mode==='user' ? t('mode_switch') : t('mode_release');
   document.getElementById('modeSwitchBtn').classList.toggle('on', State.mode!=='user');
 }
