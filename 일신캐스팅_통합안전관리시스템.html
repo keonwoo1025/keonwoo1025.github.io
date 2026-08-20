@@ -2213,7 +2213,9 @@ function openPermitTerminationModal(p){
 }
 
 // 서명패드 — 마우스/터치로 서명을 그려서 PNG(dataURL)로 저장
+let signaturePadOpen = false;
 function openSignaturePad(title, onSave){
+  signaturePadOpen = true;
   showModal(`
     <div class="modal-head"><h3>${esc(title)}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
@@ -2226,6 +2228,7 @@ function openSignaturePad(title, onSave){
       <button class="btn btn-primary" id="sigSaveBtn">서명 완료</button>
     </div>
   `);
+  document.querySelectorAll('#modalBox [data-close]').forEach(el=> el.addEventListener('click', ()=>{ signaturePadOpen = false; }));
   const canvas = document.getElementById('sigCanvas');
   const ctx = canvas.getContext('2d');
   const rect = canvas.getBoundingClientRect();
@@ -2242,7 +2245,7 @@ function openSignaturePad(title, onSave){
     const cy = e.touches ? e.touches[0].clientY : e.clientY;
     return { x: cx-r.left, y: cy-r.top };
   }
-  function start(e){ drawing=true; hasDrawn=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+  function start(e){ drawing=true; hasDrawn=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); e.stopPropagation(); }
   function move(e){ if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
   function end(){ drawing=false; }
   canvas.addEventListener('mousedown', start);
@@ -2258,6 +2261,7 @@ function openSignaturePad(title, onSave){
   document.getElementById('sigSaveBtn').addEventListener('click', ()=>{
     if(!hasDrawn){ toast('서명을 입력해주세요'); return; }
     const dataUrl = canvas.toDataURL('image/png');
+    signaturePadOpen = false;
     closeModal();
     onSave(dataUrl);
   });
@@ -3763,6 +3767,11 @@ document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id
 (function setupBackExitGuard(){
   history.pushState({ trap:true }, '');
   window.addEventListener('popstate', ()=>{
+    if(signaturePadOpen){
+      // 서명 중에는 뒤로가기 제스처로 서명창이 닫히지 않도록 무시하고 트랩만 다시 쌓음
+      history.pushState({ trap:true }, '');
+      return;
+    }
     const overlay = document.getElementById('overlay');
     if(overlay && !overlay.hidden){
       // 다른 모달이 열려있던 중이면 그 모달만 닫고 트랩을 다시 쌓음
