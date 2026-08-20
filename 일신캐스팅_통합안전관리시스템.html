@@ -904,7 +904,7 @@ const TRANSLATIONS = {
   th_workcontent:{ko:'작업내용',en:'Work Content',th:'รายละเอียดงาน',id:'Isi Pekerjaan',mn:'Ажлын агуулга'},
   th_worktype:{ko:'구분',en:'Type',th:'ประเภท',id:'Jenis',mn:'Төрөл'},
   th_workperiod:{ko:'작업기간',en:'Work Period',th:'ระยะเวลาทำงาน',id:'Periode Kerja',mn:'Ажлын хугацаа'},
-  th_processmanager:{ko:'공정담당자',en:'Process Manager',th:'ผู้รับผิดชอบกระบวนการ',id:'Penanggung Jawab Proses',mn:'Процессын хариуцагч'},
+  th_processmanager:{ko:'담당 관리자',en:'Manager',th:'ผู้ดูแล',id:'Penanggung Jawab',mn:'Хариуцагч'},
   th_firework:{ko:'화기',en:'Hot Work',th:'งานเปลวไฟ',id:'Pekerjaan Panas',mn:'Галын ажил'},
   th_status:{ko:'상태',en:'Status',th:'สถานะ',id:'Status',mn:'Төлөв'},
 
@@ -985,7 +985,8 @@ const TRANSLATIONS = {
   lbl_startdate:{ko:'작업 시작일',en:'Start Date',th:'วันที่เริ่มงาน',id:'Tanggal Mulai',mn:'Эхлэх огноо'},
   lbl_enddate:{ko:'작업 종료일',en:'End Date',th:'วันที่สิ้นสุดงาน',id:'Tanggal Selesai',mn:'Дуусах огноо'},
   lbl_headcount:{ko:'작업인원',en:'Number of Workers',th:'จำนวนผู้ปฏิบัติงาน',id:'Jumlah Pekerja',mn:'Ажилчдын тоо'},
-  lbl_processmanager:{ko:'공정 담당자(1차 확인)',en:'Process Manager (First Check)',th:'ผู้รับผิดชอบกระบวนการ (ตรวจสอบครั้งที่ 1)',id:'Penanggung Jawab Proses (Pemeriksaan Pertama)',mn:'Процессын хариуцагч (1-р шалгалт)'},
+  lbl_processmanager:{ko:'담당 관리자',en:'Manager',th:'ผู้ดูแล',id:'Penanggung Jawab',mn:'Хариуцагч'},
+  hint_processmanager:{ko:'이 작업을 함께 진행하는 저희 회사 담당자를 적어주세요',en:'Please enter our company contact person coordinating this work with you',th:'กรุณาระบุผู้ประสานงานฝ่ายบริษัทเราสำหรับงานนี้',id:'Silakan masukkan penanggung jawab dari perusahaan kami untuk pekerjaan ini',mn:'Энэ ажлыг хамтран хийж буй манай компанийн хариуцагчийг бичнэ үү'},
   lbl_sitesuper:{ko:'현장감독자(외주업체)',en:'Site Supervisor (Contractor)',th:'หัวหน้างานหน้างาน (ผู้รับเหมา)',id:'Pengawas Lapangan (Kontraktor)',mn:'Талбайн хяналт (Гэрээт компани)'},
   lbl_hazard_equipment:{ko:'위험요인(사용설비)',en:'Hazard (Equipment Used)',th:'อันตราย (อุปกรณ์ที่ใช้)',id:'Bahaya (Peralatan yang Digunakan)',mn:'Эрсдэл (Ашиглах тоног төхөөрөмж)'},
   hint_select_all_equip:{ko:'— 해당 설비를 모두 선택하세요',en:'— Select all equipment that applies',th:'— เลือกอุปกรณ์ที่เกี่ยวข้องทั้งหมด',id:'— Pilih semua peralatan yang berlaku',mn:'— Холбогдох бүх тоног төхөөрөмжийг сонгоно уу'},
@@ -1880,7 +1881,7 @@ function openPermitModal(existing){
         <div class="field"><label>${t('lbl_headcount')} *</label><input type="text" id="f_headcount" value="${esc(v.headcount||'')}" placeholder="예: 3명"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>${t('lbl_processmanager')} *</label><input type="text" id="f_processManager" value="${esc(v.processManager||'')}"></div>
+        <div class="field"><label>${t('lbl_processmanager')} *</label><input type="text" id="f_processManager" value="${esc(v.processManager||'')}"><p class="hint">${t('hint_processmanager')}</p></div>
         <div class="field"><label>${t('lbl_sitesuper')}</label><input type="text" id="f_contractorLead" value="${esc(v.contractorLead||'')}"></div>
       </div>
 
