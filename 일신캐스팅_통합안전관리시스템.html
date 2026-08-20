@@ -876,6 +876,7 @@ const TRANSLATIONS = {
   /* ===== 2단계: 상태 라벨 (저장값은 한국어 그대로, 표시만 번역) ===== */
   status_신청:{ko:'신청',en:'Applied',th:'ยื่นคำขอ',id:'Diajukan',mn:'Хүсэлт гаргасан'},
   status_검토중:{ko:'검토중',en:'Under Review',th:'กำลังตรวจสอบ',id:'Sedang Ditinjau',mn:'Хянаж байна'},
+  status_검토완료:{ko:'검토완료',en:'Review Completed',th:'ตรวจสอบเสร็จสิ้น',id:'Tinjauan Selesai',mn:'Хяналт дууссан'},
   status_승인:{ko:'승인',en:'Approved',th:'อนุมัติ',id:'Disetujui',mn:'Батлагдсан'},
   status_반려:{ko:'반려',en:'Rejected',th:'ปฏิเสธ',id:'Ditolak',mn:'Татгалзсан'},
   status_종료:{ko:'종료',en:'Closed',th:'ปิดงาน',id:'Selesai',mn:'Дууссан'},
@@ -1005,6 +1006,8 @@ const TRANSLATIONS = {
   lbl_extinguisher:{ko:'소화기 등 소화설비 비치',en:'Fire Extinguisher/Equipment Provided',th:'จัดเตรียมถังดับเพลิง/อุปกรณ์ดับเพลิง',id:'Alat Pemadam Api Disediakan',mn:'Гал унтраагуур бэлэн байлгах'},
   lbl_combustible:{ko:'가연물 제거·방호조치',en:'Combustibles Removal/Protection',th:'การกำจัดวัสดุไวไฟ/มาตรการป้องกัน',id:'Penghapusan/Perlindungan Bahan Mudah Terbakar',mn:'Шатамхай зүйл зайлуулах/хамгаалах арга хэмжээ'},
   lbl_progress_admin:{ko:'진행현황 (관리자)',en:'Status (Admin)',th:'สถานะ (ผู้ดูแลระบบ)',id:'Status (Admin)',mn:'Явц (Админ)'},
+  lbl_review_comment:{ko:'수정요청 사항 (외주업체에게 안내됨)',en:'Review Comments (Visible to the contractor)',th:'ความเห็นการตรวจสอบ (แสดงให้ผู้รับเหมาเห็น)',id:'Komentar Tinjauan (Terlihat oleh kontraktor)',mn:'Хяналтын тэмдэглэл (Гэрээт компанид харагдана)'},
+  lbl_review_comment_placeholder:{ko:'예: 위험요인 항목에 화기작업 관련 조치사항을 추가해주세요',en:'e.g., Please add hot-work safety measures to the hazard section',th:'เช่น กรุณาเพิ่มมาตรการความปลอดภัยงานเปลวไฟในส่วนอันตราย',id:'mis., Harap tambahkan tindakan keselamatan pekerjaan panas di bagian bahaya',mn:'Жишээ нь: Эрсдэлийн хэсэгт галын ажлын аюулгүй байдлын арга хэмжээг нэмнэ үү'},
   lbl_note:{ko:'비고',en:'Notes',th:'หมายเหตุ',id:'Catatan',mn:'Тэмдэглэл'},
   toast_permit_updated:{ko:'작업허가 정보를 수정했습니다',en:'Work permit information updated',th:'อัปเดตข้อมูลใบอนุญาตทำงานแล้ว',id:'Informasi izin kerja telah diperbarui',mn:'Ажлын зөвшөөрлийн мэдээлэл шинэчлэгдлээ'},
   toast_permit_registered:{ko:'작업허가 신청이 등록되었습니다',en:'Work permit request has been registered',th:'ลงทะเบียนคำขอใบอนุญาตทำงานแล้ว',id:'Permintaan izin kerja telah didaftarkan',mn:'Ажлын зөвшөөрлийн хүсэлт бүртгэгдлээ'},
@@ -1308,6 +1311,10 @@ function renderNav(){
 }
 function hasNewItems(viewId){
   if(viewId==='suggestions') return State.mode==='admin' && hasNewInList(objToArr(DataStore.get(PATHS.suggestions)), PATHS.suggestions);
+  if(viewId==='permits' && State.mode==='partner'){
+    const arr = objToArr(DataStore.get(PATHS.permits)).filter(p=>p.company===State.partnerCompany);
+    return hasNewInList(arr, PATHS.permits);
+  }
   const pathMap = {
     permits: [PATHS.permits],
     risks: [PATHS.risks],
@@ -1321,7 +1328,8 @@ function hasNewItems(viewId){
 }
 function navBadgeCount(viewId){
   if(viewId==='permits'){
-    const arr = objToArr(DataStore.get(PATHS.permits));
+    let arr = objToArr(DataStore.get(PATHS.permits));
+    if(State.mode==='partner') arr = arr.filter(p=>p.company===State.partnerCompany);
     const n = arr.filter(p=>p.status==='신청'||p.status==='검토중').length;
     return n>0 ? n : null;
   }
@@ -1607,7 +1615,14 @@ function markRead(path, id){
 function isRead(path, id){ return getReadSet(path).has(id); }
 
 function isItemNew(item, path){
-  if(!item || !item.createdAt) return false;
+  if(!item) return false;
+  // 작업허가: 부서관리자가 "검토완료"로 넘기면 전체관리자에게 NEW로 표시 (createdAt과 무관하게)
+  if(State.mode==='admin' && path===PATHS.permits && item.status==='검토완료' && item.reviewCompletedAt){
+    if(Date.now() - item.reviewCompletedAt < NEW_THRESHOLD_MS && !isRead(path, item.id+'_review_'+item.reviewCompletedAt)){
+      return true;
+    }
+  }
+  if(!item.createdAt) return false;
   if(Date.now() - item.createdAt >= NEW_THRESHOLD_MS) return false;
   if(State.mode==='admin' && path && isRead(path, item.id)) return false;
   return true;
@@ -1624,7 +1639,7 @@ function statusLabel(status){
 }
 function statusBadge(kind, status){
   const map = {
-    permit:{'신청':'b-info','검토중':'b-caution','승인':'b-ok','반려':'b-danger','종료':'b-gray'},
+    permit:{'신청':'b-info','검토중':'b-caution','검토완료':'b-caution2','승인':'b-ok','반려':'b-danger','종료':'b-gray'},
     risk:{'등록':'b-info','접수완료':'b-safety','조치중':'b-caution','완료':'b-ok','일부개선완료':'b-caution2'},
     incident:{'접수':'b-info','조사중':'b-caution','완료':'b-ok'},
     suggestion:{'접수':'b-info','검토중':'b-caution','완료':'b-ok'}
@@ -1700,13 +1715,14 @@ function renderPermits(){
   const filter = State.filters.permits || '전체';
   const isPartner = State.mode==='partner';
   const isAdmin = State.mode==='admin';
-  const canManagePartners = State.mode==='admin' || State.mode==='dept';
+  const isDept = State.mode==='dept';
+  const canManagePartners = isAdmin || isDept;
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="permitTabs">
-        ${['전체','신청','검토중','승인','반려','종료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
+        ${['전체','신청','검토중','검토완료','승인','반려','종료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      ${!isPartner ? `<button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} ${t('permits_add_btn')}</button>` : ''}
+      <button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} ${t('permits_add_btn')}</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
@@ -1716,7 +1732,7 @@ function renderPermits(){
     </table></div>
     ${canManagePartners ? `
     <div class="section-title" style="margin-top:26px;"><span class="n">🔗</span> 외주업체 조회링크 관리</div>
-    <p class="hint" style="margin:-6px 0 12px;">등록한 업체는 별도 비밀번호 없이 고유 링크로 접속해 자기 업체의 작업허가만 조회할 수 있습니다. 신청서의 "외주업체명"과 정확히 일치해야 필터링됩니다.</p>
+    <p class="hint" style="margin:-6px 0 12px;">여기서 업체를 등록하면 그 업체 전용 고유 링크가 생성됩니다. 업체는 그 링크로 접속해 <b>직접 작업허가를 신청</b>하고, 자기 업체가 신청한 것만 조회할 수 있습니다.</p>
     <div class="toolbar" style="margin-bottom:10px;">
       <div></div>
       <button class="btn btn-sm" id="addPartnerBtn">${icon('plus',14)} 업체 등록</button>
@@ -1730,11 +1746,9 @@ function renderPermits(){
   el.querySelectorAll('#permitTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.permits = t.dataset.s; renderPermits();
   }));
-  if(!isPartner){
-    el.querySelector('#addPermitBtn').addEventListener('click', ()=>{
-      openPermitModal();
-    });
-  }
+  el.querySelector('#addPermitBtn').addEventListener('click', ()=>{
+    openPermitModal();
+  });
 
   let arr = objToArr(DataStore.get(PATHS.permits)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   if(isPartner) arr = arr.filter(p=>p.company===State.partnerCompany);
@@ -1762,7 +1776,7 @@ function renderPermits(){
 
   if(canManagePartners){
     renderPartnerList();
-    document.getElementById('addPartnerBtn').addEventListener('click', openPartnerModal);
+    document.getElementById('addPartnerBtn').addEventListener('click', ()=> openPartnerModal());
   }
 }
 
@@ -1783,6 +1797,7 @@ function renderPartnerList(){
       <td class="mono" style="font-size:11px;word-break:break-all;">${partnerLinkUrl(p.token)}</td>
       <td class="tight row-btns">
         <button class="btn btn-sm" data-copy-p="${p.id}">복사</button>
+        <button class="btn btn-sm" data-edit-p="${p.id}">${t('btn_edit')}</button>
         <button class="btn btn-sm" data-reissue-p="${p.id}">재발급</button>
         <button class="btn btn-sm" data-del-p="${p.id}">${t('btn_delete')}</button>
       </td>
@@ -1792,6 +1807,10 @@ function renderPartnerList(){
     const p = partners.find(x=>x.id===b.dataset.copyP);
     try{ await navigator.clipboard.writeText(partnerLinkUrl(p.token)); toast('링크가 복사되었습니다'); }
     catch(e){ toast('복사에 실패했습니다. 링크를 직접 선택해 복사해주세요'); }
+  }));
+  tbody.querySelectorAll('[data-edit-p]').forEach(b=> b.addEventListener('click', ()=>{
+    const p = partners.find(x=>x.id===b.dataset.editP);
+    openPartnerModal(p);
   }));
   tbody.querySelectorAll('[data-reissue-p]').forEach(b=> b.addEventListener('click', async ()=>{
     if(!confirm('기존 링크는 더 이상 사용할 수 없게 됩니다. 새 링크를 발급할까요?')) return;
@@ -1806,19 +1825,26 @@ function renderPartnerList(){
     renderPartnerList();
   }));
 }
-function openPartnerModal(){
+function openPartnerModal(existing){
+  const isEdit = !!existing;
   showModal(`
-    <div class="modal-head"><h3>외주업체 등록</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?'외주업체 정보 수정':'외주업체 등록'}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>업체명 *</label><input type="text" id="f_partnerName" placeholder="작업허가 신청서의 외주업체명과 정확히 동일하게 입력"></div>
+      <div class="field"><label>업체명 *</label><input type="text" id="f_partnerName" value="${isEdit?esc(existing.name):''}" placeholder="작업허가 신청서의 외주업체명과 정확히 동일하게 입력"></div>
+      ${isEdit ? `<p class="hint">업체명을 바꾸면, 이미 접수된 작업허가의 업체명과 달라져 필터링이 안 맞을 수 있습니다. 되도록 오타 수정 용도로만 사용해주세요.</p>` : ''}
     </div>
-    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="savePartnerBtn">${t('btn_register')}</button></div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="savePartnerBtn">${isEdit?t('btn_save'):t('btn_register')}</button></div>
   `);
   document.getElementById('savePartnerBtn').addEventListener('click', async ()=>{
     const name = document.getElementById('f_partnerName').value.trim();
     if(!name){ toast(t('toast_fill_required')); return; }
-    await DataStore.push(PATHS.permitPartners, { name, token: genPartnerToken(), createdAt: Date.now() });
-    toast(t('toast_company_registered'));
+    if(isEdit){
+      await DataStore.update(PATHS.permitPartners, existing.id, { name });
+      toast(t('toast_updated_generic'));
+    }else{
+      await DataStore.push(PATHS.permitPartners, { name, token: genPartnerToken(), createdAt: Date.now() });
+      toast(t('toast_company_registered'));
+    }
     closeModal(); renderPermits();
   });
 }
@@ -1827,11 +1853,19 @@ function openPermitModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
   const eqSelected = v.equipment || [];
+  const isPartner = State.mode==='partner';
+  const isAdmin = State.mode==='admin';
+  const isDept = State.mode==='dept';
+  const canProcess = isAdmin || isDept;
   showModal(`
     <div class="modal-head"><h3>${isEdit?t('permit_edit_title'):t('permit_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
-        <div class="field"><label>${t('lbl_company')} *</label><input type="text" id="f_company" value="${esc(v.company||'')}"></div>
+        <div class="field"><label>${t('lbl_company')} *</label>
+          ${isPartner
+            ? `<input type="text" id="f_company" value="${esc(State.partnerCompany)}" disabled style="background:#F1F3F7;font-weight:700;">`
+            : `<input type="text" id="f_company" value="${esc(v.company||'')}">`}
+        </div>
         <div class="field"><label>${t('lbl_worktype')} *</label>
           <select id="f_workType">
             ${['공사','정비','운송'].map(wt=>`<option value="${wt}" ${v.workType===wt?'selected':''}>${t('worktype_'+wt)}</option>`).join('')}
@@ -1873,13 +1907,15 @@ function openPermitModal(existing){
         <div class="field"><label>${t('lbl_combustible')}</label><input type="text" id="f_combustibleRemoval" value="${esc(v.combustibleRemoval||'')}" placeholder="예: 반경 11m 내 가연물 제거, 방화포 설치"></div>
       </div>
 
-      ${State.mode==='admin' ? `
+      ${canProcess ? `
       <div class="divider"></div>
       <div class="field"><label>${t('lbl_progress_admin')}</label>
         <select id="f_status">
-          ${['신청','검토중','승인','반려','종료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
+          ${(isDept ? ['신청','검토중','검토완료'] : ['신청','검토중','검토완료','승인','반려','종료']).map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
         </select>
+        ${isDept ? `<p class="hint">최종 승인·반려는 전체관리자가 처리합니다. 검토가 끝나면 "검토완료"로 넘겨주세요.</p>` : ''}
       </div>
+      <div class="field"><label>${t('lbl_review_comment')}</label><textarea id="f_reviewComment" placeholder="${t('lbl_review_comment_placeholder')}">${esc(v.reviewComment||'')}</textarea></div>
       ` : ''}
       <div class="field"><label>${t('lbl_note')}</label><textarea id="f_note">${esc(v.note||'')}</textarea></div>
     </div>
@@ -1898,7 +1934,7 @@ function openPermitModal(existing){
     const equipment = Array.from(document.querySelectorAll('.eq-check:checked')).map(el=>el.value);
     const equipmentOther = document.getElementById('f_eqOtherCheck').checked ? document.getElementById('f_equipmentOther').value.trim() : '';
     const data = {
-      company: document.getElementById('f_company').value.trim(),
+      company: isPartner ? State.partnerCompany : document.getElementById('f_company').value.trim(),
       workType: document.getElementById('f_workType').value,
       workContent: document.getElementById('f_workContent').value.trim(),
       location: document.getElementById('f_location').value.trim(),
@@ -1916,8 +1952,14 @@ function openPermitModal(existing){
       combustibleRemoval: document.getElementById('f_combustibleRemoval').value.trim(),
       note: document.getElementById('f_note').value.trim(),
     };
-    if(State.mode==='admin' && document.getElementById('f_status')){
-      data.status = document.getElementById('f_status').value;
+    if(canProcess && document.getElementById('f_status')){
+      const newStatus = document.getElementById('f_status').value;
+      data.status = newStatus;
+      data.reviewComment = document.getElementById('f_reviewComment').value.trim();
+      // 부서관리자가 "검토완료"로 넘기면 전체관리자에게 NEW로 표시되도록 시점 기록
+      if(newStatus==='검토완료' && v.status!=='검토완료'){
+        data.reviewCompletedAt = Date.now();
+      }
     }else if(!isEdit){
       data.status = '신청';
     }
@@ -1932,7 +1974,7 @@ function openPermitModal(existing){
       data.createdAt = Date.now();
       await DataStore.push(PATHS.permits, data);
       closeModal();
-      if(State.mode!=='admin'){
+      if(!canProcess){
         showSuccessPopup(t('toast_permit_registered'));
       }else{
         toast(t('toast_permit_registered'));
@@ -1947,10 +1989,18 @@ function openPermitDetail(id){
   if(!raw) return;
   markRead(PATHS.permits, id);
   const p = Object.assign({id}, raw);
+  if(State.mode==='admin' && p.reviewCompletedAt){
+    markRead(PATHS.permits, id+'_review_'+p.reviewCompletedAt);
+  }
+  const canProcess = State.mode==='admin' || State.mode==='dept';
   const equipmentText = [...(p.equipment||[]).map(equipLabel), p.equipmentOther].filter(Boolean).join(', ') || '-';
   showModal(`
     <div class="modal-head"><h3>${t('permit_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
+      ${p.reviewComment ? `<div style="background:#FFF6ED;border:1px solid #FFD9AD;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+        <b style="color:#B24A00;font-size:12.5px;">${t('lbl_review_comment')}</b>
+        <p style="margin:6px 0 0;font-size:13px;line-height:1.6;">${esc(p.reviewComment)}</p>
+      </div>` : ''}
       <dl class="detail-grid">
         <dt>${t('th_company')}</dt><dd>${esc(p.company)}</dd>
         <dt>${t('dt_type')}</dt><dd>${esc(t('worktype_'+p.workType))} ${p.fireWork?'· 🔥'+t('firework_tag'):''}</dd>
@@ -1981,7 +2031,8 @@ function openPermitDetail(id){
     <div class="modal-foot">
       <button class="btn" id="downloadBtn">${icon('file-check',14)} ${t('btn_download_permit')}</button>
       ${(canTerminate() && (p.status==='승인'||p.status==='종료') && (!p.terminationLocked || State.mode==='admin')) ? `<button class="btn" id="termBtn">${p.terminationLocked?t('btn_term_edit'):t('btn_term_input')}</button>` : ''}
-      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      ${canProcess ? `<button class="btn btn-primary" id="editBtn">${t('btn_process_edit')}</button>` : ''}
+      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
@@ -1989,8 +2040,10 @@ function openPermitDetail(id){
   if(document.getElementById('termBtn')){
     document.getElementById('termBtn').addEventListener('click', ()=> openPermitTerminationModal(p));
   }
-  if(State.mode==='admin'){
+  if(canProcess){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openPermitModal(p); });
+  }
+  if(State.mode==='admin'){
     document.getElementById('delBtn').addEventListener('click', async ()=>{
       if(confirm(t('confirm_delete_permit'))){
         await DataStore.remove(PATHS.permits, id); closeModal(); toast(t('toast_deleted')); renderPermits();
@@ -2981,7 +3034,7 @@ function renderContractors(){
       ${contractors.map(c=>`<button class="tab ${activeTab===c.id?'active':''}" data-tab="${c.id}">${esc(c.name)}</button>`).join('')}
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>${t('th_recordtype')}</th><th>${t('th_date')}</th><th>${t('th_author')}</th><th>${t('th_content')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
+      <thead><tr><th>${t('th_recordtype')}</th>${activeTab==='all'?`<th>${t('th_company')}</th>`:''}<th>${t('th_date')}</th><th>${t('th_author')}</th><th>${t('th_content')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
       <tbody id="recordBody"></tbody>
     </table></div>
   `;
@@ -3015,17 +3068,19 @@ function renderContractors(){
   }));
 
   const allRecords = objToArr(DataStore.get(PATHS.contractorRecords)).sort((a,b)=> new Date(b.date||0)-new Date(a.date||0));
-  const records = activeTab==='all' ? allRecords.filter(r=>!r.contractorId) : allRecords.filter(r=>r.contractorId===activeTab);
+  const records = activeTab==='all' ? allRecords : allRecords.filter(r=>r.contractorId===activeTab);
   const rBody = document.getElementById('recordBody');
-  rBody.innerHTML = records.length ? records.map(r=>`
-    <tr>
+  rBody.innerHTML = records.length ? records.map(r=>{
+    const rc = contractors.find(c=>c.id===r.contractorId);
+    return `<tr>
       <td><span class="badge b-gray">${r.recordType?esc(recordTypeLabel(r.recordType)):'-'}</span></td>
+      ${activeTab==='all'?`<td>${esc(rc?rc.name:t('opt_all_notapplicable'))}</td>`:''}
       <td class="mono">${newBadge(r, PATHS.contractorRecords)}${fmtDate(r.date)}</td>
       <td>${esc(r.author||'-')}</td>
       <td>${esc((r.content||'-').slice(0,30))}${(r.content||'').length>30?'…':''}</td>
       <td class="tight row-btns"><button class="btn btn-sm" data-view-r="${r.id}">${t('btn_view')}</button></td>
-    </tr>
-  `).join('') : `<tr><td colspan="5"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('records_empty')}</div></td></tr>`;
+    </tr>`;
+  }).join('') : `<tr><td colspan="${activeTab==='all'?6:5}"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('records_empty')}</div></td></tr>`;
   rBody.querySelectorAll('[data-view-r]').forEach(b=> b.addEventListener('click', ()=> openRecordDetail(b.dataset.viewR)));
 }
 
