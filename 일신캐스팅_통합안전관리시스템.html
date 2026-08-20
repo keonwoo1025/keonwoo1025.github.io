@@ -478,9 +478,21 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 
 /* ---------- Mobile ---------- */
 .hamburger{display:none;}
+.sidebar-close{display:none;}
+.sidebar-backdrop{display:none;}
 @media(max-width:880px){
-  .sidebar{position:fixed;left:-260px;top:0;transition:left .18s;box-shadow:0 0 40px rgba(0,0,0,.3);}
+  .sidebar{position:fixed;left:-260px;top:0;transition:left .18s;box-shadow:0 0 40px rgba(0,0,0,.3);z-index:150;}
   .sidebar.open{left:0;}
+  .sidebar-close{
+    display:flex;align-items:center;justify-content:center;
+    position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;
+    background:rgba(255,255,255,.12);color:#fff;border:none;font-size:15px;cursor:pointer;z-index:2;
+  }
+  .sidebar-backdrop{
+    display:block;position:fixed;inset:0;background:rgba(10,14,26,.5);z-index:140;
+    opacity:0;pointer-events:none;transition:opacity .18s;
+  }
+  .sidebar-backdrop.open{opacity:1;pointer-events:auto;}
   .hamburger{display:flex;border:1px solid var(--line);background:#fff;border-radius:8px;width:36px;height:36px;align-items:center;justify-content:center;}
   .topbar{padding:14px 16px;}
   .view{padding:18px 16px 50px;}
@@ -500,7 +512,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
   .detail-grid{grid-template-columns:100px 1fr;font-size:12.5px;}
   .dash-header h1{font-size:16px;}
   .kpi .k-num{font-size:22px;}
-  .dash-charts > .list-card > div[style*="height:130px"]{height:110px;}
+  .dash-charts > .list-card > div[style*="height:130px"]{height:128px;}
   .zb-num{font-size:34px;}
   .zb-right{gap:14px;flex-wrap:wrap;}
   .list-card canvas{max-width:100%;}
@@ -554,6 +566,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
      사이드바
   ========================================================== -->
   <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="sidebarCloseBtn" aria-label="닫기">✕</button>
     <div class="brand" id="brandHome" style="cursor:pointer;" title="홈으로 이동">
       <div class="brand-logo">
         <img src="data:image/png;base64,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" alt="일신캐스팅 로고">
@@ -578,6 +591,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
       <span data-i18n="sidebar_foot_storage">데이터 저장: Firebase Realtime DB</span>
     </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- =========================================================
      메인
@@ -1009,6 +1023,10 @@ const TRANSLATIONS = {
   lbl_processname:{ko:'공정명',en:'Process Name',th:'ชื่อกระบวนการ',id:'Nama Proses',mn:'Процессын нэр'},
   lbl_subtask:{ko:'세부 작업',en:'Sub-task',th:'งานย่อย',id:'Sub-tugas',mn:'Дэд ажил'},
   lbl_hazard:{ko:'유해위험요인',en:'Hazard',th:'อันตราย',id:'Bahaya',mn:'Эрсдэлийн хүчин зүйл'},
+  lbl_risktype:{ko:'위험유형 (선택)',en:'Risk Type (Optional)',th:'ประเภทความเสี่ยง (ไม่บังคับ)',id:'Jenis Risiko (Opsional)',mn:'Эрсдэлийн төрөл (Заавал биш)'},
+  risktype_hint_prefix:{ko:'추천: 강도',en:'Suggested severity:',th:'แนะนำ: ความรุนแรง',id:'Disarankan: keparahan',mn:'Санал болгох: хүнд байдал'},
+  risktype_hint_basis:{ko:'기준',en:'based on',th:'อ้างอิงจาก',id:'berdasarkan',mn:'үндэслэсэн'},
+  risktype_hint_suffix:{ko:'참고용, 직접 판단해 선택하세요',en:'for reference only, please decide yourself',th:'ใช้อ้างอิงเท่านั้น กรุณาตัดสินใจเลือกด้วยตนเอง',id:'hanya sebagai referensi, silakan putuskan sendiri',mn:'зөвхөн лавлагаа, өөрөө шийдэж сонгоно уу'},
   lbl_frequency:{ko:'빈도 (발생 가능성)',en:'Frequency (Likelihood)',th:'ความถี่ (โอกาสเกิด)',id:'Frekuensi (Kemungkinan)',mn:'Давтамж (Тохиолдох магадлал)'},
   lbl_severity:{ko:'강도 (피해 정도)',en:'Severity (Degree of Harm)',th:'ความรุนแรง (ระดับความเสียหาย)',id:'Tingkat Keparahan (Derajat Kerugian)',mn:'Хүнд байдал (Хохирлын хэмжээ)'},
   freq_1:{ko:'1 - 매우낮음 (방호조치 완료, 보호구 지급착용, 경고표지 부착 등)',en:'1 - Very Low (protection completed, PPE provided/worn, warning signs posted)',th:'1 - ต่ำมาก (มีการป้องกันครบถ้วน สวมอุปกรณ์ป้องกัน มีป้ายเตือน)',id:'1 - Sangat Rendah (perlindungan lengkap, APD dipakai, tanda peringatan terpasang)',mn:'1 - Маш бага (хамгаалалт бүрэн хийгдсэн, хамгаалах хэрэгсэл өмссөн, анхааруулах тэмдэг байрлуулсан)'},
@@ -1074,6 +1092,7 @@ const TRANSLATIONS = {
 
   /* ===== 3단계: 회의록·점검일지 모달 ===== */
   record_new_title:{ko:'회의록 · 순회점검일지 등록',en:'Register Minutes/Inspection Log',th:'ลงทะเบียนบันทึกการประชุม/ตรวจสอบ',id:'Daftarkan Notulen/Log Inspeksi',mn:'Хурлын тэмдэглэл/Шалгалт бүртгэх'},
+  record_edit_title:{ko:'회의록 · 점검일지 수정',en:'Edit Minutes/Inspection Log',th:'แก้ไขบันทึกการประชุม/ตรวจสอบ',id:'Ubah Notulen/Log Inspeksi',mn:'Хурлын тэмдэглэл/Шалгалт засах'},
   rtype_협의체회의록:{ko:'협의체 회의록',en:'Council Meeting Minutes',th:'บันทึกการประชุมคณะกรรมการ',id:'Notulen Rapat Dewan',mn:'Зөвлөлийн хурлын тэмдэглэл'},
   rtype_합동점검일지:{ko:'합동점검일지',en:'Joint Inspection Log',th:'บันทึกการตรวจสอบร่วม',id:'Log Inspeksi Bersama',mn:'Хамтарсан шалгалтын тэмдэглэл'},
   rtype_순회점검일지:{ko:'순회점검일지',en:'Patrol Inspection Log',th:'บันทึกการตรวจตรา',id:'Log Inspeksi Patroli',mn:'Тойрон шалгалтын тэмдэглэл'},
@@ -1302,7 +1321,7 @@ function switchView(id){
   document.getElementById('pageSub').textContent = t(item.subKey);
   renderNav();
   document.querySelectorAll('.view').forEach(v=> v.hidden = v.id !== 'view-'+id);
-  document.getElementById('sidebar').classList.remove('open');
+  closeMobileSidebar();
   renderCurrentView();
 }
 function renderCurrentView(){
@@ -1465,11 +1484,11 @@ function renderAccidentTypeChart(incidents){
       plugins: {
         legend: { position:'bottom', labels:{ boxWidth:10, font:{size:10.5}, color:'#4B5468', padding:8 } },
         datalabels: {
-          color:'#fff', font:{ weight:'700', size:11 },
+          color:'#fff', font:{ weight:'700', size:10 }, textAlign:'center',
           formatter: (value, ctx) => {
             const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
             const pct = total ? Math.round(value/total*100) : 0;
-            return value>0 ? `${value}건\n${pct}%` : '';
+            return value>0 ? [`${value}건`, `${pct}%`] : '';
           }
         }
       },
@@ -1516,7 +1535,7 @@ function renderMonthlyChart(monthly){
           formatter: (value)=> value>0 ? value : ''
         }
       },
-      layout: { padding: { top: 16 } },
+      layout: { padding: { top: 22 } },
       scales: {
         y: { beginAtZero:true, ticks:{ precision:0, color:'#667085', font:{size:10.5} }, grid:{ color:'#EEF1F5' } },
         x: { ticks:{ color:'#667085', font:{size:10.5} }, grid:{ display:false } }
@@ -2301,6 +2320,12 @@ function openRiskModal(existing){
         <div class="field"><label>${t('lbl_subtask')}</label><input type="text" id="f_task" value="${esc(v.task||'')}" placeholder="예: 주형 이동"></div>
       </div>
       <div class="field"><label>${t('lbl_hazard')} *</label><textarea id="f_hazard">${esc(v.hazard||'')}</textarea></div>
+      <div class="field"><label>${t('lbl_risktype')}</label>
+        <select id="f_riskType">
+          <option value="">${t('opt_none_selected')}</option>
+          ${ACCIDENT_TYPES.filter(at=>at!=='기타(직접입력)').map(at=>`<option value="${at}" ${(v.riskType||v.linkedAccidentType)===at?'selected':''}>${t('accidenttype_'+at)}</option>`).join('')}
+        </select>
+      </div>
       <div class="row2">
         <div class="field"><label>${t('lbl_frequency')} *</label>
           <select id="f_frequency">
@@ -2311,7 +2336,7 @@ function openRiskModal(existing){
           <select id="f_severity">
             ${[1,2,3,4].map(n=>`<option value="${n}" ${Number(v.severity)===n?'selected':''}>${t('sev_'+n)}</option>`).join('')}
           </select>
-          ${(v.linkedAccidentType && ACCIDENT_SEVERITY_HINT[v.linkedAccidentType]) ? `<p style="color:var(--danger);font-size:11.5px;font-weight:700;margin:5px 0 0;">⚠ 추천: 강도 ${ACCIDENT_SEVERITY_HINT[v.linkedAccidentType]} (사고유형 "${esc(t('accidenttype_'+v.linkedAccidentType))}" 기준 — 참고용, 직접 판단해 선택하세요)</p>` : ''}
+          <p id="riskTypeHint" style="color:var(--danger);font-size:11.5px;font-weight:700;margin:5px 0 0;"></p>
         </div>
       </div>
       <div class="field"><label>${t('lbl_measures_only')} *</label><textarea id="f_measures">${esc(v.measures||'')}</textarea></div>
@@ -2367,6 +2392,18 @@ function openRiskModal(existing){
     </div>
   `);
   bindPhotoField('f_photoBefore');
+  const riskTypeSel = document.getElementById('f_riskType');
+  const riskTypeHint = document.getElementById('riskTypeHint');
+  function updateRiskTypeHint(){
+    const rt = riskTypeSel.value;
+    if(rt && ACCIDENT_SEVERITY_HINT[rt]){
+      riskTypeHint.textContent = `⚠ ${t('risktype_hint_prefix')} ${ACCIDENT_SEVERITY_HINT[rt]} (${t('risktype_hint_basis')}: ${t('accidenttype_'+rt)} — ${t('risktype_hint_suffix')})`;
+    }else{
+      riskTypeHint.textContent = '';
+    }
+  }
+  riskTypeSel.addEventListener('change', updateRiskTypeHint);
+  updateRiskTypeHint();
   if(isAdmin){
     bindPhotoField('f_photoAfter');
     const statusSel = document.getElementById('f_status');
@@ -2380,6 +2417,7 @@ function openRiskModal(existing){
       process: document.getElementById('f_process').value.trim(),
       task: document.getElementById('f_task').value.trim(),
       hazard: document.getElementById('f_hazard').value.trim(),
+      riskType: document.getElementById('f_riskType').value,
       frequency: Number(document.getElementById('f_frequency').value),
       severity: Number(document.getElementById('f_severity').value),
       measures: document.getElementById('f_measures').value.trim(),
@@ -2496,6 +2534,7 @@ function openRiskDetail(id){
       <dl class="detail-grid">
         <dt>${t('th_process_task')}</dt><dd>${esc(r.process)} ${r.task?('· '+esc(r.task)):''}</dd>
         <dt>${t('lbl_hazard')}</dt><dd>${esc(r.hazard)}</dd>
+        ${r.riskType ? `<dt>${t('lbl_risktype')}</dt><dd>${esc(t('accidenttype_'+r.riskType))}</dd>` : ''}
         <dt>${t('th_risklevel_before')}</dt><dd>${riskLevelBadge(r)} &nbsp;(${t('th_frequency')} ${r.frequency} × ${t('th_severity')} ${r.severity})</dd>
         <dt>${t('lbl_measures_only')}</dt><dd>${esc(r.measures)}</dd>
         <dt>${t('th_reporter_applicant')}</dt><dd>${esc(r.reporter||'-')}</dd>
@@ -2730,18 +2769,18 @@ function openIncidentModal(existing){
       const newId = await DataStore.push(PATHS.incidents, data);
       // 사고접수가 등록되면 위험성평가에도 자동 연동 등록 (관리자가 이어서 평가만 하면 됨)
       // - 부상정도(injurySeverity)를 강도(severity)에 그대로 반영 (같은 척도를 쓰므로)
-      // - 사고유형은 세부작업 칸에 참고로 표시, linkedAccidentType으로 저장해 추천점수 등에 활용
+      // - 사고유형은 세부작업 칸에 참고로 표시, riskType으로 저장해 위험성평가와 동일하게 추천점수에 활용
       const typeLabel = accidentType==='기타(직접입력)' ? data.accidentTypeOther : t('accidenttype_'+accidentType);
       await DataStore.push(PATHS.risks, {
         process: data.process,
         task: typeLabel || '',
         hazard: `사고 접수로 등록됨: ${data.description}`,
+        riskType: accidentType==='기타(직접입력)' ? '' : accidentType,
         frequency: '', severity: data.injurySeverity || '',
         measures: '',
         reporter: data.reporter,
         status: '접수완료',
         linkedIncidentId: newId,
-        linkedAccidentType: accidentType==='기타(직접입력)' ? '' : accidentType,
         createdAt: Date.now(),
       });
       closeModal();
@@ -2911,22 +2950,24 @@ function openContractorModal(existing){
   });
 }
 
-function openRecordModal(){
+function openRecordModal(existing){
+  const isEdit = !!existing;
+  const v = existing || {};
   const contractors = objToArr(DataStore.get(PATHS.contractors));
   showModal(`
-    <div class="modal-head"><h3>${t('record_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${isEdit?t('record_edit_title'):t('record_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
       <div class="row2">
         <div class="field"><label>${t('th_recordtype')} *</label>
-          <select id="f_recordType">${['협의체 회의록','합동점검일지','순회점검일지'].map(rt=>`<option value="${rt}">${recordTypeLabel(rt)}</option>`).join('')}</select>
+          <select id="f_recordType">${['협의체 회의록','합동점검일지','순회점검일지'].map(rt=>`<option value="${rt}" ${v.recordType===rt?'selected':''}>${recordTypeLabel(rt)}</option>`).join('')}</select>
         </div>
-        <div class="field"><label>${t('th_date')} *</label><input type="date" id="f_date" value="${todayStr()}"></div>
+        <div class="field"><label>${t('th_date')} *</label><input type="date" id="f_date" value="${v.date||todayStr()}"></div>
       </div>
       <div class="field"><label>${t('lbl_target_company')}</label>
-        <select id="f_contractorId"><option value="">${t('opt_all_notapplicable')}</option>${contractors.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+        <select id="f_contractorId"><option value="">${t('opt_all_notapplicable')}</option>${contractors.map(c=>`<option value="${c.id}" ${v.contractorId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
       </div>
-      <div class="field"><label>${t('th_author')}</label><input type="text" id="f_author"></div>
-      <div class="field"><label>${t('th_content')} *</label><textarea id="f_content" style="min-height:120px" placeholder="${t('placeholder_record_content')}"></textarea></div>
+      <div class="field"><label>${t('th_author')}</label><input type="text" id="f_author" value="${esc(v.author||'')}"></div>
+      <div class="field"><label>${t('th_content')} *</label><textarea id="f_content" style="min-height:120px" placeholder="${t('placeholder_record_content')}">${esc(v.content||'')}</textarea></div>
     </div>
     <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveRecordBtn">${t('btn_save')}</button></div>
   `);
@@ -2939,9 +2980,14 @@ function openRecordModal(){
       content: document.getElementById('f_content').value.trim(),
     };
     if(!data.date || !data.content){ toast(t('toast_fill_required')); return; }
-    data.createdAt = Date.now();
-    await DataStore.push(PATHS.contractorRecords, data);
-    toast(t('toast_record_registered'));
+    if(isEdit){
+      await DataStore.update(PATHS.contractorRecords, existing.id, data);
+      toast(t('toast_updated_generic'));
+    }else{
+      data.createdAt = Date.now();
+      await DataStore.push(PATHS.contractorRecords, data);
+      toast(t('toast_record_registered'));
+    }
     closeModal(); renderContractors();
   });
 }
@@ -2962,11 +3008,12 @@ function openRecordDetail(id){
       <p style="white-space:pre-wrap;font-size:13.5px;line-height:1.7;">${esc(r.content)}</p>
     </div>
     <div class="modal-foot">
-      ${State.mode==='admin'?`<button class="btn" id="delBtn">${t('btn_delete')}</button>`:''}
+      ${State.mode==='admin'?`<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>`:''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
   if(State.mode==='admin'){
+    document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openRecordModal(Object.assign({id}, r)); });
     document.getElementById('delBtn').addEventListener('click', async ()=>{
       if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contractorRecords, id); closeModal(); toast(t('toast_deleted')); renderContractors(); }
     });
@@ -3435,9 +3482,20 @@ document.getElementById('brandHome').addEventListener('click', ()=>{
   switchView('dashboard');
 });
 
+function openMobileSidebar(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarBackdrop').classList.add('open');
+}
+function closeMobileSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('open');
+}
 document.getElementById('hamburger').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.toggle('open');
+  if(document.getElementById('sidebar').classList.contains('open')) closeMobileSidebar();
+  else openMobileSidebar();
 });
+document.getElementById('sidebarBackdrop').addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebarCloseBtn').addEventListener('click', closeMobileSidebar);
 
 /* ============================================================
    16. 부트스트랩
