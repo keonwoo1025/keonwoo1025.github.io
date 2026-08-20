@@ -363,7 +363,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
 .modal-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
 .modal-head h3{margin:0;font-size:16px;font-weight:800;}
 .modal-body{padding:20px 22px;max-height:70vh;overflow-y:auto;}
-.modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
 .x-btn{border:none;background:#F1F3F6;width:30px;height:30px;border-radius:8px;font-size:15px;color:var(--ink-soft);}
 
 /* ---------- Detail drawer content ---------- */
@@ -517,6 +517,8 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
   .zb-num{font-size:34px;}
   .zb-right{gap:14px;flex-wrap:wrap;}
   .list-card canvas{max-width:100%;}
+  .modal-foot{flex-direction:column-reverse;align-items:stretch;}
+  .modal-foot .btn{justify-content:center;width:100%;}
 }
 </style>
 </head>
@@ -1971,10 +1973,13 @@ function openPermitModal(existing){
       <div class="field"><label>${t('lbl_review_comment')}</label><textarea id="f_reviewComment" placeholder="${t('lbl_review_comment_placeholder')}">${esc(v.reviewComment||'')}</textarea></div>
       ${isDept ? `
       <div id="deptSigFields" style="${v.status==='검토완료'?'':'display:none'};background:#F7F8FA;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:6px;">
-        <p class="hint" style="margin-bottom:8px;font-weight:700;">검토완료 처리 — 서명해주세요</p>
-        <div class="field"><label>서명 *</label>
-          <button type="button" class="btn btn-sm" id="deptSigBtn">${v.deptSignature?'서명 다시하기':'서명하기'}</button>
-          <div id="deptSigPreview" style="margin-top:6px;">${sigPreviewHtml(v.deptSignature)}</div>
+        <p class="hint" style="margin-bottom:8px;font-weight:700;">검토완료 처리 — 성명과 서명을 입력해주세요</p>
+        <div class="row2">
+          <div class="field"><label>검토자 성명 *</label><input type="text" id="f_deptName" value="${esc(v.deptName||'')}"></div>
+          <div class="field"><label>서명 *</label>
+            <button type="button" class="btn btn-sm" id="deptSigBtn">${v.deptSignature?'서명 다시하기':'서명하기'}</button>
+            <div id="deptSigPreview" style="margin-top:6px;">${sigPreviewHtml(v.deptSignature)}</div>
+          </div>
         </div>
       </div>
       ` : ''}
@@ -2019,9 +2024,9 @@ function openPermitModal(existing){
   if(isDept){
     const statusSel = document.getElementById('f_status');
     const deptSigFields = document.getElementById('deptSigFields');
-    statusSel.addEventListener('change', ()=>{
-      deptSigFields.style.display = statusSel.value==='검토완료' ? '' : 'none';
-    });
+    const syncDeptFields = ()=>{ deptSigFields.style.display = statusSel.value==='검토완료' ? '' : 'none'; };
+    statusSel.addEventListener('change', syncDeptFields);
+    syncDeptFields();
     document.getElementById('deptSigBtn').addEventListener('click', ()=>{
       openSignaturePad('공정 담당자 서명', (dataUrl)=>{
         deptSigData = dataUrl;
@@ -2033,9 +2038,9 @@ function openPermitModal(existing){
   if(isAdmin){
     const statusSel = document.getElementById('f_status');
     const approverFields = document.getElementById('approverFields');
-    statusSel.addEventListener('change', ()=>{
-      approverFields.style.display = statusSel.value==='승인' ? '' : 'none';
-    });
+    const syncApproverFields = ()=>{ approverFields.style.display = statusSel.value==='승인' ? '' : 'none'; };
+    statusSel.addEventListener('change', syncApproverFields);
+    syncApproverFields();
     document.getElementById('approverSigBtn').addEventListener('click', ()=>{
       openSignaturePad('승인자 서명', (dataUrl)=>{
         approverSigData = dataUrl;
@@ -2076,7 +2081,9 @@ function openPermitModal(existing){
       data.reviewComment = document.getElementById('f_reviewComment').value.trim();
       // 부서관리자가 "검토완료"로 넘기면 전체관리자에게 NEW로 표시되도록 시점 기록
       if(newStatus==='검토완료'){
-        if(!deptSigData){ toast('서명을 입력해주세요'); return; }
+        const deptName = document.getElementById('f_deptName').value.trim();
+        if(!deptName || !deptSigData){ toast('검토자 성명과 서명을 모두 입력해주세요'); return; }
+        data.deptName = deptName;
         data.deptSignature = deptSigData;
         if(v.status!=='검토완료'){ data.reviewCompletedAt = Date.now(); }
       }
@@ -2324,13 +2331,23 @@ function generatePermitDocx(p){
     const bytes = new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i++){ bytes[i] = binary.charCodeAt(i); }
     const zip = new PizZip(bytes);
+    const hasImageModule = typeof window.ImageModule!=='undefined';
+    if(!hasImageModule){
+      // 서명 이미지 삽입 라이브러리를 불러오지 못한 경우(네트워크·방화벽 등) —
+      // 이미지 태그({%...})만 제거하고 나머지 텍스트는 정상적으로 채워서, 다운로드 자체는 항상 되도록 함
+      const docXmlPath = 'word/document.xml';
+      let xml = zip.files[docXmlPath].asText();
+      xml = xml.replace(/\{%\w+\}/g, '');
+      zip.file(docXmlPath, xml);
+      console.warn('서명 이미지 모듈을 불러오지 못해, 서명 없이 문서를 생성합니다.');
+    }
     const imageOpts = {
       centered: false,
       fileType: 'docx',
       getImage: (tagValue)=> dataUrlToUint8Array(tagValue || BLANK_SIG_PNG),
       getSize: ()=> [80, 40],
     };
-    const modules = (typeof window.ImageModule!=='undefined') ? [new window.ImageModule(imageOpts)] : [];
+    const modules = hasImageModule ? [new window.ImageModule(imageOpts)] : [];
     const doc = new window.docxtemplater(zip, { paragraphLoop:true, linebreaks:true, modules });
     const equipmentText = [...(p.equipment||[]), p.equipmentOther].filter(Boolean).join(', ') || '-';
     doc.render({
@@ -2350,7 +2367,7 @@ function generatePermitDocx(p){
       combustible: p.fireWork ? (p.combustibleRemoval||'') : '',
       contractorSign: p.contractorLead||'',
       contractorSigImg: p.contractorSignature || BLANK_SIG_PNG,
-      managerSign: p.processManager||'',
+      managerSign: p.deptName || p.processManager || '',
       managerSigImg: p.deptSignature || BLANK_SIG_PNG,
       approverSign: p.approverName||'',
       approverSigImg: p.approverSignature || BLANK_SIG_PNG,
@@ -2372,7 +2389,10 @@ function generatePermitDocx(p){
     setTimeout(()=>URL.revokeObjectURL(url), 3000);
     toast('허가서 파일이 다운로드되었습니다');
   }catch(err){
-    console.error(err);
+    console.error('허가서 다운로드 오류:', err);
+    if(err && err.properties && err.properties.errors){
+      console.error('상세 오류 목록:', err.properties.errors);
+    }
     toast('문서 생성 중 오류가 발생했습니다');
   }
 }
