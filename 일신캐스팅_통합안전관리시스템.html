@@ -361,7 +361,7 @@ thead th{
   text-transform:uppercase;letter-spacing:.03em;
   padding:11px 16px;border-bottom:1px solid var(--line);background:#FAFBFC;white-space:nowrap;
 }
-tbody td{padding:12px 16px;border-bottom:1px solid #EEF1F5;color:var(--ink);vertical-align:middle;}
+tbody td{padding:12px 16px;border-bottom:1px solid #EEF1F5;color:var(--ink);vertical-align:middle;white-space:nowrap;}
 tbody tr:last-child td{border-bottom:none;}
 tbody tr:hover{background:#FAFBFC;}
 td.tight,th.tight{width:1%;white-space:nowrap;}
@@ -1348,7 +1348,9 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 ============================================================= */
 function renderNav(){
   const nav = document.getElementById('navList');
-  const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits') : NAV_ITEMS;
+  const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
+    : State.mode==='user' ? NAV_ITEMS.filter(i=>i.id!=='contractors')
+    : NAV_ITEMS;
   nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
     const isNew = hasNewItems(item.id);
@@ -1401,6 +1403,7 @@ function navBadgeCount(viewId){
 
 function switchView(id){
   if(State.mode==='partner' && id!=='permits') id = 'permits';
+  if(State.mode==='user' && id==='contractors') id = 'dashboard';
   State.view = id;
   const item = NAV_ITEMS.find(n=>n.id===id);
   const isDashboard = id==='dashboard';
@@ -3475,11 +3478,11 @@ function collectBulletList(idPrefix){
   return Array.from(container.querySelectorAll('.bullet-line-input')).map(inp=>inp.value.trim()).filter(Boolean).join('\n');
 }
 
-function checklistToggleHtml(cat, item, current){
+function checklistToggleHtml(cat, item, idx, current){
   const opts = ['O','△','X','-'];
   return `<div class="rpt-chk-row">
     <span class="rpt-chk-label">${esc(item)}</span>
-    <div class="rpt-chk-btns" data-cat="${esc(cat)}" data-item="${esc(item)}">
+    <div class="rpt-chk-btns" data-cat="${esc(cat)}" data-idx="${idx}">
       ${opts.map(o=>`<button type="button" class="rpt-chk-btn ${current===o?'active':''}" data-val="${o}">${o}</button>`).join('')}
     </div>
   </div>`;
@@ -3538,7 +3541,7 @@ function openIncidentReportModal(incident){
         ${Object.keys(RPT_CHECKLIST).map(cat=>`
           <div class="rpt-cat-col">
             <div class="rpt-cat-title" style="color:#${RPT_CATCOLOR[cat]};">${esc(RPT_CATLABEL_UI[cat])}</div>
-            ${RPT_CHECKLIST[cat].map(item=>checklistToggleHtml(cat, item, v.reportChecklist[cat+'_'+item]||'')).join('')}
+            ${RPT_CHECKLIST[cat].map((item,idx)=>checklistToggleHtml(cat, item, idx, v.reportChecklist[cat+'_'+idx]||'')).join('')}
           </div>
         `).join('')}
       </div>
@@ -3586,7 +3589,7 @@ function openIncidentReportModal(incident){
       const flagged = [];
       document.querySelectorAll(`#rpt_checklistGrid .rpt-chk-btns[data-cat="${cat}"]`).forEach(group=>{
         const active = group.querySelector('.rpt-chk-btn.active');
-        if(active && (active.dataset.val==='X' || active.dataset.val==='△')) flagged.push(group.dataset.item);
+        if(active && (active.dataset.val==='X' || active.dataset.val==='△')) flagged.push(RPT_CHECKLIST[cat][parseInt(group.dataset.idx,10)]);
       });
       document.getElementById('rpt_def_hint_'+cat).textContent = '방금 체크한 항목: ' + (flagged.length ? flagged.join(', ') : '(없음)');
     });
@@ -3629,7 +3632,7 @@ function openIncidentReportModal(incident){
     const checklist = {};
     document.querySelectorAll('#rpt_checklistGrid .rpt-chk-btns').forEach(group=>{
       const active = group.querySelector('.rpt-chk-btn.active');
-      if(active) checklist[group.dataset.cat+'_'+group.dataset.item] = active.dataset.val;
+      if(active) checklist[group.dataset.cat+'_'+group.dataset.idx] = active.dataset.val;
     });
     const causeMeasure = v.reportCauseMeasure.map((row,idx)=>({
       cat: row.cat,
@@ -3658,21 +3661,32 @@ function openIncidentReportModal(incident){
   }
 
   document.getElementById('rptSaveBtn').addEventListener('click', async ()=>{
-    const data = collectReportData();
-    await DataStore.update(PATHS.incidents, i.id, data);
-    toast('보고서 내용이 저장되었습니다');
-    closeModal();
-    openIncidentDetail(i.id);
+    try{
+      const data = collectReportData();
+      await DataStore.update(PATHS.incidents, i.id, data);
+      window.__noBackdropClose = false;
+      toast('보고서 내용이 저장되었습니다');
+      closeModal();
+      openIncidentDetail(i.id);
+    }catch(err){
+      console.error('보고서 저장 오류:', err);
+      alert('저장 중 오류가 발생했습니다.\n\n[오류 내용]\n' + (err&&err.message?err.message:String(err)));
+    }
   });
 
   document.getElementById('rptDownloadBtn').addEventListener('click', async ()=>{
-    const data = collectReportData();
-    if(!data.reportTitle || !data.reportNarrative){
-      toast('보고서 부제와 사고내용은 입력해주세요'); return;
+    try{
+      const data = collectReportData();
+      if(!data.reportTitle || !data.reportNarrative){
+        toast('보고서 부제와 사고내용은 입력해주세요'); return;
+      }
+      await DataStore.update(PATHS.incidents, i.id, data);
+      await generateIncidentReportPptx(Object.assign({}, i, data));
+      toast('PPT 파일이 다운로드되었습니다');
+    }catch(err){
+      console.error('보고서 다운로드 오류:', err);
+      alert('다운로드 중 오류가 발생했습니다.\n\n[오류 내용]\n' + (err&&err.message?err.message:String(err)));
     }
-    await DataStore.update(PATHS.incidents, i.id, data);
-    await generateIncidentReportPptx(Object.assign({}, i, data));
-    toast('PPT 파일이 다운로드되었습니다');
   });
 }
 
@@ -3845,7 +3859,7 @@ function generateIncidentReportPptx(i){
     Object.keys(RPT_CHECKLIST).forEach(cat=>{
       const ids = CHECKLIST_ID_MAP[cat];
       RPT_CHECKLIST[cat].forEach((item, idx)=>{
-        const val = checklist[cat+'_'+item] || '-';
+        const val = checklist[cat+'_'+idx] || '-';
         const isBad = val==='X';
         s3 = injectChecklistValue(s3, ids.checkbox[idx], val, isBad);
         s3 = injectLabelColor(s3, ids.label[idx], isBad);
@@ -4114,6 +4128,14 @@ function renderNotices(){
         <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('contacts_tab')}</div>
         <button class="btn btn-primary" id="addContactBtn">${icon('plus',15)} ${t('contact_add_btn')}</button>
       </div>
+      <div class="toolbar" style="margin-bottom:12px;">
+        <input type="text" id="contactSearch" class="searchbox" placeholder="이름·직책·연락처 검색" value="${esc(State.filters.contactSearch||'')}">
+        <select id="contactSort" class="btn btn-sm" style="font-weight:700;">
+          <option value="reg" ${State.filters.contactSort==='reg'||!State.filters.contactSort?'selected':''}>등록순</option>
+          <option value="name" ${State.filters.contactSort==='name'?'selected':''}>이름순</option>
+          <option value="role" ${State.filters.contactSort==='role'?'selected':''}>직책순</option>
+        </select>
+      </div>
       <div class="contact-grid" id="contactGrid"></div>
     </div>
   `;
@@ -4153,7 +4175,30 @@ function renderNotices(){
     if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.notices, a.dataset.delN); toast(t('toast_deleted')); renderNotices(); }
   }));
 
-  const contacts = objToArr(DataStore.get(PATHS.contacts));
+  renderContactGrid();
+  document.getElementById('contactSearch').addEventListener('input', e=>{
+    State.filters.contactSearch = e.target.value;
+    renderContactGrid();
+  });
+  document.getElementById('contactSort').addEventListener('change', e=>{
+    State.filters.contactSort = e.target.value;
+    renderContactGrid();
+  });
+}
+
+function renderContactGrid(){
+  let contacts = objToArr(DataStore.get(PATHS.contacts));
+  const searchQ = (State.filters.contactSearch||'').trim().toLowerCase();
+  if(searchQ){
+    contacts = contacts.filter(c=>
+      (c.name||'').toLowerCase().includes(searchQ) ||
+      (c.role||'').toLowerCase().includes(searchQ) ||
+      (c.phone||'').toLowerCase().includes(searchQ)
+    );
+  }
+  const sortMode = State.filters.contactSort || 'reg';
+  if(sortMode==='name') contacts.sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ko'));
+  else if(sortMode==='role') contacts.sort((a,b)=> (a.role||'').localeCompare(b.role||'', 'ko'));
   const grid = document.getElementById('contactGrid');
   grid.innerHTML = contacts.length ? contacts.map(c=>`
     <div class="contact-card">
@@ -4170,7 +4215,7 @@ function renderNotices(){
   }));
   grid.querySelectorAll('[data-del-c2]').forEach(a=> a.addEventListener('click', async e=>{
     e.preventDefault();
-    if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contacts, a.dataset.delC2); toast(t('toast_deleted')); renderNotices(); }
+    if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contacts, a.dataset.delC2); toast(t('toast_deleted')); renderContactGrid(); }
   }));
 }
 
