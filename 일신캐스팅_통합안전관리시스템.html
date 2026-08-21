@@ -3067,7 +3067,7 @@ function renderIncidents(){
     <div class="table-wrap"><table>
       <thead><tr>
         <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
-        ${isAdmin?`<th>${t('th_reporter')}</th>`:''}
+        ${isAdmin?`<th>${t('th_reporter')}</th><th>${t('lbl_injured_person')}</th>`:''}
         <th>${t('th_accidenttype')}</th><th>${t('th_injuryseverity')}</th>
         ${isAdmin?`<th>${t('th_status')}</th>`:''}
         <th class="tight">${t('btn_manage_col')}</th>
@@ -3087,7 +3087,7 @@ function renderIncidents(){
   let filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
   if(processFilter!=='전체') filtered = filtered.filter(i=>i.process===processFilter);
   const body = document.getElementById('incBody');
-  const colCount = isAdmin ? 8 : 6;
+  const colCount = isAdmin ? 9 : 6;
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>${t('incidents_empty')}</div></td></tr>`;
     return;
@@ -3098,7 +3098,7 @@ function renderIncidents(){
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
-      ${isAdmin?`<td>${esc(i.reporter||'-')}</td>`:''}
+      ${isAdmin?`<td>${esc(i.reporter||'-')}</td><td>${esc(i.injuredPerson||'-')}</td>`:''}
       <td><span class="badge b-gray">${esc(i.accidentType ? (TRANSLATIONS['accidenttype_'+i.accidentType]?t('accidenttype_'+i.accidentType):i.accidentType) : '-')}</span></td>
       <td>${esc(i.injurySeverity ? t('sev_'+i.injurySeverity) : '-')}</td>
       ${isAdmin?`<td>${statusBadge('incident', i.status)}</td>`:''}
