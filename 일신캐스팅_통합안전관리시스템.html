@@ -4139,8 +4139,16 @@ function renderNotices(){
         <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('contacts_tab')}</div>
         <button class="btn btn-primary" id="addContactBtn">${icon('plus',15)} ${t('contact_add_btn')}</button>
       </div>
-      <div class="toolbar" style="margin-bottom:12px;">
+      <div class="toolbar" style="margin-bottom:12px;flex-wrap:wrap;">
         <input type="text" id="contactSearch" class="searchbox" placeholder="이름·직책·연락처 검색" value="${esc(State.filters.contactSearch||'')}">
+        <select id="contactDeptFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="">전체 부서</option>
+          ${CONTACT_DEPTS.map(d=>`<option value="${d}" ${State.filters.contactDept===d?'selected':''}>${d}</option>`).join('')}
+        </select>
+        <select id="contactRankFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="">전체 직급</option>
+          ${CONTACT_RANKS.map(r=>`<option value="${r}" ${State.filters.contactRank===r?'selected':''}>${r}</option>`).join('')}
+        </select>
         <select id="contactSort" class="btn btn-sm" style="font-weight:700;">
           <option value="reg" ${State.filters.contactSort==='reg'||!State.filters.contactSort?'selected':''}>등록순</option>
           <option value="name" ${State.filters.contactSort==='name'?'selected':''}>이름순</option>
@@ -4191,6 +4199,14 @@ function renderNotices(){
     State.filters.contactSearch = e.target.value;
     renderContactGrid();
   });
+  document.getElementById('contactDeptFilter').addEventListener('change', e=>{
+    State.filters.contactDept = e.target.value;
+    renderContactGrid();
+  });
+  document.getElementById('contactRankFilter').addEventListener('change', e=>{
+    State.filters.contactRank = e.target.value;
+    renderContactGrid();
+  });
   document.getElementById('contactSort').addEventListener('change', e=>{
     State.filters.contactSort = e.target.value;
     renderContactGrid();
@@ -4207,6 +4223,8 @@ function renderContactGrid(){
       (c.phone||'').toLowerCase().includes(searchQ)
     );
   }
+  if(State.filters.contactDept) contacts = contacts.filter(c=> c.dept === State.filters.contactDept);
+  if(State.filters.contactRank) contacts = contacts.filter(c=> c.rank === State.filters.contactRank);
   const sortMode = State.filters.contactSort || 'reg';
   if(sortMode==='name') contacts.sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ko'));
   else if(sortMode==='role') contacts.sort((a,b)=> (a.role||'').localeCompare(b.role||'', 'ko'));
@@ -4215,6 +4233,7 @@ function renderContactGrid(){
     <div class="contact-card">
       <div class="c-role">${esc(c.role||'담당')}</div>
       <div class="c-name">${esc(c.name)}</div>
+      ${(c.dept || c.rank) ? `<div style="font-size:11.5px;color:var(--ink-soft);margin:2px 0;">${[c.dept,c.rank].filter(Boolean).join(' · ')}</div>` : ''}
       <div class="c-phone">${esc(c.phone||'-')}</div>
       ${State.mode==='admin'?`<div style="margin-top:8px;display:flex;gap:10px;"><a href="#" data-edit-c2="${c.id}" style="font-size:11.5px;color:var(--info)">${t('btn_edit')}</a><a href="#" data-del-c2="${c.id}" style="font-size:11.5px;color:var(--danger)">${t('btn_delete')}</a></div>`:''}
     </div>
@@ -4354,6 +4373,14 @@ function openContactModal(existing){
     <div class="modal-body">
       <div class="field"><label>${t('lbl_role')} *</label><input type="text" id="f_role" value="${esc(v.role||'')}" placeholder="예: 안전환경부장, 소방서, 119"></div>
       <div class="field"><label>${t('lbl_name_org')} *</label><input type="text" id="f_name" value="${esc(v.name||'')}"></div>
+      <div class="row2">
+        <div class="field"><label>부서</label>
+          <select id="f_dept"><option value="">-</option>${CONTACT_DEPTS.map(d=>`<option value="${d}" ${v.dept===d?'selected':''}>${d}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>직급</label>
+          <select id="f_rank"><option value="">-</option>${CONTACT_RANKS.map(r=>`<option value="${r}" ${v.rank===r?'selected':''}>${r}</option>`).join('')}</select>
+        </div>
+      </div>
       <div class="field"><label>${t('lbl_phone')} *</label><input type="text" id="f_phone" value="${esc(v.phone||'')}" placeholder="010-0000-0000"></div>
     </div>
     <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveContactBtn">${isEdit?t('btn_save'):t('btn_register')}</button></div>
@@ -4362,6 +4389,8 @@ function openContactModal(existing){
     const data = {
       role: document.getElementById('f_role').value.trim(),
       name: document.getElementById('f_name').value.trim(),
+      dept: document.getElementById('f_dept').value,
+      rank: document.getElementById('f_rank').value,
       phone: document.getElementById('f_phone').value.trim(),
     };
     if(!data.name || !data.phone){ toast(t('toast_fill_required')); return; }
@@ -4805,6 +4834,8 @@ function showSuccessPopup(message){
 ============================================================= */
 const ADMIN_PW_KEY = 'isc_admin_pw';
 const DEPTS = ['관리부','생산부','품질관리부'];
+const CONTACT_DEPTS = ['안전환경부','관리부','생산부','품질관리부'];
+const CONTACT_RANKS = ['사원','대리','과장','차장','부장','직장'];
 function deptPwKey(dept){ return 'isc_dept_pw_' + dept; }
 
 function updateLangPicker(){
