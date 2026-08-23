@@ -21,7 +21,6 @@
 ============================================================= -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -672,19 +671,21 @@ const FIREBASE_CONFIG = {
 };
 const CONFIG_IS_PLACEHOLDER = FIREBASE_CONFIG.apiKey === "YOUR_API_KEY";
 
+// 사진·첨부파일은 Firebase가 아니라 Cloudinary(무료, 카드 등록 불필요)에 올리고,
+// Firebase 데이터베이스에는 결과로 받은 짧은 링크(URL)만 저장한다.
+const CLOUDINARY_CLOUD_NAME = 'mv6gjqjn';
+const CLOUDINARY_UPLOAD_PRESET = 'ilshin-safety';
+
 let db = null;
-let storage = null;
 if(!CONFIG_IS_PLACEHOLDER){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.database();
-  storage = firebase.storage();
 }
 
-// 사진·첨부파일 업로드 공용 함수 — DB(용량·트래픽 제한이 빡빡함)가 아니라
-// Firebase Storage(용량·다운로드 한도가 훨씬 넉넉함)에 올리고, DB에는 짧은 다운로드 URL만 저장한다.
-// Storage가 준비 안 된 경우(오프라인 데모 등)에는 예전처럼 base64로 폴백한다.
+// 사진·첨부파일 업로드 공용 함수 — Cloudinary에 올리고 접근 가능한 URL을 돌려받는다.
+// Cloudinary 설정이 비어있는 경우(데모 등)에는 예전처럼 base64로 폴백한다.
 async function uploadFileToStorage(file, folder){
-  if(!storage){
+  if(!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET){
     return await new Promise((resolve, reject)=>{
       const r = new FileReader();
       r.onload = ()=> resolve(r.result);
@@ -692,11 +693,20 @@ async function uploadFileToStorage(file, folder){
       r.readAsDataURL(file);
     });
   }
-  const safeName = (file.name||'file').replace(/[^\w.\-가-힣]/g,'_');
-  const path = `${folder}/${Date.now()}_${Math.floor(Math.random()*100000)}_${safeName}`;
-  const ref = storage.ref().child(path);
-  await ref.put(file);
-  return await ref.getDownloadURL();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', folder || 'uploads');
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if(!res.ok){
+    const errText = await res.text().catch(()=>'');
+    throw new Error('Cloudinary 업로드 실패: ' + errText);
+  }
+  const json = await res.json();
+  return json.secure_url;
 }
 
 /* 로컬 폴백 저장소 (Firebase 설정 전 데모/오프라인용) ------------- */
