@@ -21,6 +21,7 @@
 ============================================================= -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -672,9 +673,30 @@ const FIREBASE_CONFIG = {
 const CONFIG_IS_PLACEHOLDER = FIREBASE_CONFIG.apiKey === "YOUR_API_KEY";
 
 let db = null;
+let storage = null;
 if(!CONFIG_IS_PLACEHOLDER){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.database();
+  storage = firebase.storage();
+}
+
+// 사진·첨부파일 업로드 공용 함수 — DB(용량·트래픽 제한이 빡빡함)가 아니라
+// Firebase Storage(용량·다운로드 한도가 훨씬 넉넉함)에 올리고, DB에는 짧은 다운로드 URL만 저장한다.
+// Storage가 준비 안 된 경우(오프라인 데모 등)에는 예전처럼 base64로 폴백한다.
+async function uploadFileToStorage(file, folder){
+  if(!storage){
+    return await new Promise((resolve, reject)=>{
+      const r = new FileReader();
+      r.onload = ()=> resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+  const safeName = (file.name||'file').replace(/[^\w.\-가-힣]/g,'_');
+  const path = `${folder}/${Date.now()}_${Math.floor(Math.random()*100000)}_${safeName}`;
+  const ref = storage.ref().child(path);
+  await ref.put(file);
+  return await ref.getDownloadURL();
 }
 
 /* 로컬 폴백 저장소 (Firebase 설정 전 데모/오프라인용) ------------- */
@@ -769,7 +791,7 @@ function photoFieldHtml(id, existingSrc, hintHtml){
     ${hintHtml||''}
   `;
 }
-function bindPhotoField(id){
+function bindPhotoField(id, folder){
   const input = document.getElementById(id);
   const pickBtn = document.getElementById(id+'_pick');
   const camBtn = document.getElementById(id+'_cam');
@@ -778,11 +800,20 @@ function bindPhotoField(id){
   if(camBtn){
     camBtn.addEventListener('click', ()=>{ input.setAttribute('capture','environment'); input.click(); });
   }
-  input.addEventListener('change', ()=>{
+  input.addEventListener('change', async ()=>{
     const f = input.files[0];
     if(f){
-      const url = URL.createObjectURL(f);
-      preview.innerHTML = `<img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`;
+      const localUrl = URL.createObjectURL(f);
+      preview.innerHTML = `<img src="${localUrl}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);opacity:.6;"><span class="hint">업로드 중…</span>`;
+      try{
+        const uploadedUrl = await uploadFileToStorage(f, folder||'uploads');
+        input.dataset.uploadedUrl = uploadedUrl;
+        preview.innerHTML = `<img src="${uploadedUrl}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`;
+      }catch(err){
+        console.error('사진 업로드 실패:', err);
+        toast('사진 업로드에 실패했습니다');
+        preview.innerHTML = '';
+      }
     }
   });
 }
@@ -1447,6 +1478,142 @@ document.getElementById('views').innerHTML = `
 /* ============================================================
    7. 대시보드
 ============================================================= */
+// 저장공간·트래픽 대략 추정 (Firebase 콘솔의 정확한 수치를 대체하지는 않음 —
+// 브라우저에서는 실제 사용량을 직접 조회할 수 없어, 등록된 데이터 기준으로 어림 계산만 제공)
+function estimateUsage(){
+  const allPaths = Object.values(PATHS);
+  let recordCount = 0, textBytes = 0;
+  allPaths.forEach(p=>{
+    const arr = objToArr(DataStore.get(p));
+    recordCount += arr.length;
+    try{ textBytes += JSON.stringify(DataStore.get(p)||{}).length; }catch(e){}
+  });
+  let photoBytes = 0, photoCountKnown = 0, photoCountUnknown = 0;
+  function addSize(v){ if(v==null) return; if(typeof v==='number'){ photoBytes+=v; photoCountKnown++; } }
+  const risks = objToArr(DataStore.get(PATHS.risks));
+  risks.forEach(r=>{
+    if(r.photoBefore){ r.photoBeforeSize!=null ? addSize(r.photoBeforeSize) : photoCountUnknown++; }
+    if(r.photoAfter){ r.photoAfterSize!=null ? addSize(r.photoAfterSize) : photoCountUnknown++; }
+  });
+  const incidents = objToArr(DataStore.get(PATHS.incidents));
+  incidents.forEach(i=>{
+    if(i.photo1){ i.photo1Size!=null ? addSize(i.photo1Size) : photoCountUnknown++; }
+    if(i.photo2){ i.photo2Size!=null ? addSize(i.photo2Size) : photoCountUnknown++; }
+  });
+  const suggestions = objToArr(DataStore.get(PATHS.suggestions));
+  suggestions.forEach(s=>{ if(s.photo){ s.photoSize!=null ? addSize(s.photoSize) : photoCountUnknown++; } });
+  const bugs = objToArr(DataStore.get(PATHS.bugReports));
+  bugs.forEach(b=>{ if(b.screenshot){ b.screenshotSize!=null ? addSize(b.screenshotSize) : photoCountUnknown++; } });
+  const notices = objToArr(DataStore.get(PATHS.notices));
+  notices.forEach(n=>{
+    (n.files||[]).forEach(f=>{ f.fileSize!=null ? addSize(f.fileSize) : photoCountUnknown++; });
+    if(!n.files && n.fileData){ photoCountUnknown++; }
+  });
+  return { recordCount, textBytes, photoBytes, photoCountKnown, photoCountUnknown };
+}
+function fmtBytes(n){
+  if(n < 1024) return n+' B';
+  if(n < 1024*1024) return (n/1024).toFixed(1)+' KB';
+  if(n < 1024*1024*1024) return (n/1024/1024).toFixed(1)+' MB';
+  return (n/1024/1024/1024).toFixed(2)+' GB';
+}
+
+async function runFullBackupExport(){
+  if(!requireAdmin('전체 데이터 백업')) return;
+  if(typeof PizZip==='undefined'){ toast('백업 도구를 불러오지 못했습니다'); return; }
+  const btn = document.getElementById('backupExportBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  try{
+    const allData = {};
+    Object.entries(PATHS).forEach(([key, path])=>{ allData[key] = DataStore.get(path) || {}; });
+    const zip = new PizZip();
+    zip.file('data.json', JSON.stringify(allData, null, 2));
+
+    // 사진·파일 수집 (url이 data:로 시작하면 그대로, http(s)면 fetch해서 받아옴)
+    const fileJobs = []; // {url, folder, name}
+    function addJob(url, folder, name){ if(url) fileJobs.push({url, folder, name}); }
+    Object.values(allData.risks||{}).forEach((r,idx)=>{
+      addJob(r.photoBefore, 'risk_photos', `${idx}_before_${r.id||idx}`);
+      addJob(r.photoAfter, 'risk_photos', `${idx}_after_${r.id||idx}`);
+    });
+    Object.entries(allData.incidents||{}).forEach(([id,i])=>{
+      addJob(i.photo1, 'incident_photos', `${id}_photo1`);
+      addJob(i.photo2, 'incident_photos', `${id}_photo2`);
+    });
+    Object.entries(allData.suggestions||{}).forEach(([id,s])=>{ addJob(s.photo, 'suggestion_photos', `${id}_photo`); });
+    Object.entries(allData.bugReports||{}).forEach(([id,b])=>{ addJob(b.screenshot, 'bug_screenshots', `${id}_screenshot`); });
+    Object.entries(allData.notices||{}).forEach(([id,n])=>{
+      (n.files||[]).forEach((f,fi)=>{ addJob(f.fileData, 'notice_files', `${id}_${fi}_${f.fileName||'file'}`); });
+    });
+
+    btn.textContent = `⏳ 파일 수집 중... (0/${fileJobs.length})`;
+    let done = 0;
+    for(const job of fileJobs){
+      try{
+        let blob;
+        if(job.url.startsWith('data:')){
+          const res = await fetch(job.url);
+          blob = await res.blob();
+        }else{
+          const res = await fetch(job.url);
+          blob = await res.blob();
+        }
+        const ext = (blob.type && blob.type.split('/')[1]) ? '.'+blob.type.split('/')[1].replace('jpeg','jpg') : '';
+        const safeName = job.name.replace(/[^\w.\-가-힣]/g,'_');
+        const finalName = safeName.includes('.') ? safeName : safeName+ext;
+        const buf = await blob.arrayBuffer();
+        zip.file(`${job.folder}/${finalName}`, buf);
+      }catch(err){
+        console.warn('백업 중 파일 하나를 건너뜀:', job.url, err);
+      }
+      done++;
+      btn.textContent = `⏳ 파일 수집 중... (${done}/${fileJobs.length})`;
+    }
+
+    btn.textContent = '⏳ 압축 파일 생성 중...';
+    const out = zip.generate({ type:'blob' });
+    const url = URL.createObjectURL(out);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `안전관리시스템_백업_${fmtDate(Date.now())}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 5000);
+    toast('백업 파일 다운로드가 완료되었습니다');
+  }catch(err){
+    console.error('백업 오류:', err);
+    alert('백업 중 오류가 발생했습니다.\n\n[오류 내용]\n' + (err&&err.message?err.message:String(err)));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+function usageCardHtml(){
+  const u = estimateUsage();
+  const STORAGE_FREE_LIMIT = 5*1024*1024*1024; // Storage 무료 한도(저장) 5GB
+  const pct = Math.min(100, Math.round(u.photoBytes / STORAGE_FREE_LIMIT * 100));
+  return `
+    <div class="list-card" style="margin-bottom:16px;">
+      <div class="lc-head"><h3>💾 저장공간 사용량 (관리자 전용, 대략적인 추정치)</h3>
+        <button class="btn btn-sm" id="backupExportBtn">📦 전체 데이터 백업(내보내기)</button>
+      </div>
+      <div style="padding:12px 16px;">
+        <p class="hint" style="margin:0 0 10px;">등록된 총 ${u.recordCount}건 기준 추정입니다. 사진·파일 중 ${u.photoCountUnknown}개는 이번 업데이트 이전에 등록되어 정확한 용량을 추적하지 못합니다. <b>정확한 실사용량은 Firebase 콘솔의 "사용량" 탭에서 확인하세요.</b></p>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;">
+          <div><div class="hint" style="margin:0;">장부(글자 정보) 용량</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.textBytes)}</div></div>
+          <div><div class="hint" style="margin:0;">사진·파일 용량(추적된 것만)</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.photoBytes)} <span class="hint" style="font-weight:400;">/ 무료 5GB 중</span></div></div>
+        </div>
+        <div style="background:#EEF1F5;border-radius:6px;height:8px;margin-top:10px;overflow:hidden;">
+          <div style="background:${pct>80?'var(--danger)':'var(--safety)'};width:${pct}%;height:100%;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderDashboard(){
   const el = document.getElementById('view-dashboard');
   const permits = objToArr(DataStore.get(PATHS.permits));
@@ -1474,6 +1641,8 @@ function renderDashboard(){
     </div>
 
     ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} ${t('config_banner')}</div>`:''}
+
+    ${State.mode==='admin' ? usageCardHtml() : ''}
 
     <div class="dash-charts">
       <div class="list-card">
@@ -1546,6 +1715,9 @@ function renderDashboard(){
   el.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> switchView(b.dataset.goto)));
   renderMonthlyChart(monthly);
   renderAccidentTypeChart(incidents);
+  if(document.getElementById('backupExportBtn')){
+    document.getElementById('backupExportBtn').addEventListener('click', runFullBackupExport);
+  }
 }
 
 let monthlyChartInstance = null;
@@ -2940,7 +3112,7 @@ function openRiskModal(existing){
       <button class="btn btn-primary" id="saveRiskBtn">${t('btn_save')}</button>
     </div>
   `);
-  bindPhotoField('f_photoBefore');
+  bindPhotoField('f_photoBefore', 'risk-photos');
   const riskTypeSel = document.getElementById('f_riskType');
   const riskTypeHint = document.getElementById('riskTypeHint');
   function updateRiskTypeHint(){
@@ -2954,7 +3126,7 @@ function openRiskModal(existing){
   riskTypeSel.addEventListener('change', updateRiskTypeHint);
   updateRiskTypeHint();
   if(isAdmin){
-    bindPhotoField('f_photoAfter');
+    bindPhotoField('f_photoAfter', 'risk-photos');
     const statusSel = document.getElementById('f_status');
     const afterFields = document.getElementById('afterEvalFields');
     statusSel.addEventListener('change', e=>{
@@ -3005,21 +3177,20 @@ function openRiskModal(existing){
       }
     }
 
-    const photoBeforeFile = document.getElementById('f_photoBefore').files[0];
+    const photoBeforeInput = document.getElementById('f_photoBefore');
+    const photoBeforeFile = photoBeforeInput.files[0];
     if(photoBeforeFile){
       if(photoBeforeFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photoBefore = await new Promise((resolve,reject)=>{
-        const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photoBeforeFile);
-      });
+      data.photoBefore = photoBeforeInput.dataset.uploadedUrl || await uploadFileToStorage(photoBeforeFile, 'risk-photos');
+      data.photoBeforeSize = photoBeforeFile.size;
     }
     const photoAfterInput = document.getElementById('f_photoAfter');
     if(photoAfterInput){
       const photoAfterFile = photoAfterInput.files[0];
       if(photoAfterFile){
         if(photoAfterFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-        data.photoAfter = await new Promise((resolve,reject)=>{
-          const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photoAfterFile);
-        });
+        data.photoAfter = photoAfterInput.dataset.uploadedUrl || await uploadFileToStorage(photoAfterFile, 'risk-photos');
+        data.photoAfterSize = photoAfterFile.size;
       }
     }
 
@@ -3275,8 +3446,8 @@ function openIncidentModal(existing){
       <button class="btn btn-primary" id="saveIncBtn">${t('btn_save')}</button>
     </div>
   `);
-  bindPhotoField('f_incPhoto1');
-  bindPhotoField('f_incPhoto2');
+  bindPhotoField('f_incPhoto1', 'incident-photos');
+  bindPhotoField('f_incPhoto2', 'incident-photos');
   document.getElementById('f_accidentType').addEventListener('change', e=>{
     document.getElementById('f_accidentTypeOther').style.display = e.target.value==='기타(직접입력)' ? '' : 'none';
   });
@@ -3312,19 +3483,19 @@ function openIncidentModal(existing){
       injurySeverity: document.getElementById('f_injurySeverity').value,
       injuryDetail: document.getElementById('f_injuryDetail').value.trim(),
     };
-    const photo1File = document.getElementById('f_incPhoto1').files[0];
+    const photo1Input = document.getElementById('f_incPhoto1');
+    const photo1File = photo1Input.files[0];
     if(photo1File){
       if(photo1File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo1 = await new Promise((resolve,reject)=>{
-        const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photo1File);
-      });
+      data.photo1 = photo1Input.dataset.uploadedUrl || await uploadFileToStorage(photo1File, 'incident-photos');
+      data.photo1Size = photo1File.size;
     }
-    const photo2File = document.getElementById('f_incPhoto2').files[0];
+    const photo2Input = document.getElementById('f_incPhoto2');
+    const photo2File = photo2Input.files[0];
     if(photo2File){
       if(photo2File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo2 = await new Promise((resolve,reject)=>{
-        const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(photo2File);
-      });
+      data.photo2 = photo2Input.dataset.uploadedUrl || await uploadFileToStorage(photo2File, 'incident-photos');
+      data.photo2Size = photo2File.size;
     }
     if(State.mode==='admin'){
       data.status = document.getElementById('f_status').value;
@@ -3690,7 +3861,7 @@ function openIncidentReportModal(incident){
   });
 }
 
-function generateIncidentReportPptx(i){
+async function generateIncidentReportPptx(i){
   if(typeof PizZip==='undefined'){
     toast('문서 생성 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.');
     return;
@@ -3830,7 +4001,21 @@ function generateIncidentReportPptx(i){
     s2 = injectMarker(s2, '{{CAUSES}}', i.reportCauses||'', true);
     s2 = injectMarker(s2, '{{REMARKS}}', i.reportRemarks||'', true);
     zip.file('ppt/slides/slide2.xml', s2);
-    if(i.photo1 || i.photo2){
+    async function toBase64DataUrl(src){
+      if(!src) return null;
+      if(src.startsWith('data:')) return src;
+      const res = await fetch(src);
+      const blob = await res.blob();
+      return await new Promise((resolve,reject)=>{
+        const r = new FileReader();
+        r.onload = ()=> resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+    }
+    const photo1Data = await toBase64DataUrl(i.photo1);
+    const photo2Data = await toBase64DataUrl(i.photo2);
+    if(photo1Data || photo2Data){
       const existingMedia = Object.keys(zip.files).filter(f=>/^ppt\/media\/image(\d+)\.(png|jpe?g)$/.test(f));
       let nextMediaIdx = existingMedia.length ? Math.max(...existingMedia.map(f=>parseInt(f.match(/image(\d+)\./)[1],10)))+1 : 1;
       const relsPath = 'ppt/slides/_rels/slide2.xml.rels';
@@ -3841,7 +4026,7 @@ function generateIncidentReportPptx(i){
       const EMU=914400;
       const newRels = [];
       let spTreeCloseIdx = s2.indexOf('</p:spTree>');
-      [ {photo:i.photo1, y:RECT_Y1}, {photo:i.photo2, y:RECT_Y2} ].forEach(({photo,y})=>{
+      [ {photo:photo1Data, y:RECT_Y1}, {photo:photo2Data, y:RECT_Y2} ].forEach(({photo,y})=>{
         if(!photo) return;
         const b64data = (photo.split(',')[1]||'');
         const bin2 = atob(b64data);
@@ -4319,13 +4504,15 @@ function openNoticeModal(existing){
     const files = Array.from(e.target.files || []);
     for(const file of files){
       if(file.size > 5*1024*1024){ toast(t('toast_file_toobig')); continue; }
-      const dataUrl = await new Promise((resolve, reject)=>{
-        const reader = new FileReader();
-        reader.onload = ()=> resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      attachedFiles.push({ fileName:file.name, fileType:file.type, fileData:dataUrl });
+      let dataUrl;
+      try{
+        dataUrl = await uploadFileToStorage(file, 'notice-files');
+      }catch(err){
+        console.error('파일 업로드 실패:', err);
+        toast('파일 업로드에 실패했습니다: ' + file.name);
+        continue;
+      }
+      attachedFiles.push({ fileName:file.name, fileType:file.type, fileData:dataUrl, fileSize:file.size });
     }
     e.target.value = '';
     renderAttachedFileList();
@@ -4514,7 +4701,7 @@ function openSuggestionModal(existing){
     </div>
     <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveSugBtn">${isEdit?t('btn_save'):t('btn_register')}</button></div>
   `);
-  bindPhotoField('f_sugPhoto');
+  bindPhotoField('f_sugPhoto', 'suggestion-photos');
   document.getElementById('saveSugBtn').addEventListener('click', async ()=>{
     const data = {
       title: document.getElementById('f_sugTitle').value.trim(),
@@ -4522,12 +4709,12 @@ function openSuggestionModal(existing){
       reporter: document.getElementById('f_sugReporter').value.trim(),
     };
     if(!data.title || !data.content || !data.reporter){ toast(t('toast_fill_required')); return; }
-    const file = document.getElementById('f_sugPhoto').files[0];
+    const sugPhotoInput = document.getElementById('f_sugPhoto');
+    const file = sugPhotoInput.files[0];
     if(file){
       if(file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo = await new Promise((resolve,reject)=>{
-        const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file);
-      });
+      data.photo = sugPhotoInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'suggestion-photos');
+      data.photoSize = file.size;
     }
     if(isEdit){
       await DataStore.update(PATHS.suggestions, existing.id, data);
@@ -4682,7 +4869,7 @@ function openBugModal(existing){
     </div>
     <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveBugBtn">${isEdit?t('btn_save'):t('btn_register')}</button></div>
   `);
-  bindPhotoField('f_bugScreenshot');
+  bindPhotoField('f_bugScreenshot', 'bug-screenshots');
   document.getElementById('saveBugBtn').addEventListener('click', async ()=>{
     const title = document.getElementById('f_bugTitle').value.trim();
     const content = document.getElementById('f_bugContent').value.trim();
@@ -4691,12 +4878,12 @@ function openBugModal(existing){
       title, content,
       reporter: document.getElementById('f_bugReporter').value.trim(),
     };
-    const file = document.getElementById('f_bugScreenshot').files[0];
+    const bugScreenshotInput = document.getElementById('f_bugScreenshot');
+    const file = bugScreenshotInput.files[0];
     if(file){
       if(file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.screenshot = await new Promise((resolve,reject)=>{
-        const r = new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file);
-      });
+      data.screenshot = bugScreenshotInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'bug-screenshots');
+      data.screenshotSize = file.size;
     }
     if(isEdit){
       await DataStore.update(PATHS.bugReports, existing.id, data);
