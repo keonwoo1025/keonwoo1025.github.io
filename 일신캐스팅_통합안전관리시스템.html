@@ -1603,18 +1603,17 @@ async function runFullBackupExport(){
 
 function usageCardHtml(){
   const u = estimateUsage();
-  const STORAGE_FREE_LIMIT = 5*1024*1024*1024; // Storage 무료 한도(저장) 5GB
-  const pct = Math.min(100, Math.round(u.photoBytes / STORAGE_FREE_LIMIT * 100));
+  const CLOUDINARY_FREE_GB = 25; // Cloudinary 무료 크레딧(매달 재설정) — 저장 1GB ≈ 1크레딧 기준 추정
+  const photoGB = u.photoBytes / (1024*1024*1024);
+  const pct = Math.min(100, Math.round(photoGB / CLOUDINARY_FREE_GB * 100));
   return `
     <div class="list-card" style="margin-bottom:16px;">
-      <div class="lc-head"><h3>💾 저장공간 사용량 (관리자 전용, 대략적인 추정치)</h3>
-        <button class="btn btn-sm" id="backupExportBtn">📦 전체 데이터 백업(내보내기)</button>
-      </div>
+      <div class="lc-head"><h3>💾 저장공간 사용량 (관리자 전용, 대략적인 추정치)</h3></div>
       <div style="padding:12px 16px;">
-        <p class="hint" style="margin:0 0 10px;">등록된 총 ${u.recordCount}건 기준 추정입니다. 사진·파일 중 ${u.photoCountUnknown}개는 이번 업데이트 이전에 등록되어 정확한 용량을 추적하지 못합니다. <b>정확한 실사용량은 Firebase 콘솔의 "사용량" 탭에서 확인하세요.</b></p>
+        <p class="hint" style="margin:0 0 10px;">등록된 총 ${u.recordCount}건 기준 추정입니다. 사진·파일은 Cloudinary(별도 저장소)에 보관되며, 그중 ${u.photoCountUnknown}개는 예전 방식으로 등록되어 정확한 용량을 추적하지 못합니다. <b>정확한 실사용량은 Cloudinary 대시보드(Usage) 또는 Firebase 콘솔에서 확인하세요.</b></p>
         <div style="display:flex;gap:24px;flex-wrap:wrap;">
-          <div><div class="hint" style="margin:0;">장부(글자 정보) 용량</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.textBytes)}</div></div>
-          <div><div class="hint" style="margin:0;">사진·파일 용량(추적된 것만)</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.photoBytes)} <span class="hint" style="font-weight:400;">/ 무료 5GB 중</span></div></div>
+          <div><div class="hint" style="margin:0;">장부(Firebase, 글자 정보) 용량</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.textBytes)}</div></div>
+          <div><div class="hint" style="margin:0;">사진·파일 용량(Cloudinary, 추적된 것만)</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.photoBytes)} <span class="hint" style="font-weight:400;">/ 매달 무료 25크레딧(≈25GB) 중</span></div></div>
         </div>
         <div style="background:#EEF1F5;border-radius:6px;height:8px;margin-top:10px;overflow:hidden;">
           <div style="background:${pct>80?'var(--danger)':'var(--safety)'};width:${pct}%;height:100%;"></div>
@@ -1647,6 +1646,10 @@ function renderDashboard(){
       <div>
         <h1>${t('dash_title')}</h1>
         <p>${t('dash_slogan')}</p>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:13px;color:var(--ink-soft);font-weight:700;">${fmtDate(Date.now())}</span>
+        ${State.mode==='admin' ? `<button class="btn btn-sm" id="backupExportBtn">📦 전체 데이터 백업(내보내기)</button>` : ''}
       </div>
     </div>
 
