@@ -628,8 +628,9 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
           <p class="sub" id="pageSub">오늘의 안전 현황을 한눈에 확인하세요</p>
         </div>
       </div>
-      <div class="topbar-right">
+      <div class="topbar-right" style="display:flex;align-items:center;gap:10px;">
         <span class="today-chip" id="todayChip"></span>
+        <button class="btn btn-sm" id="backupExportBtn" hidden>📦 전체 데이터 백업(내보내기)</button>
       </div>
     </div>
 
@@ -1291,6 +1292,34 @@ const PATHS = {
   bugReports:'bug_reports' // 버그신고
 };
 
+// 각 메뉴(뷰)를 열 때 실제로 필요한 데이터 경로 매핑 — 방문한 메뉴의 경로만 그때 구독해서
+// 앱을 켤 때마다 전체 데이터를 통째로 받아오지 않도록 한다 (Firebase 무료 다운로드 한도 절약).
+// 사이드바 NEW 표시는 대시보드가 이미 구독한 경로(permits/risks/incidents/notices/contractors)에서만
+// 즉시 보이고, 나머지는 해당 메뉴를 한 번 열어야 그 뒤로 표시된다 — 트래픽 절약을 위한 의도된 트레이드오프.
+const VIEW_PATHS = {
+  dashboard: [PATHS.permits, PATHS.risks, PATHS.incidents, PATHS.notices, PATHS.contractors],
+  permits: [PATHS.permits, PATHS.permitPartners],
+  risks: [PATHS.risks],
+  incidents: [PATHS.incidents],
+  contractors: [PATHS.contractors, PATHS.contractorRecords],
+  tbm: [PATHS.tbm],
+  notices: [PATHS.notices, PATHS.contacts],
+  suggestions: [PATHS.suggestions],
+  bugs: [PATHS.bugReports],
+};
+const subscribedPaths = new Set();
+function ensurePathsSubscribed(paths){
+  (paths||[]).forEach(path=>{
+    if(!path || subscribedPaths.has(path)) return;
+    subscribedPaths.add(path);
+    DataStore.listen(path, (val)=>{
+      renderNav();
+      renderCurrentView();
+      checkStaleEscalation(path, val);
+    });
+  });
+}
+
 /* 위험요인(사용설비) 체크리스트 옵션 — 마지막은 항상 기타(직접입력) */
 const EQUIPMENT_OPTIONS = ['크레인·호이스트','지게차','컨베이어','프레스','용접기','사다리·고소작업대','전기설비(배전반 등)','회전체(롤러·기어 등)'];
 const EQUIP_LABEL_KEYS = {
@@ -1390,8 +1419,9 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
-    : State.mode==='user' ? NAV_ITEMS.filter(i=>i.id!=='contractors')
-    : NAV_ITEMS;
+    : State.mode==='dept' ? NAV_ITEMS.filter(i=> !['suggestions','bugs','tbm'].includes(i.id))
+    : State.mode==='user' ? NAV_ITEMS.filter(i=> !['contractors','tbm'].includes(i.id))
+    : NAV_ITEMS; // 전체관리자는 TBM 포함 전체 메뉴
   nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
     const isNew = hasNewItems(item.id);
@@ -1444,8 +1474,11 @@ function navBadgeCount(viewId){
 
 function switchView(id){
   if(State.mode==='partner' && id!=='permits') id = 'permits';
-  if(State.mode==='user' && id==='contractors') id = 'dashboard';
+  if(State.mode==='dept' && ['suggestions','bugs','tbm'].includes(id)) id = 'dashboard';
+  if(State.mode==='user' && ['contractors','tbm'].includes(id)) id = 'dashboard';
+  if(State.mode!=='admin' && id==='tbm') id = 'dashboard';
   State.view = id;
+  ensurePathsSubscribed(VIEW_PATHS[id]);
   const item = NAV_ITEMS.find(n=>n.id===id);
   const isDashboard = id==='dashboard';
   document.getElementById('pageTitleWrap').style.display = isDashboard ? 'none' : '';
@@ -1647,10 +1680,6 @@ function renderDashboard(){
         <h1>${t('dash_title')}</h1>
         <p>${t('dash_slogan')}</p>
       </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:13px;color:var(--ink-soft);font-weight:700;">${fmtDate(Date.now())}</span>
-        ${State.mode==='admin' ? `<button class="btn btn-sm" id="backupExportBtn">📦 전체 데이터 백업(내보내기)</button>` : ''}
-      </div>
     </div>
 
     ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} ${t('config_banner')}</div>`:''}
@@ -1728,9 +1757,6 @@ function renderDashboard(){
   el.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> switchView(b.dataset.goto)));
   renderMonthlyChart(monthly);
   renderAccidentTypeChart(incidents);
-  if(document.getElementById('backupExportBtn')){
-    document.getElementById('backupExportBtn').addEventListener('click', runFullBackupExport);
-  }
 }
 
 let monthlyChartInstance = null;
@@ -3584,7 +3610,7 @@ function openIncidentDetail(id){
         <dt>정식 보고서</dt><dd>${rptStatusBadge(reportStatusOf(i))}</dd>
         ` : ''}
       </dl>
-      ${(i.photo1||i.photo2) ? `
+      ${(State.mode==='admin' && (i.photo1||i.photo2)) ? `
       <div class="divider"></div>
       <div class="row2">
         ${i.photo1?`<img src="${i.photo1}" class="risk-thumb" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;">`:''}
@@ -5260,16 +5286,22 @@ function boot(){
   document.getElementById('todayChip').textContent =
     `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
 
+  const backupBtn = document.getElementById('backupExportBtn');
+  backupBtn.hidden = State.mode!=='admin';
+  if(!backupBtn.dataset.bound){
+    backupBtn.dataset.bound = '1';
+    backupBtn.addEventListener('click', runFullBackupExport);
+  }
+
   renderNav();
   switchView('dashboard');
 
-  Object.values(PATHS).forEach(path=>{
-    DataStore.listen(path, (val)=>{
-      renderNav();
-      renderCurrentView();
-      checkStaleEscalation(path, val);
-    });
-  });
+  // 전체관리자는 모든 메뉴의 새 항목(NEW) 표시가 항상 실시간이어야 하므로, 전체 경로를 바로 구독한다.
+  // 부서관리자·일반사용자는 대시보드가 이미 구독한 경로(작업허가 포함)만 실시간이고,
+  // 나머지는 해당 메뉴를 한 번 열어야 그 뒤로 실시간이 된다 — 트래픽 절약을 위한 의도된 차등.
+  if(State.mode==='admin'){
+    ensurePathsSubscribed(Object.values(PATHS));
+  }
 }
 
 // 접수/신청 후 2일(48시간)이 지나도록 초기 상태 그대로면 자동으로 다음 단계로 넘김
