@@ -607,7 +607,8 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
         <button class="btn btn-sm" id="sidebarLangBtn" style="flex:1;">🌐 <span data-i18n="gate_lang_label">언어 선택</span></button>
         <button class="btn btn-sm" id="sidebarInstallBtn" style="flex:1;">📲 <span data-i18n="gate_install_btn">앱으로 설치하기</span></button>
       </div>
-      <button class="btn btn-sm" id="notifyToggleBtn" style="width:100%;margin-bottom:10px;">🔕 알림 켜기</button>
+      <button class="btn btn-sm" id="notifyToggleBtn" style="width:100%;margin-bottom:6px;">🔕 알림 켜기</button>
+      <button class="btn btn-sm" id="notifyTestBtn" style="width:100%;margin-bottom:10px;" hidden data-i18n="notify_test_btn">테스트 알림 보내기</button>
       <div class="mode-pill">
         <span id="modeLabel">일반 열람 모드</span>
         <button class="mode-btn" id="modeSwitchBtn" data-i18n="mode_switch">전환</button>
@@ -850,6 +851,8 @@ const TRANSLATIONS = {
   gate_install_btn:{ko:'앱으로 설치하기',en:'Install as App',th:'ติดตั้งเป็นแอป',id:'Pasang sebagai Aplikasi',mn:'Апп болгон суулгах'},
   notify_btn_off:{ko:'🔕 알림 켜기',en:'🔕 Turn On Notifications',th:'🔕 เปิดการแจ้งเตือน',id:'🔕 Aktifkan Notifikasi',mn:'🔕 Мэдэгдэл асаах'},
   notify_btn_on:{ko:'🔔 알림 켜짐',en:'🔔 Notifications On',th:'🔔 เปิดการแจ้งเตือนแล้ว',id:'🔔 Notifikasi Aktif',mn:'🔔 Мэдэгдэл асаалттай'},
+  notify_test_btn:{ko:'테스트 알림 보내기',en:'Send Test Notification',th:'ส่งการแจ้งเตือนทดสอบ',id:'Kirim Notifikasi Uji Coba',mn:'Туршилтын мэдэгдэл илгээх'},
+  toast_notify_test_sent:{ko:'테스트 알림을 보냈습니다. 안 뜨면 브라우저·기기 알림 설정을 확인해주세요',en:'Test notification sent. If it did not appear, check your browser/device notification settings',th:'ส่งการแจ้งเตือนทดสอบแล้ว หากไม่ปรากฏ กรุณาตรวจสอบการตั้งค่าการแจ้งเตือนของเบราว์เซอร์/อุปกรณ์',id:'Notifikasi uji coba terkirim. Jika tidak muncul, periksa pengaturan notifikasi browser/perangkat Anda',mn:'Туршилтын мэдэгдэл илгээгдлээ. Гарахгүй бол хөтөч/төхөөрөмжийн мэдэгдлийн тохиргоог шалгана уу'},
   toast_notify_off:{ko:'알림을 껐습니다',en:'Notifications turned off',th:'ปิดการแจ้งเตือนแล้ว',id:'Notifikasi dimatikan',mn:'Мэдэгдлийг унтраалаа'},
   toast_notify_unsupported:{ko:'이 브라우저는 알림을 지원하지 않습니다',en:'This browser does not support notifications',th:'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน',id:'Browser ini tidak mendukung notifikasi',mn:'Энэ хөтөч мэдэгдлийг дэмждэггүй'},
   toast_notify_on:{ko:'알림을 켰습니다. 이 화면(탭)이 열려있는 동안 새 등록 시 알려드립니다',en:'Notifications turned on. You will be notified of new items while this tab is open',th:'เปิดการแจ้งเตือนแล้ว คุณจะได้รับแจ้งเมื่อมีรายการใหม่ขณะเปิดแท็บนี้',id:'Notifikasi diaktifkan. Anda akan diberi tahu saat ada item baru selama tab ini terbuka',mn:'Мэдэгдэл асаалаа. Энэ таб нээлттэй үед шинэ бүртгэлийн талаар мэдэгдэнэ'},
@@ -1418,6 +1421,20 @@ function updateNotifyBtnUI(){
   const btn = document.getElementById('notifyToggleBtn');
   if(!btn) return;
   btn.textContent = notifyEnabled() ? t('notify_btn_on') : t('notify_btn_off');
+  const testBtn = document.getElementById('notifyTestBtn');
+  if(testBtn){
+    testBtn.hidden = !notifyEnabled();
+    testBtn.textContent = t('notify_test_btn');
+  }
+}
+function sendTestNotification(){
+  try{
+    new Notification('🔔 '+t('notify_test_btn'), { body: new Date().toLocaleTimeString() });
+    toast(t('toast_notify_test_sent'));
+  }catch(e){
+    toast(t('toast_notify_test_sent'));
+    console.warn('테스트 알림 실패:', e);
+  }
 }
 
 function ensurePathsSubscribed(paths){
@@ -5638,6 +5655,10 @@ function boot(){
   // 나머지는 해당 메뉴를 한 번 열어야 그 뒤로 실시간이 된다 — 트래픽 절약을 위한 의도된 차등.
   if(State.mode==='admin'){
     ensurePathsSubscribed(Object.values(PATHS));
+  }else{
+    // 알림 대상 4곳(사고접수·아차사고·작업허가·위험성평가)은 어느 메뉴에 머물든 놓치지 않도록 항상 구독
+    // (아차사고는 원래 "사고접수" 메뉴를 직접 열어야만 구독됐는데, 대시보드에만 머물면 알림이 아예 안 뜨는 버그였음)
+    ensurePathsSubscribed(Object.keys(NOTIFY_PATHS));
   }
 }
 
@@ -5728,6 +5749,7 @@ document.getElementById('sidebarInstallBtn').addEventListener('click', ()=>{
   document.getElementById('gateInstallBtn').click();
 });
 document.getElementById('notifyToggleBtn').addEventListener('click', toggleNotify);
+document.getElementById('notifyTestBtn').addEventListener('click', sendTestNotification);
 document.getElementById('sidebarLangBtn').addEventListener('click', ()=>{
   showModal(`
     <div class="modal-head"><h3>${t('gate_lang_label')}</h3><button class="x-btn" data-close>✕</button></div>
