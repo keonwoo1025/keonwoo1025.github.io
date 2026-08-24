@@ -196,6 +196,7 @@ a{color:inherit;}
   font-size:13px;font-weight:700;padding:9px 15px;border-radius:8px;
   transition:all .12s;white-space:nowrap;
 }
+[hidden]{display:none !important;}
 .btn:hover{border-color:#C7CFDC;background:#FAFBFC;}
 .btn-primary{background:var(--safety);border-color:var(--safety);color:#fff;}
 .btn-primary:hover{background:#E85E0E;border-color:#E85E0E;}
@@ -606,6 +607,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
         <button class="btn btn-sm" id="sidebarLangBtn" style="flex:1;">🌐 <span data-i18n="gate_lang_label">언어 선택</span></button>
         <button class="btn btn-sm" id="sidebarInstallBtn" style="flex:1;">📲 <span data-i18n="gate_install_btn">앱으로 설치하기</span></button>
       </div>
+      <button class="btn btn-sm" id="notifyToggleBtn" style="width:100%;margin-bottom:10px;">🔕 알림 켜기</button>
       <div class="mode-pill">
         <span id="modeLabel">일반 열람 모드</span>
         <button class="mode-btn" id="modeSwitchBtn" data-i18n="mode_switch">전환</button>
@@ -630,7 +632,6 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
       </div>
       <div class="topbar-right" style="display:flex;align-items:center;gap:10px;">
         <span class="today-chip" id="todayChip"></span>
-        <button class="btn btn-sm" id="backupExportBtn" hidden>📦 전체 데이터 백업(내보내기)</button>
       </div>
     </div>
 
@@ -847,6 +848,17 @@ const TRANSLATIONS = {
   gate_pw_hint:{ko:'비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.',en:'You will automatically log in as either the full administrator or the relevant department administrator, depending on the password.',th:'ระบบจะเข้าสู่ระบบเป็นผู้ดูแลระบบทั้งหมดหรือผู้ดูแลแผนกที่เกี่ยวข้องโดยอัตโนมัติ ขึ้นอยู่กับรหัสผ่าน',id:'Anda akan otomatis masuk sebagai administrator utama atau administrator departemen terkait, tergantung kata sandi yang dimasukkan.',mn:'Нууц үгээс хамааран та бүх эрхтэй админ эсвэл харьяа хэлтсийн админ болж автоматаар нэвтэрнэ.'},
   gate_enter:{ko:'입장하기',en:'Enter',th:'เข้าสู่ระบบ',id:'Masuk',mn:'Нэвтрэх'},
   gate_install_btn:{ko:'앱으로 설치하기',en:'Install as App',th:'ติดตั้งเป็นแอป',id:'Pasang sebagai Aplikasi',mn:'Апп болгон суулгах'},
+  notify_btn_off:{ko:'🔕 알림 켜기',en:'🔕 Turn On Notifications',th:'🔕 เปิดการแจ้งเตือน',id:'🔕 Aktifkan Notifikasi',mn:'🔕 Мэдэгдэл асаах'},
+  notify_btn_on:{ko:'🔔 알림 켜짐',en:'🔔 Notifications On',th:'🔔 เปิดการแจ้งเตือนแล้ว',id:'🔔 Notifikasi Aktif',mn:'🔔 Мэдэгдэл асаалттай'},
+  toast_notify_off:{ko:'알림을 껐습니다',en:'Notifications turned off',th:'ปิดการแจ้งเตือนแล้ว',id:'Notifikasi dimatikan',mn:'Мэдэгдлийг унтраалаа'},
+  toast_notify_unsupported:{ko:'이 브라우저는 알림을 지원하지 않습니다',en:'This browser does not support notifications',th:'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน',id:'Browser ini tidak mendukung notifikasi',mn:'Энэ хөтөч мэдэгдлийг дэмждэггүй'},
+  toast_notify_on:{ko:'알림을 켰습니다. 이 화면(탭)이 열려있는 동안 새 등록 시 알려드립니다',en:'Notifications turned on. You will be notified of new items while this tab is open',th:'เปิดการแจ้งเตือนแล้ว คุณจะได้รับแจ้งเมื่อมีรายการใหม่ขณะเปิดแท็บนี้',id:'Notifikasi diaktifkan. Anda akan diberi tahu saat ada item baru selama tab ini terbuka',mn:'Мэдэгдэл асаалаа. Энэ таб нээлттэй үед шинэ бүртгэлийн талаар мэдэгдэнэ'},
+  toast_notify_denied:{ko:'알림 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요',en:'Notification permission denied. Please allow it in your browser settings',th:'การแจ้งเตือนถูกปฏิเสธ กรุณาอนุญาตในการตั้งค่าเบราว์เซอร์',id:'Izin notifikasi ditolak. Mohon izinkan di pengaturan browser',mn:'Мэдэгдлийн зөвшөөрлийг татгалзсан байна. Хөтчийн тохиргооноос зөвшөөрнө үү'},
+  notify_new_item:{ko:'새 {label} 등록',en:'New {label}',th:'{label}ใหม่',id:'{label} baru',mn:'Шинэ {label}'},
+  notify_body_default:{ko:'새 항목이 등록되었습니다',en:'A new item has been registered',th:'มีรายการใหม่ถูกลงทะเบียน',id:'Item baru telah didaftarkan',mn:'Шинэ бүртгэл орлоо'},
+  nm_tab_label_short:{ko:'아차사고 발견',en:'Near-Miss Report',th:'รายงานเหตุการณ์เกือบเกิดอุบัติเหตุ',id:'Laporan Nyaris Celaka',mn:'Осол болж болзошгүй тохиолдол'},
+  permit_label_short:{ko:'작업허가',en:'Work Permit',th:'ใบอนุญาตทำงาน',id:'Izin Kerja',mn:'Ажлын зөвшөөрөл'},
+  risk_label_short:{ko:'위험성평가',en:'Risk Assessment',th:'การประเมินความเสี่ยง',id:'Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ'},
   mode_label_partner:{ko:'외주업체 열람',en:'Partner Company View',th:'มุมมองบริษัทคู่ค้า',id:'Tampilan Perusahaan Mitra',mn:'Гэрээт компанийн харах горим'},
   partner_loading:{ko:'불러오는 중...',en:'Loading...',th:'กำลังโหลด...',id:'Memuat...',mn:'Ачаалж байна...'},
   partner_invalid_title:{ko:'유효하지 않거나 만료된 링크입니다',en:'This link is invalid or has expired',th:'ลิงก์นี้ไม่ถูกต้องหรือหมดอายุแล้ว',id:'Tautan ini tidak valid atau sudah kedaluwarsa',mn:'Энэ холбоос хүчингүй эсвэл хугацаа дууссан байна'},
@@ -1018,6 +1030,29 @@ const TRANSLATIONS = {
   th_location:{ko:'장소',en:'Location',th:'สถานที่',id:'Lokasi',mn:'Байршил'},
   th_content:{ko:'내용',en:'Content',th:'รายละเอียด',id:'Isi',mn:'Агуулга'},
   th_reporter:{ko:'신고자',en:'Reporter',th:'ผู้แจ้ง',id:'Pelapor',mn:'Мэдээлэгч'},
+  nm_tab:{ko:'아차사고 발견',en:'Near-Miss Report',th:'รายงานเหตุการณ์เกือบเกิดอุบัติเหตุ',id:'Laporan Nyaris Celaka',mn:'Осол болж болзошгүй тохиолдол'},
+  nm_th_type:{ko:'상황유형',en:'Situation Type',th:'ประเภทสถานการณ์',id:'Jenis Situasi',mn:'Нөхцөл байдлын төрөл'},
+  nm_th_content:{ko:'상황 내용',en:'Description',th:'รายละเอียด',id:'Deskripsi',mn:'Тайлбар'},
+  nm_th_reporter:{ko:'발견자',en:'Discovered by',th:'ผู้พบเห็น',id:'Ditemukan oleh',mn:'Илрүүлсэн хүн'},
+  nm_empty:{ko:'등록된 아차사고가 없습니다',en:'No near-miss reports yet',th:'ยังไม่มีรายงานเหตุการณ์เกือบเกิดอุบัติเหตุ',id:'Belum ada laporan nyaris celaka',mn:'Бүртгэгдсэн осол болж болзошгүй тохиолдол алга байна'},
+  nm_hint:{ko:'사고로 이어지지는 않았지만, 자칫하면 사고가 날 뻔했던 상황을 기록합니다.',en:'Record situations that did not result in an accident but nearly did.',th:'บันทึกสถานการณ์ที่ไม่ได้เกิดอุบัติเหตุแต่เกือบเกิดขึ้น',id:'Catat situasi yang tidak menyebabkan kecelakaan tetapi hampir terjadi.',mn:'Осол болоогүй ч бараг болох байсан нөхцөл байдлыг бүртгэнэ.'},
+  nm_add_btn:{ko:'아차사고 등록',en:'Report Near-Miss',th:'รายงานเหตุการณ์',id:'Laporkan Kejadian',mn:'Тохиолдол бүртгэх'},
+  nm_new_title:{ko:'아차사고 등록',en:'Report Near-Miss',th:'รายงานเหตุการณ์เกือบเกิดอุบัติเหตุ',id:'Laporkan Nyaris Celaka',mn:'Осол болж болзошгүй тохиолдол бүртгэх'},
+  nm_edit_title:{ko:'아차사고 수정',en:'Edit Near-Miss Report',th:'แก้ไขรายงาน',id:'Edit Laporan',mn:'Тохиолдлыг засах'},
+  nm_lbl_type:{ko:'상황유형',en:'Situation Type',th:'ประเภทสถานการณ์',id:'Jenis Situasi',mn:'Нөхцөл байдлын төрөл'},
+  nm_placeholder_type_other:{ko:'상황유형 직접 입력',en:'Enter situation type',th:'ระบุประเภทสถานการณ์',id:'Masukkan jenis situasi',mn:'Нөхцөл байдлын төрлийг бичнэ үү'},
+  nm_lbl_description:{ko:'어떤 상황이었나요?',en:'What happened?',th:'เกิดอะไรขึ้น?',id:'Apa yang terjadi?',mn:'Ямар нөхцөл байдал байсан бэ?'},
+  nm_hint_example:{ko:'예: 지게차가 후진하는데 통로에 사람이 지나가고 있어 부딪힐 뻔함',en:'e.g. A forklift was reversing while someone was walking through the aisle and nearly got hit',th:'เช่น รถโฟล์คลิฟท์ถอยหลังขณะมีคนเดินผ่านทางเดิน เกือบชน',id:'contoh: Forklift mundur saat seseorang lewat di lorong dan hampir tertabrak',mn:'Жишээ: Ачигч машин ухарч байхад хүн явган зам дундуур явж, бараг мөргөх байсан'},
+  nm_lbl_reporter:{ko:'발견자',en:'Discovered by',th:'ผู้พบเห็น',id:'Ditemukan oleh',mn:'Илрүүлсэн хүн'},
+  nm_lbl_photo:{ko:'사진 (선택)',en:'Photo (optional)',th:'รูปภาพ (ไม่บังคับ)',id:'Foto (opsional)',mn:'Зураг (сонголтоор)'},
+  nm_detail_title:{ko:'아차사고 상세',en:'Near-Miss Details',th:'รายละเอียดเหตุการณ์',id:'Detail Kejadian',mn:'Тохиолдлын дэлгэрэнгүй'},
+  toast_nm_registered:{ko:'아차사고가 등록되었습니다',en:'Near-miss report submitted',th:'บันทึกรายงานเรียบร้อยแล้ว',id:'Laporan berhasil disimpan',mn:'Тохиолдол бүртгэгдлээ'},
+  nm_type_1:{ko:'협착·끼임 위험',en:'Pinch/Caught Hazard',th:'อันตรายจากการหนีบ/ติด',id:'Bahaya Terjepit',mn:'Хавчигдах эрсдэл'},
+  nm_type_2:{ko:'낙하물 위험',en:'Falling Object Hazard',th:'อันตรายจากวัตถุตกหล่น',id:'Bahaya Benda Jatuh',mn:'Унах эд зүйлийн эрсдэл'},
+  nm_type_3:{ko:'화재·폭발 위험',en:'Fire/Explosion Hazard',th:'อันตรายจากไฟไหม้/ระเบิด',id:'Bahaya Kebakaran/Ledakan',mn:'Гал түймэр/тэсрэлтийн эрсдэл'},
+  nm_type_4:{ko:'넘어짐·미끄러짐 위험',en:'Slip/Fall Hazard',th:'อันตรายจากการลื่นล้ม',id:'Bahaya Terpeleset/Jatuh',mn:'Гулсаж унах эрсдэл'},
+  nm_type_5:{ko:'감전 위험',en:'Electric Shock Hazard',th:'อันตรายจากไฟฟ้าช็อต',id:'Bahaya Sengatan Listrik',mn:'Цахилгаанд цохиулах эрсдэл'},
+  nm_type_6:{ko:'기타(직접입력)',en:'Other (specify)',th:'อื่นๆ (ระบุ)',id:'Lainnya (sebutkan)',mn:'Бусад (тодорхойлно уу)'},
   th_accidenttype:{ko:'사고유형',en:'Incident Type',th:'ประเภทอุบัติเหตุ',id:'Jenis Insiden',mn:'Ослын төрөл'},
   th_injuryseverity:{ko:'부상정도',en:'Injury Severity',th:'ความรุนแรงของบาดเจ็บ',id:'Tingkat Keparahan Cedera',mn:'Гэмтлийн хэмжээ'},
 
@@ -1282,6 +1317,7 @@ const PATHS = {
   permits:'permits',
   risks:'risk_assessments',
   incidents:'incidents',
+  nearMiss:'near_miss_reports', // 아차사고 발견 (사고로 이어지지 않은 위험 상황)
   contractors:'contractors',
   contractorRecords:'contractor_records',
   tbm:'tbm_records', // TBM(Tool Box Meeting) — 기능 개발 전, 경로만 예약
@@ -1300,7 +1336,7 @@ const VIEW_PATHS = {
   dashboard: [PATHS.permits, PATHS.risks, PATHS.incidents, PATHS.notices, PATHS.contractors],
   permits: [PATHS.permits, PATHS.permitPartners],
   risks: [PATHS.risks],
-  incidents: [PATHS.incidents],
+  incidents: [PATHS.incidents, PATHS.nearMiss],
   contractors: [PATHS.contractors, PATHS.contractorRecords],
   tbm: [PATHS.tbm],
   notices: [PATHS.notices, PATHS.contacts],
@@ -1308,13 +1344,91 @@ const VIEW_PATHS = {
   bugs: [PATHS.bugReports],
 };
 const subscribedPaths = new Set();
+/* ============================================================
+   브라우저 알림(데스크톱 팝업) + 앱 아이콘 배지
+   - 사고접수 · 아차사고 · 작업허가 · 위험성평가 4곳에 새 항목이 등록되면
+     (1) 앱/탭이 켜져 있으면 화면에 알림 팝업, (2) 사이드바 NEW 총개수를 앱 아이콘 배지로 표시
+   - 앱을 완전히 꺼두면 동작하지 않음(브라우저 푸시 인프라 없이 가능한 범위)
+============================================================= */
+const NOTIFY_PATHS = { }; // path -> 표시용 라벨키/아이콘
+NOTIFY_PATHS[PATHS.incidents] = { labelKey:'nav_incidents', icon:'🚨' };
+NOTIFY_PATHS[PATHS.nearMiss] = { labelKey:'nm_tab_label_short', icon:'⚠️' };
+NOTIFY_PATHS[PATHS.permits] = { labelKey:'permit_label_short', icon:'📋' };
+NOTIFY_PATHS[PATHS.risks] = { labelKey:'risk_label_short', icon:'🔺' };
+
+const knownIds = {}; // path -> Set(id) — 알림 중복 방지를 위해 이미 알고 있던 항목 기록
+const NOTIFY_PREF_KEY = 'isc_notify_enabled';
+function notifyEnabled(){ return localStorage.getItem(NOTIFY_PREF_KEY)==='1' && typeof Notification!=='undefined' && Notification.permission==='granted'; }
+
+function checkNewItemsForNotify(path, val){
+  if(!NOTIFY_PATHS[path]) return;
+  const ids = Object.keys(val||{});
+  if(!knownIds[path]){
+    // 최초 구독 시점 — 지금 있는 것들은 "기존 것"으로만 기록, 알림은 안 띄움
+    knownIds[path] = new Set(ids);
+    return;
+  }
+  const fresh = ids.filter(id => !knownIds[path].has(id));
+  ids.forEach(id => knownIds[path].add(id));
+  if(!fresh.length || !notifyEnabled()) return;
+  const meta = NOTIFY_PATHS[path];
+  const label = t(meta.labelKey);
+  fresh.forEach(id=>{
+    const item = val[id];
+    const desc = item.description || item.title || item.workContent || item.hazard || '';
+    try{
+      new Notification(`${meta.icon} ${t('notify_new_item').replace('{label}', label)}`, {
+        body: desc ? String(desc).slice(0,60) : t('notify_body_default'),
+        tag: path+'_'+id,
+      });
+    }catch(e){ console.warn('알림 표시 실패:', e); }
+  });
+}
+
+function updateAppBadge(){
+  if(!('setAppBadge' in navigator)) return;
+  let total = 0;
+  Object.values(NOTIFY_PATHS).forEach(()=>{}); // no-op, kept for clarity
+  [PATHS.incidents, PATHS.nearMiss, PATHS.permits, PATHS.risks].forEach(path=>{
+    const arr = objToArr(DataStore.get(path));
+    total += arr.filter(item => isItemNew(item, path)).length;
+  });
+  if(total>0) navigator.setAppBadge(total).catch(()=>{});
+  else if('clearAppBadge' in navigator) navigator.clearAppBadge().catch(()=>{});
+}
+
+async function toggleNotify(){
+  if(notifyEnabled()){
+    localStorage.setItem(NOTIFY_PREF_KEY, '0');
+    toast(t('toast_notify_off'));
+    updateNotifyBtnUI();
+    return;
+  }
+  if(typeof Notification==='undefined'){ toast(t('toast_notify_unsupported')); return; }
+  const perm = await Notification.requestPermission();
+  if(perm==='granted'){
+    localStorage.setItem(NOTIFY_PREF_KEY, '1');
+    toast(t('toast_notify_on'));
+  }else{
+    toast(t('toast_notify_denied'));
+  }
+  updateNotifyBtnUI();
+}
+function updateNotifyBtnUI(){
+  const btn = document.getElementById('notifyToggleBtn');
+  if(!btn) return;
+  btn.textContent = notifyEnabled() ? t('notify_btn_on') : t('notify_btn_off');
+}
+
 function ensurePathsSubscribed(paths){
   (paths||[]).forEach(path=>{
     if(!path || subscribedPaths.has(path)) return;
     subscribedPaths.add(path);
     DataStore.listen(path, (val)=>{
+      checkNewItemsForNotify(path, val);
       renderNav();
       renderCurrentView();
+      updateAppBadge();
       checkStaleEscalation(path, val);
     });
   });
@@ -1444,7 +1558,7 @@ function hasNewItems(viewId){
   const pathMap = {
     permits: [PATHS.permits],
     risks: [PATHS.risks],
-    incidents: [PATHS.incidents],
+    incidents: [PATHS.incidents, PATHS.nearMiss],
     contractors: [PATHS.contractorRecords],
     notices: [PATHS.notices],
   };
@@ -1680,6 +1794,7 @@ function renderDashboard(){
         <h1>${t('dash_title')}</h1>
         <p>${t('dash_slogan')}</p>
       </div>
+      ${State.mode==='admin' ? `<button class="btn btn-sm" id="backupExportBtn" style="margin-left:auto;">📦 전체 데이터 백업(내보내기)</button>` : ''}
     </div>
 
     ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} ${t('config_banner')}</div>`:''}
@@ -1757,6 +1872,8 @@ function renderDashboard(){
   el.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> switchView(b.dataset.goto)));
   renderMonthlyChart(monthly);
   renderAccidentTypeChart(incidents);
+  const backupBtn = document.getElementById('backupExportBtn');
+  if(backupBtn) backupBtn.addEventListener('click', runFullBackupExport);
 }
 
 let monthlyChartInstance = null;
@@ -1924,7 +2041,7 @@ function statusBadge(kind, status){
   const map = {
     permit:{'신청':'b-info','검토중':'b-caution','검토완료':'b-caution2','승인':'b-ok','반려':'b-danger','종료':'b-gray'},
     risk:{'등록':'b-info','접수완료':'b-safety','조치중':'b-caution','완료':'b-ok','일부개선완료':'b-caution2'},
-    incident:{'접수':'b-info','조사중':'b-caution','완료':'b-ok'},
+    incident:{'접수':'b-info','조사중':'b-caution','조치중':'b-caution','완료':'b-ok'},
     suggestion:{'접수':'b-info','검토중':'b-caution','완료':'b-ok'},
     bug:{'접수':'b-info','확인중':'b-caution','완료':'b-ok'}
   };
@@ -3340,6 +3457,25 @@ function openRiskDetail(id){
 ============================================================= */
 function renderIncidents(){
   const el = document.getElementById('view-incidents');
+  const mainTab = State.filters.incMainTab || 'incident';
+  el.innerHTML = `
+    <div class="tabs" style="margin-bottom:14px;">
+      <button class="tab ${mainTab==='incident'?'active':''}" data-maintab="incident">${icon('siren',14)} ${t('nav_incidents')}</button>
+      <button class="tab ${mainTab==='nearmiss'?'active':''}" data-maintab="nearmiss">${icon('alert-triangle',14)} ${t('nm_tab')}</button>
+    </div>
+    <div id="incidentPane" style="${mainTab==='incident'?'':'display:none'}"></div>
+    <div id="nearMissPane" style="${mainTab==='nearmiss'?'':'display:none'}"></div>
+  `;
+  el.querySelectorAll('[data-maintab]').forEach(b=> b.addEventListener('click', ()=>{
+    State.filters.incMainTab = b.dataset.maintab; renderIncidents();
+  }));
+  renderIncidentTab();
+  renderNearMissTab();
+}
+
+function renderIncidentTab(){
+  const el = document.getElementById('incidentPane');
+  if(!el) return;
   const filter = State.filters.incidents || '전체';
   const processFilter = State.filters.incidentsProcess || '전체';
   const isAdmin = State.mode==='admin';
@@ -3398,6 +3534,205 @@ function renderIncidents(){
     </tr>
   `).join('');
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openIncidentDetail(b.dataset.viewId)));
+}
+
+// 아차사고 상황유형 (사고접수보다 훨씬 단순화 — 다친 사람이 없으므로 재해자·부상정도 등 항목 자체를 뺐습니다)
+const NEARMISS_TYPES = ['협착·끼임 위험','낙하물 위험','화재·폭발 위험','넘어짐·미끄러짐 위험','감전 위험','기타(직접입력)'];
+function nmTypeLabel(value){
+  const idx = NEARMISS_TYPES.indexOf(value);
+  return idx>=0 ? t('nm_type_'+(idx+1)) : (value||'-');
+}
+
+function renderNearMissTab(){
+  const el = document.getElementById('nearMissPane');
+  if(!el) return;
+  const filter = State.filters.nearMiss || '전체';
+  const isAdmin = State.mode==='admin';
+  el.innerHTML = `
+    <div class="toolbar">
+      <div class="tabs" id="nmTabs">
+        ${['전체','접수','조치중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
+      </div>
+      <button class="btn btn-primary" id="addNmBtn">${icon('plus',15)} ${t('nm_add_btn')}</button>
+    </div>
+    <p class="hint" style="margin:-4px 0 12px;">${t('nm_hint')}</p>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('nm_th_type')}</th><th>${t('nm_th_content')}</th>
+        ${isAdmin?`<th>${t('nm_th_reporter')}</th><th>${t('th_status')}</th>`:''}
+        <th class="tight">${t('btn_manage_col')}</th>
+      </tr></thead>
+      <tbody id="nmBody"></tbody>
+    </table></div>
+  `;
+  el.querySelectorAll('#nmTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
+    State.filters.nearMiss = t.dataset.s; renderNearMissTab();
+  }));
+  el.querySelector('#addNmBtn').addEventListener('click', ()=> openNearMissModal());
+
+  const arr = objToArr(DataStore.get(PATHS.nearMiss)).sort((a,b)=> new Date(b.datetime||0) - new Date(a.datetime||0));
+  const filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
+  const body = document.getElementById('nmBody');
+  const colCount = isAdmin ? 7 : 5;
+  if(filtered.length===0){
+    body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('nm_empty')}</div></td></tr>`;
+    return;
+  }
+  body.innerHTML = filtered.map(i=>`
+    <tr>
+      <td class="mono">${newBadge(i, PATHS.nearMiss)}${fmtDateTime(i.datetime)}</td>
+      <td>${esc(i.process||'-')}</td>
+      <td>${esc(i.location||'-')}</td>
+      <td><span class="badge b-gray">${esc(i.situationType==='기타(직접입력)' ? (i.situationTypeOther||nmTypeLabel(i.situationType)) : nmTypeLabel(i.situationType))}</span></td>
+      <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
+      ${isAdmin?`<td>${esc(i.reporter||'-')}</td><td>${statusBadge('incident', i.status)}</td>`:''}
+      <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${i.id}">${t('btn_view')}</button></td>
+    </tr>
+  `).join('');
+  body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openNearMissDetail(b.dataset.viewId)));
+}
+
+function openNearMissModal(existing){
+  const isEdit = !!existing;
+  const v = existing || {};
+  showModal(`
+    <div class="modal-head"><h3>${isEdit?t('nm_edit_title'):t('nm_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>${t('th_process')} *</label>
+          <select id="f_nmProcess">
+            <option value="">${t('opt_select_please')}</option>
+            ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${v.process===p?'selected':''}>${esc(p)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>${t('th_datetime')} *</label><input type="datetime-local" id="f_nmDatetime" value="${v.datetime||''}"></div>
+      </div>
+      <div class="field"><label>${t('th_location')} *</label><input type="text" id="f_nmLocation" value="${esc(v.location||'')}" placeholder="예: 열처리공정 앞"></div>
+      <div class="field"><label>${t('nm_lbl_type')} *</label>
+        <select id="f_nmType">
+          <option value="">${t('opt_select_please')}</option>
+          ${NEARMISS_TYPES.map(nt=>`<option value="${esc(nt)}" ${v.situationType===nt?'selected':''}>${esc(nmTypeLabel(nt))}</option>`).join('')}
+        </select>
+        <input type="text" id="f_nmTypeOther" value="${esc(v.situationTypeOther||'')}" placeholder="${t('nm_placeholder_type_other')}" style="margin-top:8px;${v.situationType==='기타(직접입력)'?'':'display:none'}">
+      </div>
+      <div class="field"><label>${t('nm_lbl_description')} *</label>
+        <textarea id="f_nmDescription">${esc(v.description||'')}</textarea>
+        <p class="hint">${t('nm_hint_example')}</p>
+      </div>
+      <div class="field"><label>${t('nm_lbl_reporter')} *</label><input type="text" id="f_nmReporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
+      <div class="field"><label>${t('nm_lbl_photo')}</label>
+        ${photoFieldHtml('f_nmPhoto', v.photo||'', v.photo?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
+      </div>
+      ${State.mode==='admin' ? `
+      <div class="divider"></div>
+      <div class="field"><label>${t('lbl_status_admin')}</label>
+        <select id="f_nmStatus">${['접수','조치중','완료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>${t('lbl_action_admin')}</label><textarea id="f_nmAction">${esc(v.action||'')}</textarea></div>
+      ` : ''}
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>${t('btn_cancel')}</button>
+      <button class="btn btn-primary" id="saveNmBtn">${t('btn_save')}</button>
+    </div>
+  `);
+  bindPhotoField('f_nmPhoto', 'nearmiss-photos');
+  document.getElementById('f_nmType').addEventListener('change', e=>{
+    document.getElementById('f_nmTypeOther').style.display = e.target.value==='기타(직접입력)' ? '' : 'none';
+  });
+  document.getElementById('saveNmBtn').addEventListener('click', async ()=>{
+    const situationType = document.getElementById('f_nmType').value;
+    const data = {
+      process: document.getElementById('f_nmProcess').value,
+      datetime: document.getElementById('f_nmDatetime').value,
+      location: document.getElementById('f_nmLocation').value.trim(),
+      situationType,
+      situationTypeOther: situationType==='기타(직접입력)' ? document.getElementById('f_nmTypeOther').value.trim() : '',
+      description: document.getElementById('f_nmDescription').value.trim(),
+      reporter: document.getElementById('f_nmReporter').value.trim(),
+    };
+    const photoInput = document.getElementById('f_nmPhoto');
+    const photoFile = photoInput.files[0];
+    if(photoFile){
+      if(photoFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+      data.photo = photoInput.dataset.uploadedUrl || await uploadFileToStorage(photoFile, 'nearmiss-photos');
+      data.photoSize = photoFile.size;
+    }
+    if(State.mode==='admin'){
+      data.status = document.getElementById('f_nmStatus').value;
+      data.action = document.getElementById('f_nmAction').value.trim();
+    }else if(!isEdit){
+      data.status = '접수';
+    }
+    if(!data.process || !data.location || !data.description || !data.datetime || !data.reporter || !situationType || (situationType==='기타(직접입력)' && !data.situationTypeOther)){
+      toast(t('toast_fill_required')); return;
+    }
+    if(isEdit){
+      await DataStore.update(PATHS.nearMiss, existing.id, data);
+      toast(t('toast_updated_generic'));
+      closeModal(); renderNearMissTab();
+    }else{
+      data.createdAt = Date.now();
+      const newId = await DataStore.push(PATHS.nearMiss, data);
+      // 아차사고도 사고접수와 동일하게 위험성평가에 자동 연동 등록 (사고로 이어지기 전에 미리 개선하자는 취지)
+      const typeLabel = situationType==='기타(직접입력)' ? data.situationTypeOther : situationType;
+      await DataStore.push(PATHS.risks, {
+        process: data.process,
+        task: typeLabel || '',
+        hazard: `아차사고 발견으로 등록됨: ${data.description}`,
+        riskType: '', frequency: '', severity: '',
+        measures: '',
+        reporter: data.reporter,
+        status: '접수완료',
+        linkedNearMissId: newId,
+        createdAt: Date.now(),
+      });
+      closeModal();
+      if(State.mode!=='admin'){
+        addMyOwnedId('isc_my_nearmiss', newId);
+        showSuccessPopup(t('toast_nm_registered'));
+      }else{
+        toast(t('toast_nm_registered'));
+      }
+      renderNearMissTab();
+    }
+  });
+}
+
+function openNearMissDetail(id){
+  const raw = DataStore.get(PATHS.nearMiss)[id];
+  if(!raw) return;
+  markRead(PATHS.nearMiss, id);
+  const i = Object.assign({id}, raw);
+  const isOwner = getMyOwnedIds('isc_my_nearmiss').includes(id);
+  const canEdit = State.mode==='admin' || (isOwner && i.status==='접수');
+  showModal(`
+    <div class="modal-head"><h3>${t('nm_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <dl class="detail-grid">
+        <dt>${t('th_datetime')}</dt><dd>${fmtDateTime(i.datetime)}</dd>
+        <dt>${t('th_process')}</dt><dd>${esc(i.process||'-')}</dd>
+        <dt>${t('th_location')}</dt><dd>${esc(i.location||'-')}</dd>
+        <dt>${t('nm_th_type')}</dt><dd>${esc(i.situationType==='기타(직접입력)'?i.situationTypeOther:nmTypeLabel(i.situationType))}</dd>
+        <dt>${t('nm_th_content')}</dt><dd>${esc(i.description||'-')}</dd>
+        ${State.mode==='admin' ? `<dt>${t('nm_th_reporter')}</dt><dd>${esc(i.reporter||'-')}</dd>` : ''}
+        <dt>${t('th_status')}</dt><dd>${statusBadge('incident', i.status)}</dd>
+        ${i.action ? `<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>` : ''}
+      </dl>
+      ${(State.mode==='admin' && i.photo) ? `
+      <div class="divider"></div>
+      <img src="${i.photo}" class="risk-thumb" style="width:100%;max-width:320px;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;">
+      ` : ''}
+    </div>
+    <div class="modal-foot">
+      ${canEdit ? `<button class="btn" id="editNmBtn">${t('btn_edit')}</button>` : ''}
+      <button class="btn" data-close>${t('btn_close')}</button>
+    </div>
+  `);
+  bindImageZoom(document.getElementById('modalBox'));
+  if(canEdit){
+    document.getElementById('editNmBtn').addEventListener('click', ()=>{ closeModal(); openNearMissModal(i); });
+  }
 }
 
 const ACCIDENT_TYPES = ['추락','넘어짐','부딪힘','끼임(협착)','감전','화상','절단·베임','기타(직접입력)'];
@@ -4374,7 +4709,7 @@ function renderNotices(){
           ${CONTACT_RANKS.map(r=>`<option value="${r}" ${State.filters.contactRank===r?'selected':''}>${r}</option>`).join('')}
         </select>
         <select id="contactSort" class="btn btn-sm" style="font-weight:700;">
-          <option value="reg" ${State.filters.contactSort==='reg'||!State.filters.contactSort?'selected':''}>등록순</option>
+          <option value="rank" ${State.filters.contactSort==='rank'||!State.filters.contactSort?'selected':''}>직급순</option>
           <option value="name" ${State.filters.contactSort==='name'?'selected':''}>이름순</option>
           <option value="role" ${State.filters.contactSort==='role'?'selected':''}>직책순</option>
         </select>
@@ -4394,6 +4729,28 @@ function renderNotices(){
     openContactModal();
   });
 
+  renderNoticeList();
+
+  renderContactGrid();
+  document.getElementById('contactSearch').addEventListener('input', e=>{
+    State.filters.contactSearch = e.target.value;
+    renderContactGrid();
+  });
+  document.getElementById('contactDeptFilter').addEventListener('change', e=>{
+    State.filters.contactDept = e.target.value;
+    renderContactGrid();
+  });
+  document.getElementById('contactRankFilter').addEventListener('change', e=>{
+    State.filters.contactRank = e.target.value;
+    renderContactGrid();
+  });
+  document.getElementById('contactSort').addEventListener('change', e=>{
+    State.filters.contactSort = e.target.value;
+    renderContactGrid();
+  });
+}
+
+function renderNoticeList(){
   const notices = objToArr(DataStore.get(PATHS.notices)).sort((a,b)=> (b.pinned?1:0)-(a.pinned?1:0) || (b.createdAt||0)-(a.createdAt||0));
   const list = document.getElementById('noticeList');
   list.innerHTML = notices.length ? notices.map(n=>`
@@ -4418,23 +4775,6 @@ function renderNotices(){
     if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.notices, a.dataset.delN); toast(t('toast_deleted')); renderNotices(); }
   }));
 
-  renderContactGrid();
-  document.getElementById('contactSearch').addEventListener('input', e=>{
-    State.filters.contactSearch = e.target.value;
-    renderContactGrid();
-  });
-  document.getElementById('contactDeptFilter').addEventListener('change', e=>{
-    State.filters.contactDept = e.target.value;
-    renderContactGrid();
-  });
-  document.getElementById('contactRankFilter').addEventListener('change', e=>{
-    State.filters.contactRank = e.target.value;
-    renderContactGrid();
-  });
-  document.getElementById('contactSort').addEventListener('change', e=>{
-    State.filters.contactSort = e.target.value;
-    renderContactGrid();
-  });
 }
 
 function renderContactGrid(){
@@ -4449,9 +4789,11 @@ function renderContactGrid(){
   }
   if(State.filters.contactDept) contacts = contacts.filter(c=> c.dept === State.filters.contactDept);
   if(State.filters.contactRank) contacts = contacts.filter(c=> c.rank === State.filters.contactRank);
-  const sortMode = State.filters.contactSort || 'reg';
+  const RANK_ORDER = { '부장':1, '차장':2, '과장':3, '대리':4, '사원':5, '직장':6 };
+  const sortMode = State.filters.contactSort || 'rank';
   if(sortMode==='name') contacts.sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ko'));
   else if(sortMode==='role') contacts.sort((a,b)=> (a.role||'').localeCompare(b.role||'', 'ko'));
+  else if(sortMode==='rank') contacts.sort((a,b)=> (RANK_ORDER[a.rank]||0) - (RANK_ORDER[b.rank]||0));
   const grid = document.getElementById('contactGrid');
   grid.innerHTML = contacts.length ? contacts.map(c=>`
     <div class="contact-card">
@@ -5286,12 +5628,7 @@ function boot(){
   document.getElementById('todayChip').textContent =
     `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
 
-  const backupBtn = document.getElementById('backupExportBtn');
-  backupBtn.hidden = State.mode!=='admin';
-  if(!backupBtn.dataset.bound){
-    backupBtn.dataset.bound = '1';
-    backupBtn.addEventListener('click', runFullBackupExport);
-  }
+  updateNotifyBtnUI();
 
   renderNav();
   switchView('dashboard');
@@ -5390,6 +5727,7 @@ updateInstallBtn();
 document.getElementById('sidebarInstallBtn').addEventListener('click', ()=>{
   document.getElementById('gateInstallBtn').click();
 });
+document.getElementById('notifyToggleBtn').addEventListener('click', toggleNotify);
 document.getElementById('sidebarLangBtn').addEventListener('click', ()=>{
   showModal(`
     <div class="modal-head"><h3>${t('gate_lang_label')}</h3><button class="x-btn" data-close>✕</button></div>
