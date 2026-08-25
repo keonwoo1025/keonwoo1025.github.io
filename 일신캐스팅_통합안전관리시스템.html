@@ -853,6 +853,7 @@ const TRANSLATIONS = {
   notify_btn_on:{ko:'🔔 알림 켜짐',en:'🔔 Notifications On',th:'🔔 เปิดการแจ้งเตือนแล้ว',id:'🔔 Notifikasi Aktif',mn:'🔔 Мэдэгдэл асаалттай'},
   notify_test_btn:{ko:'테스트 알림 보내기',en:'Send Test Notification',th:'ส่งการแจ้งเตือนทดสอบ',id:'Kirim Notifikasi Uji Coba',mn:'Туршилтын мэдэгдэл илгээх'},
   toast_notify_test_sent:{ko:'테스트 알림을 보냈습니다. 안 뜨면 브라우저·기기 알림 설정을 확인해주세요',en:'Test notification sent. If it did not appear, check your browser/device notification settings',th:'ส่งการแจ้งเตือนทดสอบแล้ว หากไม่ปรากฏ กรุณาตรวจสอบการตั้งค่าการแจ้งเตือนของเบราว์เซอร์/อุปกรณ์',id:'Notifikasi uji coba terkirim. Jika tidak muncul, periksa pengaturan notifikasi browser/perangkat Anda',mn:'Туршилтын мэдэгдэл илгээгдлээ. Гарахгүй бол хөтөч/төхөөрөмжийн мэдэгдлийн тохиргоог шалгана уу'},
+  toast_notify_test_failed:{ko:'테스트 알림 표시에 실패했습니다. 기기·브라우저의 알림 권한(OS 설정 포함)을 확인해주세요',en:'Failed to display test notification. Please check notification permission in your OS/browser settings',th:'ไม่สามารถแสดงการแจ้งเตือนทดสอบได้ กรุณาตรวจสอบสิทธิ์การแจ้งเตือนในระบบปฏิบัติการ/เบราว์เซอร์',id:'Gagal menampilkan notifikasi uji coba. Periksa izin notifikasi di pengaturan OS/browser Anda',mn:'Туршилтын мэдэгдлийг харуулж чадсангүй. ОС/хөтчийн мэдэгдлийн зөвшөөрлийг шалгана уу'},
   toast_notify_off:{ko:'알림을 껐습니다',en:'Notifications turned off',th:'ปิดการแจ้งเตือนแล้ว',id:'Notifikasi dimatikan',mn:'Мэдэгдлийг унтраалаа'},
   toast_notify_unsupported:{ko:'이 브라우저는 알림을 지원하지 않습니다',en:'This browser does not support notifications',th:'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน',id:'Browser ini tidak mendukung notifikasi',mn:'Энэ хөтөч мэдэгдлийг дэмждэггүй'},
   toast_notify_on:{ko:'알림을 켰습니다. 이 화면(탭)이 열려있는 동안 새 등록 시 알려드립니다',en:'Notifications turned on. You will be notified of new items while this tab is open',th:'เปิดการแจ้งเตือนแล้ว คุณจะได้รับแจ้งเมื่อมีรายการใหม่ขณะเปิดแท็บนี้',id:'Notifikasi diaktifkan. Anda akan diberi tahu saat ada item baru selama tab ini terbuka',mn:'Мэдэгдэл асаалаа. Энэ таб нээлттэй үед шинэ бүртгэлийн талаар мэдэгдэнэ'},
@@ -1363,6 +1364,28 @@ const knownIds = {}; // path -> Set(id) — 알림 중복 방지를 위해 이�
 const NOTIFY_PREF_KEY = 'isc_notify_enabled';
 function notifyEnabled(){ return localStorage.getItem(NOTIFY_PREF_KEY)==='1' && typeof Notification!=='undefined' && Notification.permission==='granted'; }
 
+// 실제 알림을 화면에 띄우는 공용 함수 — 서비스워커가 있으면 그쪽을 우선 사용한다.
+// (안드로이드 크롬 등 일부 브라우저는 서비스워커가 등록된 사이트에서 new Notification()을
+//  직접 호출하면 조용히 무시하고, 반드시 registration.showNotification()을 써야 뜬다)
+async function showAppNotification(title, options){
+  if('serviceWorker' in navigator){
+    try{
+      const reg = await navigator.serviceWorker.ready;
+      if(reg && reg.showNotification){
+        await reg.showNotification(title, options);
+        return true;
+      }
+    }catch(e){ console.warn('서비스워커 알림 실패, 대체 방식 시도:', e); }
+  }
+  try{
+    new Notification(title, options);
+    return true;
+  }catch(e){
+    console.warn('Notification 생성자도 실패:', e);
+    return false;
+  }
+}
+
 function checkNewItemsForNotify(path, val){
   if(!NOTIFY_PATHS[path]) return;
   const ids = Object.keys(val||{});
@@ -1379,12 +1402,10 @@ function checkNewItemsForNotify(path, val){
   fresh.forEach(id=>{
     const item = val[id];
     const desc = item.description || item.title || item.workContent || item.hazard || '';
-    try{
-      new Notification(`${meta.icon} ${t('notify_new_item').replace('{label}', label)}`, {
-        body: desc ? String(desc).slice(0,60) : t('notify_body_default'),
-        tag: path+'_'+id,
-      });
-    }catch(e){ console.warn('알림 표시 실패:', e); }
+    showAppNotification(`${meta.icon} ${t('notify_new_item').replace('{label}', label)}`, {
+      body: desc ? String(desc).slice(0,60) : t('notify_body_default'),
+      tag: path+'_'+id,
+    });
   });
 }
 
@@ -1412,6 +1433,7 @@ async function toggleNotify(){
   if(perm==='granted'){
     localStorage.setItem(NOTIFY_PREF_KEY, '1');
     toast(t('toast_notify_on'));
+    if(State.mode!=='admin') ensurePathsSubscribed(Object.keys(NOTIFY_PATHS));
   }else{
     toast(t('toast_notify_denied'));
   }
@@ -1427,13 +1449,12 @@ function updateNotifyBtnUI(){
     testBtn.textContent = t('notify_test_btn');
   }
 }
-function sendTestNotification(){
-  try{
-    new Notification('🔔 '+t('notify_test_btn'), { body: new Date().toLocaleTimeString() });
+async function sendTestNotification(){
+  const ok = await showAppNotification('🔔 '+t('notify_test_btn'), { body: new Date().toLocaleTimeString() });
+  if(ok){
     toast(t('toast_notify_test_sent'));
-  }catch(e){
-    toast(t('toast_notify_test_sent'));
-    console.warn('테스트 알림 실패:', e);
+  }else{
+    toast(t('toast_notify_test_failed'));
   }
 }
 
@@ -5655,9 +5676,10 @@ function boot(){
   // 나머지는 해당 메뉴를 한 번 열어야 그 뒤로 실시간이 된다 — 트래픽 절약을 위한 의도된 차등.
   if(State.mode==='admin'){
     ensurePathsSubscribed(Object.values(PATHS));
-  }else{
-    // 알림 대상 4곳(사고접수·아차사고·작업허가·위험성평가)은 어느 메뉴에 머물든 놓치지 않도록 항상 구독
-    // (아차사고는 원래 "사고접수" 메뉴를 직접 열어야만 구독됐는데, 대시보드에만 머물면 알림이 아예 안 뜨는 버그였음)
+  }else if(notifyEnabled()){
+    // 알림을 켠 사람에 한해서만 알림 대상 4곳을 어느 메뉴에 머물든 놓치지 않도록 미리 구독한다.
+    // 알림을 안 켰으면 원래대로 대시보드 기본 3곳(작업허가·위험성평가·사고접수)만 구독하고,
+    // 아차사고 등 나머지는 해당 메뉴를 열 때만 구독 — 안 쓰는 사람에게 불필요한 트래픽을 주지 않기 위함.
     ensurePathsSubscribed(Object.keys(NOTIFY_PATHS));
   }
 }
