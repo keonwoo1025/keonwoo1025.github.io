@@ -3763,11 +3763,19 @@ function openNearMissDetail(id){
       ` : ''}
     </div>
     <div class="modal-foot">
+      ${(State.mode==='admin' || State.mode==='dept') ? `<button class="btn" id="delNmBtn">${t('btn_delete')}</button>` : ''}
       ${canEdit ? `<button class="btn" id="editNmBtn">${t('btn_edit')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
   bindImageZoom(document.getElementById('modalBox'));
+  if(document.getElementById('delNmBtn')){
+    document.getElementById('delNmBtn').addEventListener('click', async ()=>{
+      if(confirm(t('confirm_delete'))){
+        await DataStore.remove(PATHS.nearMiss, id); closeModal(); toast(t('toast_deleted')); renderNearMissTab();
+      }
+    });
+  }
   if(canEdit){
     document.getElementById('editNmBtn').addEventListener('click', ()=>{ closeModal(); openNearMissModal(i); });
   }
