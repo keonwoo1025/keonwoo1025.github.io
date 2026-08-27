@@ -1902,7 +1902,7 @@ function renderDashboard(){
         <div class="lc-head"><h3>${t('dash_notices_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="notices">${t('view_all')}</button></div>
         <div class="lc-body" id="dashMiniNotices">${renderMiniList(notices.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0) || (b.createdAt||0)-(a.createdAt||0)), n=>({
           title:n.title||'-', meta: fmtDate(n.createdAt), badge: n.pinned?`<span class="badge b-safety">${t('pinned_badge')}</span>`:''
-        }), PATHS.notices)}</div>
+        }), PATHS.notices, true)}</div>
       </div>
     </div>
   `;
@@ -2008,9 +2008,9 @@ function renderMonthlyChart(monthly){
   });
 }
 
-function renderMiniList(arr, mapFn, mlPath){
+function renderMiniList(arr, mapFn, mlPath, preSorted){
   if(!arr || arr.length===0) return `<div class="empty"><span class="big">${icon('grid',22)}</span>등록된 항목이 없습니다</div>`;
-  const sorted = [...arr].sort((a,b)=> new Date(b.createdAt||b.startDate||b.datetime||0) - new Date(a.createdAt||a.startDate||a.datetime||0));
+  const sorted = preSorted ? arr : [...arr].sort((a,b)=> new Date(b.createdAt||b.startDate||b.datetime||0) - new Date(a.createdAt||a.startDate||a.datetime||0));
   return sorted.slice(0,6).map(item=>{
     const m = mapFn(item);
     return `<div class="mini-row" data-mini-id="${item.id}" style="cursor:pointer;">
