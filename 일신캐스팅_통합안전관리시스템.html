@@ -1793,12 +1793,11 @@ function usageCardHtml(){
   const pct = Math.min(100, Math.round(photoGB / CLOUDINARY_FREE_GB * 100));
   return `
     <div class="list-card" style="margin-bottom:16px;">
-      <div class="lc-head"><h3>💾 저장공간 사용량 (관리자 전용, 대략적인 추정치)</h3></div>
+      <div class="lc-head"><h3>💾 저장공간 사용량</h3></div>
       <div style="padding:12px 16px;">
-        <p class="hint" style="margin:0 0 10px;">등록된 총 ${u.recordCount}건 기준 추정입니다. 사진·파일은 Cloudinary(별도 저장소)에 보관되며, 그중 ${u.photoCountUnknown}개는 예전 방식으로 등록되어 정확한 용량을 추적하지 못합니다. <b>정확한 실사용량은 Cloudinary 대시보드(Usage) 또는 Firebase 콘솔에서 확인하세요.</b></p>
         <div style="display:flex;gap:24px;flex-wrap:wrap;">
-          <div><div class="hint" style="margin:0;">장부(Firebase, 글자 정보) 용량</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.textBytes)}</div></div>
-          <div><div class="hint" style="margin:0;">사진·파일 용량(Cloudinary, 추적된 것만)</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.photoBytes)} <span class="hint" style="font-weight:400;">/ 매달 무료 25크레딧(≈25GB) 중</span></div></div>
+          <div><div class="hint" style="margin:0;">장부(글자 정보) 용량</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.textBytes)}</div></div>
+          <div><div class="hint" style="margin:0;">사진·파일 용량</div><div style="font-size:18px;font-weight:800;">${fmtBytes(u.photoBytes)} <span class="hint" style="font-weight:400;">/ 25GB 중</span></div></div>
         </div>
         <div style="background:#EEF1F5;border-radius:6px;height:8px;margin-top:10px;overflow:hidden;">
           <div style="background:${pct>80?'var(--danger)':'var(--safety)'};width:${pct}%;height:100%;"></div>
@@ -1876,14 +1875,14 @@ function renderDashboard(){
     <div class="dash-lower">
       <div class="list-card">
         <div class="lc-head"><h3>${t('recent_permits_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="permits">${t('view_all')}</button></div>
-        <div class="lc-body">${renderMiniList(permits, p=>({
+        <div class="lc-body" id="dashMiniPermits">${renderMiniList(permits, p=>({
           title:`${p.company||'미입력'} · ${p.workContent||'-'}`,
           meta: fmtDate(p.startDate), badge: statusBadge('permit', p.status)
         }), PATHS.permits)}</div>
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>${t('recent_incidents_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">${t('view_all')}</button></div>
-        <div class="lc-body">${renderMiniList(incidents, i=>({
+        <div class="lc-body" id="dashMiniIncidents">${renderMiniList(incidents, i=>({
           title: i.location||'-',
           meta: fmtDate(i.datetime),
           badge: State.mode==='admin' ? statusBadge('incident', i.status) : (i.injurySeverity ? `<span class="badge b-gray">${esc(i.injurySeverity)}</span>` : '')
@@ -1894,20 +1893,24 @@ function renderDashboard(){
     <div class="dash-lower">
       <div class="list-card">
         <div class="lc-head"><h3>${t('dash_risks_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="risks">${t('view_all')}</button></div>
-        <div class="lc-body">${renderMiniList(risks.filter(r=>riskLevel(r)>=4), r=>({
+        <div class="lc-body" id="dashMiniRisks">${renderMiniList(risks.filter(r=>riskLevel(r)>=4), r=>({
           title:`${r.process||'-'} · ${r.hazard||'-'}`,
           meta:`위험도 ${r.frequency||0}×${r.severity||0}`, badge: statusBadge('risk', r.status)
         }), PATHS.risks)}</div>
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>${t('dash_notices_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="notices">${t('view_all')}</button></div>
-        <div class="lc-body">${renderMiniList(notices.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)), n=>({
+        <div class="lc-body" id="dashMiniNotices">${renderMiniList(notices.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0) || (b.createdAt||0)-(a.createdAt||0)), n=>({
           title:n.title||'-', meta: fmtDate(n.createdAt), badge: n.pinned?`<span class="badge b-safety">${t('pinned_badge')}</span>`:''
         }), PATHS.notices)}</div>
       </div>
     </div>
   `;
   el.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> switchView(b.dataset.goto)));
+  bindMiniListClicks(document.getElementById('dashMiniPermits'), openPermitDetail);
+  bindMiniListClicks(document.getElementById('dashMiniIncidents'), openIncidentDetail);
+  bindMiniListClicks(document.getElementById('dashMiniRisks'), openRiskDetail);
+  bindMiniListClicks(document.getElementById('dashMiniNotices'), openNoticeDetail);
   renderMonthlyChart(monthly);
   renderAccidentTypeChart(incidents);
   const backupBtn = document.getElementById('backupExportBtn');
@@ -2010,12 +2013,17 @@ function renderMiniList(arr, mapFn, mlPath){
   const sorted = [...arr].sort((a,b)=> new Date(b.createdAt||b.startDate||b.datetime||0) - new Date(a.createdAt||a.startDate||a.datetime||0));
   return sorted.slice(0,6).map(item=>{
     const m = mapFn(item);
-    return `<div class="mini-row">
+    return `<div class="mini-row" data-mini-id="${item.id}" style="cursor:pointer;">
       <div class="mr-title">${newBadge(item, mlPath)}${esc(m.title)}</div>
       <div class="mr-meta">${esc(m.meta)}</div>
       ${m.badge||''}
     </div>`;
   }).join('');
+}
+function bindMiniListClicks(container, openFn){
+  container.querySelectorAll('[data-mini-id]').forEach(row=>{
+    row.addEventListener('click', ()=> openFn(row.dataset.miniId));
+  });
 }
 
 /* ============================================================
@@ -3763,7 +3771,7 @@ function openNearMissDetail(id){
       ` : ''}
     </div>
     <div class="modal-foot">
-      ${(State.mode==='admin' || State.mode==='dept') ? `<button class="btn" id="delNmBtn">${t('btn_delete')}</button>` : ''}
+      ${State.mode==='admin' ? `<button class="btn" id="delNmBtn">${t('btn_delete')}</button>` : ''}
       ${canEdit ? `<button class="btn" id="editNmBtn">${t('btn_edit')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
@@ -5056,12 +5064,14 @@ function renderSuggestions(){
         <div class="tabs" id="sugTabs">
           ${['전체','접수','검토중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
         </div>
+        <button class="btn btn-primary" id="addSugBtn">${icon('plus',15)} ${t('sug_add_btn')}</button>
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>${t('sug_th_title')}</th><th>${t('sug_th_reporter')}</th><th>${t('th_date')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
         <tbody id="sugBody"></tbody>
       </table></div>
     `;
+    document.getElementById('addSugBtn').addEventListener('click', ()=> openSuggestionModal());
     el.querySelectorAll('#sugTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
       State.filters.suggestions = t.dataset.s; renderSuggestions();
     }));
@@ -5226,12 +5236,14 @@ function renderBugs(){
         <div class="tabs" id="bugTabs">
           ${['전체','접수','확인중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
         </div>
+        <button class="btn btn-primary" id="addBugBtn">${icon('plus',15)} ${t('bug_add_btn')}</button>
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>${t('bug_th_title')}</th><th>${t('bug_th_reporter')}</th><th>${t('th_date')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th></tr></thead>
         <tbody id="bugBody"></tbody>
       </table></div>
     `;
+    document.getElementById('addBugBtn').addEventListener('click', ()=> openBugModal());
     el.querySelectorAll('#bugTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
       State.filters.bugs = t.dataset.s; renderBugs();
     }));
