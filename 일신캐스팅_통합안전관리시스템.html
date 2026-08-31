@@ -2929,7 +2929,7 @@ function renderRisks(){
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="riskTabs">
-        ${['전체','등록','접수완료','조치중','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
+        ${['전체','접수완료','조치중','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <select id="riskProcessFilter" class="btn btn-sm" style="font-weight:700;">
@@ -3239,6 +3239,7 @@ function openRiskModal(existing){
   const isEdit = !!existing;
   const v = existing || {};
   const isAdmin = State.mode==='admin';
+  const isManager = State.mode==='admin' || State.mode==='dept';
   showModal(`
     <div class="modal-head"><h3>${isEdit?t('risk_edit_title'):t('risk_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
@@ -3276,16 +3277,14 @@ function openRiskModal(existing){
       <div class="field"><label>${t('lbl_photo_before')}</label>
         ${photoFieldHtml('f_photoBefore', v.photoBefore, v.photoBefore?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
       </div>
-      <div class="row2">
-        <div class="field"><label>${t('th_reporter_applicant')} *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
-        ${isAdmin ? `
-        <div class="field"><label>${t('lbl_progress_admin')}</label>
-          <select id="f_status">${['등록','접수완료','조치중','완료'].map(s=>`<option value="${s}" ${(v.status===s || (s==='완료' && v.status==='일부개선완료'))?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
-        </div>` : ''}
-      </div>
-      ${isAdmin ? `
+      <div class="field"><label>${t('th_reporter_applicant')} *</label><input type="text" id="f_reporter" value="${esc(v.reporter||'')}" placeholder="이름"></div>
+      ${isManager ? `
       <div class="divider"></div>
       <p class="hint" style="margin-bottom:8px;font-weight:700;color:var(--ink-soft);">관리자 전용 항목 (서류용 상세분류)</p>
+      <div class="field"><label>${t('lbl_progress_admin')}</label>
+        <select id="f_status">${(isAdmin ? ['접수완료','조치중','완료'] : ['접수완료','조치중']).map(s=>`<option value="${s}" ${(v.status===s || (s==='완료' && v.status==='일부개선완료'))?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
+        ${!isAdmin ? `<p class="hint">"완료" 최종 처리는 전체관리자만 할 수 있습니다.</p>` : ''}
+      </div>
       <div class="row2">
         <div class="field"><label>위험분류</label>
           <select id="f_hazardCategory">
@@ -3301,6 +3300,7 @@ function openRiskModal(existing){
           <input type="text" id="f_hazardDetailTypeOther" value="${esc(v.hazardDetailType && !(HAZARD_SUBCATEGORIES[v.hazardCategory]||[]).includes(v.hazardDetailType) ? v.hazardDetailType : '')}" placeholder="세부분류 직접 입력" style="margin-top:8px;${v.hazardDetailType && !(HAZARD_SUBCATEGORIES[v.hazardCategory]||[]).includes(v.hazardDetailType) ? '' : 'display:none'}">
         </div>
       </div>
+      ${isAdmin ? `
       <div class="field"><label>${t('lbl_photo_after')}</label>
         ${photoFieldHtml('f_photoAfter', v.photoAfter, v.photoAfter?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
       </div>
@@ -3323,6 +3323,7 @@ function openRiskModal(existing){
         <p class="hint">재평가 점수가 6점 이하면 "완료"로 저장됩니다. 7점 이상이면 저장 전에 확인창이 뜨고, 확인하면 "일부개선완료"로 저장됩니다.</p>
       </div>
       ` : ''}
+      ` : ''}
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>${t('btn_cancel')}</button>
@@ -3342,13 +3343,15 @@ function openRiskModal(existing){
   }
   riskTypeSel.addEventListener('change', updateRiskTypeHint);
   updateRiskTypeHint();
-  if(isAdmin){
-    bindPhotoField('f_photoAfter', 'risk-photos');
+  if(isManager){
+    if(isAdmin) bindPhotoField('f_photoAfter', 'risk-photos');
     const statusSel = document.getElementById('f_status');
     const afterFields = document.getElementById('afterEvalFields');
-    statusSel.addEventListener('change', e=>{
-      afterFields.style.display = e.target.value==='완료' ? '' : 'none';
-    });
+    if(afterFields){
+      statusSel.addEventListener('change', e=>{
+        afterFields.style.display = (isAdmin && e.target.value==='완료') ? '' : 'none';
+      });
+    }
     const catSel = document.getElementById('f_hazardCategory');
     const detailSel = document.getElementById('f_hazardDetailType');
     const detailOther = document.getElementById('f_hazardDetailTypeOther');
@@ -3373,11 +3376,12 @@ function openRiskModal(existing){
       riskType: document.getElementById('f_riskType').value,
       frequency: Number(document.getElementById('f_frequency').value),
       severity: Number(document.getElementById('f_severity').value),
+      currentMeasures: document.getElementById('f_currentMeasures').value.trim(),
       measures: document.getElementById('f_measures').value.trim(),
       reporter: document.getElementById('f_reporter').value.trim(),
     };
     let chosenStatus = null;
-    if(isAdmin && document.getElementById('f_status')){
+    if(isManager && document.getElementById('f_status')){
       chosenStatus = document.getElementById('f_status').value;
       data.status = chosenStatus;
     }else if(!isEdit){
@@ -3385,12 +3389,11 @@ function openRiskModal(existing){
     }
     if(!data.process || !data.hazard || !data.measures || !data.reporter){ toast(t('toast_fill_required')); return; }
 
-    if(isAdmin){
+    if(isManager){
       data.hazardCategory = document.getElementById('f_hazardCategory').value;
       const detailSelVal = document.getElementById('f_hazardDetailType').value;
       const detailOtherVal = document.getElementById('f_hazardDetailTypeOther').value.trim();
       data.hazardDetailType = (detailSelVal==='기타(직접입력)' || (!detailSelVal && detailOtherVal)) ? detailOtherVal : detailSelVal;
-      data.currentMeasures = document.getElementById('f_currentMeasures').value.trim();
     }
 
     // 완료 처리 시 개선후 재평가 필수. 점수가 7점 이상이면 바로 저장하지 않고 확인 팝업을 먼저 띄움
@@ -3513,6 +3516,7 @@ function openRiskDetail(id){
     </div>
     <div class="modal-foot">
       ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      ${State.mode==='dept' ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       ${(State.mode==='user' && r.status==='접수' && getMyOwnedIds('isc_my_risks').includes(id)) ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
