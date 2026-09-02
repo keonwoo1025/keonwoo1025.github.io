@@ -572,9 +572,16 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
       </select>
     </div>
     <div class="field" id="gatePwWrap" hidden>
+      <label data-i18n="gate_role_label">역할 선택</label>
+      <select id="gateRole" style="margin-bottom:10px;">
+        <option value="admin" data-i18n="mode_label_admin">전체관리자</option>
+        <option value="관리부">관리부 관리자</option>
+        <option value="생산부">생산부 관리자</option>
+        <option value="품질관리부">품질관리부 관리자</option>
+      </select>
       <label data-i18n="gate_pw_label">비밀번호</label>
       <input type="text" id="gatePw" placeholder="비밀번호 입력" data-i18n-placeholder="gate_pw_placeholder">
-      <p class="hint" data-i18n="gate_pw_hint">비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.</p>
+      <p class="hint" data-i18n="gate_pw_hint">선택한 역할의 비밀번호를 입력하세요.</p>
       <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:600;color:var(--ink-soft);">
         <input type="checkbox" id="gateRemember"> 이 기기에서 로그인 상태 유지 (다음부터 비밀번호 없이 접속)
       </label>
@@ -860,7 +867,8 @@ const TRANSLATIONS = {
   gate_mode_admin:{ko:'관리자',en:'Administrator',th:'ผู้ดูแลระบบ',id:'Administrator',mn:'Админ'},
   gate_pw_label:{ko:'비밀번호',en:'Password',th:'รหัสผ่าน',id:'Kata Sandi',mn:'Нууц үг'},
   gate_pw_placeholder:{ko:'비밀번호 입력',en:'Enter password',th:'กรอกรหัสผ่าน',id:'Masukkan kata sandi',mn:'Нууц үгээ оруулна уу'},
-  gate_pw_hint:{ko:'비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다.',en:'You will automatically log in as either the full administrator or the relevant department administrator, depending on the password.',th:'ระบบจะเข้าสู่ระบบเป็นผู้ดูแลระบบทั้งหมดหรือผู้ดูแลแผนกที่เกี่ยวข้องโดยอัตโนมัติ ขึ้นอยู่กับรหัสผ่าน',id:'Anda akan otomatis masuk sebagai administrator utama atau administrator departemen terkait, tergantung kata sandi yang dimasukkan.',mn:'Нууц үгээс хамааран та бүх эрхтэй админ эсвэл харьяа хэлтсийн админ болж автоматаар нэвтэрнэ.'},
+  gate_role_label:{ko:'역할 선택',en:'Select Role',th:'เลือกบทบาท',id:'Pilih Peran',mn:'Үүрэг сонгох'},
+  gate_pw_hint:{ko:'선택한 역할의 비밀번호를 입력하세요.',en:'Enter the password for the selected role.',th:'กรอกรหัสผ่านสำหรับบทบาทที่เลือก',id:'Masukkan kata sandi untuk peran yang dipilih.',mn:'Сонгосон үүргийн нууц үгийг оруулна уу.'},
   gate_enter:{ko:'입장하기',en:'Enter',th:'เข้าสู่ระบบ',id:'Masuk',mn:'Нэвтрэх'},
   gate_install_btn:{ko:'앱으로 설치하기',en:'Install as App',th:'ติดตั้งเป็นแอป',id:'Pasang sebagai Aplikasi',mn:'Апп болгон суулгах'},
   notify_btn_off:{ko:'🔕 알림 켜기',en:'🔕 Turn On Notifications',th:'🔕 เปิดการแจ้งเตือน',id:'🔕 Aktifkan Notifikasi',mn:'🔕 Мэдэгдэл асаах'},
@@ -5541,25 +5549,23 @@ document.getElementById('gateMode').addEventListener('change', e=>{
   document.getElementById('gatePwWrap').hidden = e.target.value === 'user';
 });
 
-// 입력한 비밀번호로 admin 계정 → 각 부서 계정 순서로 실제 Firebase 로그인을 시도해
-// 어느 역할인지 자동으로 판별한다 (화면상 UX는 예전 "비밀번호 하나로 역할 자동판별"과 동일)
-async function enterWithPassword(input){
+// 선택한 역할의 계정 하나에만 로그인 시도 (다른 계정에 시도했다가 실패하는 일이 없어야
+// Firebase가 "수상한 시도"로 보고 일시적으로 막아버리는 것을 예방할 수 있음)
+async function enterWithPassword(role, input){
   const pw = input.trim();
   if(!pw){ toast(t('toast_pw_required')); return false; }
   if(!db){ toast('Firebase가 연결되어 있지 않아 관리자 로그인을 사용할 수 없습니다'); return false; }
-  const tries = [['admin', ROLE_EMAIL_MAP.admin], ...DEPTS.map(d=>[d, ROLE_EMAIL_MAP[d]])];
-  for(const [role, email] of tries){
-    try{
-      await firebase.auth().signInWithEmailAndPassword(email, pw);
-      State.mode = role==='admin' ? 'admin' : 'dept';
-      State.dept = role==='admin' ? null : role;
-      return true;
-    }catch(e){
-      // 이 계정 비밀번호가 아니면 다음 후보로 계속 시도
-    }
+  const email = ROLE_EMAIL_MAP[role];
+  try{
+    await firebase.auth().signOut().catch(()=>{});
+    await firebase.auth().signInWithEmailAndPassword(email, pw);
+    State.mode = role==='admin' ? 'admin' : 'dept';
+    State.dept = role==='admin' ? null : role;
+    return true;
+  }catch(e){
+    toast(e.code==='auth/too-many-requests' ? '로그인 시도가 너무 많아 잠시 후 다시 시도해주세요' : t('toast_pw_mismatch'));
+    return false;
   }
-  toast(t('toast_pw_mismatch'));
-  return false;
 }
 
 const REMEMBER_MODE_KEY = 'isc_remember_mode';
@@ -5568,7 +5574,8 @@ const REMEMBER_DEPT_KEY = 'isc_remember_dept';
 document.getElementById('gateEnter').addEventListener('click', async ()=>{
   const mode = document.getElementById('gateMode').value;
   if(mode==='admin'){
-    if(!(await enterWithPassword(document.getElementById('gatePw').value))) return;
+    const role = document.getElementById('gateRole').value;
+    if(!(await enterWithPassword(role, document.getElementById('gatePw').value))) return;
     if(document.getElementById('gateRemember').checked){
       localStorage.setItem(REMEMBER_MODE_KEY, State.mode);
       if(State.dept) localStorage.setItem(REMEMBER_DEPT_KEY, State.dept);
@@ -5576,6 +5583,7 @@ document.getElementById('gateEnter').addEventListener('click', async ()=>{
     }
   }else{
     State.mode = 'user'; State.dept = null;
+    if(db) await firebase.auth().signOut().catch(()=>{});
   }
   document.getElementById('gate').style.display = 'none';
   updateModeUI();
@@ -5583,25 +5591,58 @@ document.getElementById('gateEnter').addEventListener('click', async ()=>{
   boot();
 });
 
+// "로그아웃" — 관리자/부서관리자 세션을 완전히 끊고 일반사용자로 전환
+async function logoutToUser(){
+  State.mode = 'user'; State.dept = null;
+  localStorage.removeItem(REMEMBER_MODE_KEY);
+  localStorage.removeItem(REMEMBER_DEPT_KEY);
+  if(db){
+    await firebase.auth().signOut().catch(()=>{});
+    firebase.auth().signInAnonymously().catch(()=>{});
+  }
+  updateModeUI();
+  toast(t('toast_switched_user'));
+  renderCurrentView(); renderNav();
+}
+
 document.getElementById('modeSwitchBtn').addEventListener('click', async ()=>{
   if(State.mode !== 'user'){
-    State.mode = 'user'; State.dept = null;
-    // 로그인 유지 상태였다면 이 기기의 기억 정보도 함께 삭제 (완전 로그아웃)
-    localStorage.removeItem(REMEMBER_MODE_KEY);
-    localStorage.removeItem(REMEMBER_DEPT_KEY);
-    if(db) firebase.auth().signInAnonymously().catch(()=>{});
-    updateModeUI();
-    toast(t('toast_switched_user'));
-    renderCurrentView(); renderNav();
+    await logoutToUser();
     return;
   }
-  const input = prompt('관리자 비밀번호를 입력하세요\n(비밀번호에 따라 전체관리자 또는 해당 부서 관리자로 자동 접속됩니다)');
-  if(input===null) return;
-  if(!(await enterWithPassword(input))) return;
-  updateModeUI();
-  toast('모드가 전환되었습니다');
-  renderCurrentView(); renderNav();
+  openRoleLoginModal();
 });
+
+function openRoleLoginModal(){
+  showModal(`
+    <div class="modal-head"><h3>관리자 로그인</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>${t('gate_role_label')}</label>
+        <select id="switchRole">
+          <option value="admin">전체관리자</option>
+          <option value="관리부">관리부 관리자</option>
+          <option value="생산부">생산부 관리자</option>
+          <option value="품질관리부">품질관리부 관리자</option>
+        </select>
+      </div>
+      <div class="field"><label>${t('gate_pw_label')}</label><input type="password" id="switchPw" placeholder="비밀번호 입력"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>${t('btn_cancel')}</button>
+      <button class="btn btn-primary" id="switchLoginBtn">${t('btn_save')}</button>
+    </div>
+  `);
+  document.getElementById('switchLoginBtn').addEventListener('click', async ()=>{
+    const role = document.getElementById('switchRole').value;
+    const pw = document.getElementById('switchPw').value;
+    if(!(await enterWithPassword(role, pw))) return;
+    closeModal();
+    updateModeUI();
+    toast('모드가 전환되었습니다');
+    renderCurrentView(); renderNav();
+  });
+}
+
 
 // 외주업체 전용 고유링크 접속 감지 (?p=토큰) — 매칭되면 게이트를 건너뛰고 작업허가만 보이는 열람모드로 진입
 const partnerToken = new URLSearchParams(location.search).get('p');
