@@ -1628,7 +1628,7 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
-    : State.mode==='dept' ? NAV_ITEMS.filter(i=> !['suggestions','bugs','tbm','contractors'].includes(i.id))
+    : State.mode==='dept' ? NAV_ITEMS.filter(i=> !['tbm','contractors'].includes(i.id))
     : State.mode==='user' ? NAV_ITEMS.filter(i=> !['contractors','tbm'].includes(i.id))
     : NAV_ITEMS; // 전체관리자는 TBM 포함 전체 메뉴
   nav.innerHTML = items.map(item=>{
@@ -1683,7 +1683,7 @@ function navBadgeCount(viewId){
 
 function switchView(id){
   if(State.mode==='partner' && id!=='permits') id = 'permits';
-  if(State.mode==='dept' && ['suggestions','bugs','tbm','contractors'].includes(id)) id = 'dashboard';
+  if(State.mode==='dept' && ['tbm','contractors'].includes(id)) id = 'dashboard';
   if(State.mode==='user' && ['contractors','tbm'].includes(id)) id = 'dashboard';
   if(State.mode!=='admin' && id==='tbm') id = 'dashboard';
   State.view = id;
