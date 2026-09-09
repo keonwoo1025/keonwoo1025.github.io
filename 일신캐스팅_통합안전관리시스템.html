@@ -779,6 +779,9 @@ const DataStore = {
         const val = snap.val() || {};
         this._cache[path] = val;
         this._listeners[path].forEach(fn=>fn(val));
+      }, err=>{
+        console.error('[DataStore.listen 오류]', path, err);
+        toast(`데이터를 불러오지 못했습니다 (${err.code||err.message||'오류'}). 새로고침 후에도 반복되면 관리자에게 문의하세요.`);
       });
     }else{
       const val = LocalStore.read(path);
@@ -789,7 +792,13 @@ const DataStore = {
   async push(path, data){
     const id = 'id_' + Date.now() + '_' + Math.floor(Math.random()*1000);
     if(db){
-      await db.ref(path+'/'+id).set(data);
+      try{
+        await db.ref(path+'/'+id).set(data);
+      }catch(err){
+        console.error('[DataStore.push 저장 실패]', path, err);
+        toast(`저장에 실패했습니다 (${err.code||err.message||'오류'}). 인터넷 연결을 확인하거나 관리자에게 문의하세요.`);
+        throw err;
+      }
     }else{
       const val = LocalStore.read(path);
       val[id] = data;
@@ -801,7 +810,13 @@ const DataStore = {
   },
   async update(path, id, data){
     if(db){
-      await db.ref(path+'/'+id).update(data);
+      try{
+        await db.ref(path+'/'+id).update(data);
+      }catch(err){
+        console.error('[DataStore.update 저장 실패]', path, id, err);
+        toast(`저장에 실패했습니다 (${err.code||err.message||'오류'}). 인터넷 연결을 확인하거나 관리자에게 문의하세요.`);
+        throw err;
+      }
     }else{
       const val = LocalStore.read(path);
       val[id] = Object.assign({}, val[id], data);
@@ -812,7 +827,13 @@ const DataStore = {
   },
   async remove(path, id){
     if(db){
-      await db.ref(path+'/'+id).remove();
+      try{
+        await db.ref(path+'/'+id).remove();
+      }catch(err){
+        console.error('[DataStore.remove 삭제 실패]', path, id, err);
+        toast(`삭제에 실패했습니다 (${err.code||err.message||'오류'}). 인터넷 연결을 확인하거나 관리자에게 문의하세요.`);
+        throw err;
+      }
     }else{
       const val = LocalStore.read(path);
       delete val[id];
@@ -3477,7 +3498,13 @@ function openRiskModal(existing){
     const photoBeforeFile = photoBeforeInput.files[0];
     if(photoBeforeFile){
       if(photoBeforeFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photoBefore = photoBeforeInput.dataset.uploadedUrl || await uploadFileToStorage(photoBeforeFile, 'risk-photos');
+      try{
+        data.photoBefore = photoBeforeInput.dataset.uploadedUrl || await uploadFileToStorage(photoBeforeFile, 'risk-photos');
+      }catch(err){
+        console.error('[사진 업로드 실패]', err);
+        toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+        return;
+      }
       data.photoBeforeSize = photoBeforeFile.size;
     }
     const photoAfterInput = document.getElementById('f_photoAfter');
@@ -3485,7 +3512,13 @@ function openRiskModal(existing){
       const photoAfterFile = photoAfterInput.files[0];
       if(photoAfterFile){
         if(photoAfterFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-        data.photoAfter = photoAfterInput.dataset.uploadedUrl || await uploadFileToStorage(photoAfterFile, 'risk-photos');
+        try{
+          data.photoAfter = photoAfterInput.dataset.uploadedUrl || await uploadFileToStorage(photoAfterFile, 'risk-photos');
+        }catch(err){
+          console.error('[사진 업로드 실패]', err);
+          toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+          return;
+        }
         data.photoAfterSize = photoAfterFile.size;
       }
     }
@@ -3796,7 +3829,13 @@ function openNearMissModal(existing){
     const photoFile = photoInput.files[0];
     if(photoFile){
       if(photoFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo = photoInput.dataset.uploadedUrl || await uploadFileToStorage(photoFile, 'nearmiss-photos');
+      try{
+        data.photo = photoInput.dataset.uploadedUrl || await uploadFileToStorage(photoFile, 'nearmiss-photos');
+      }catch(err){
+        console.error('[사진 업로드 실패]', err);
+        toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+        return;
+      }
       data.photoSize = photoFile.size;
     }
     if(State.mode==='admin'){
@@ -4010,14 +4049,26 @@ function openIncidentModal(existing){
     const photo1File = photo1Input.files[0];
     if(photo1File){
       if(photo1File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo1 = photo1Input.dataset.uploadedUrl || await uploadFileToStorage(photo1File, 'incident-photos');
+      try{
+        data.photo1 = photo1Input.dataset.uploadedUrl || await uploadFileToStorage(photo1File, 'incident-photos');
+      }catch(err){
+        console.error('[사진 업로드 실패]', err);
+        toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+        return;
+      }
       data.photo1Size = photo1File.size;
     }
     const photo2Input = document.getElementById('f_incPhoto2');
     const photo2File = photo2Input.files[0];
     if(photo2File){
       if(photo2File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo2 = photo2Input.dataset.uploadedUrl || await uploadFileToStorage(photo2File, 'incident-photos');
+      try{
+        data.photo2 = photo2Input.dataset.uploadedUrl || await uploadFileToStorage(photo2File, 'incident-photos');
+      }catch(err){
+        console.error('[사진 업로드 실패]', err);
+        toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+        return;
+      }
       data.photo2Size = photo2File.size;
     }
     if(State.mode==='admin'){
@@ -5619,7 +5670,13 @@ function openSuggestionModal(existing){
     const file = sugPhotoInput.files[0];
     if(file){
       if(file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.photo = sugPhotoInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'suggestion-photos');
+      try{
+        data.photo = sugPhotoInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'suggestion-photos');
+      }catch(err){
+        console.error('[사진 업로드 실패]', err);
+        toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+        return;
+      }
       data.photoSize = file.size;
     }
     if(isEdit){
@@ -5791,7 +5848,13 @@ function openBugModal(existing){
     const file = bugScreenshotInput.files[0];
     if(file){
       if(file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
-      data.screenshot = bugScreenshotInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'bug-screenshots');
+      try{
+        data.screenshot = bugScreenshotInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'bug-screenshots');
+      }catch(err){
+        console.error('[사진 업로드 실패]', err);
+        toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
+        return;
+      }
       data.screenshotSize = file.size;
     }
     if(isEdit){
