@@ -6048,7 +6048,15 @@ document.getElementById('gateEnter').addEventListener('click', async ()=>{
     if(!(await enterWithPassword(role, document.getElementById('gatePw').value))) return;
   }else{
     State.mode = 'user'; State.dept = null;
-    if(db) await firebase.auth().signOut().catch(()=>{});
+    if(db){
+      await firebase.auth().signOut().catch(()=>{});
+      // 관리자 세션을 끊은 뒤에는 반드시 익명 출입증을 새로 발급받아야 한다.
+      // 이걸 빼먹으면 인증이 아예 없는 상태(auth=null)가 되어, 화면은 보여도
+      // 실제 저장(작업허가·사고접수·위험성평가 등 전부)이 전부 조용히 실패한다.
+      await firebase.auth().signInAnonymously().catch(err=>{
+        console.warn('익명 인증 재발급 실패:', err);
+      });
+    }
   }
   resetLocalDataOnAccountSwitch();
   document.getElementById('gate').style.display = 'none';
