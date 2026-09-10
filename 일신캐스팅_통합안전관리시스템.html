@@ -226,6 +226,8 @@ a{color:inherit;}
 /* ---------- Cards / KPI ---------- */
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
 @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr);}}
+.grid-4.grid-3{grid-template-columns:repeat(3,1fr);}
+@media(max-width:1100px){.grid-4.grid-3{grid-template-columns:repeat(2,1fr);}}
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);
@@ -530,11 +532,13 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
   .topbar{padding:14px 16px;}
   .view{padding:18px 16px 50px;}
   .grid-4{grid-template-columns:1fr 1fr;}
+  .grid-4.grid-3{grid-template-columns:1fr 1fr;}
   .dash-charts{grid-template-columns:1fr;}
 }
 @media(max-width:620px){
   html,body{overflow-x:hidden;}
   .grid-4{grid-template-columns:1fr;}
+  .grid-4.grid-3{grid-template-columns:1fr;}
   .modal{max-width:100%;border-radius:12px;}
   .overlay{padding:0;align-items:flex-end;}
   .modal-body{max-height:75vh;}
@@ -1380,6 +1384,40 @@ const TRANSLATIONS = {
   print_report_title:{ko:'위험성평가 보고서',en:'Risk Assessment Report',th:'รายงานการประเมินความเสี่ยง',id:'Laporan Penilaian Risiko',mn:'Эрсдэлийн үнэлгээний тайлан'},
   print_generated_on:{ko:'출력일',en:'Printed on',th:'วันที่พิมพ์',id:'Dicetak pada',mn:'Хэвлэсэн огноо'},
   print_no_data:{ko:'인쇄할 항목이 없습니다',en:'No items to print',th:'ไม่มีรายการให้พิมพ์',id:'Tidak ada item untuk dicetak',mn:'Хэвлэх зүйл алга байна'},
+
+  lbl_name:{ko:'이름',en:'Name',th:'ชื่อ',id:'Nama',mn:'Нэр'},
+  toast_registered_generic:{ko:'등록되었습니다',en:'Registered',th:'ลงทะเบียนแล้ว',id:'Telah didaftarkan',mn:'Бүртгэгдлээ'},
+  unit_person:{ko:'명',en:' people',th:' คน',id:' orang',mn:' хүн'},
+  unit_count:{ko:'개',en:' items',th:' รายการ',id:' item',mn:' зүйл'},
+
+  tbm_today_title:{ko:'오늘의 TBM',en:"Today's TBM",th:'TBM วันนี้',id:'TBM Hari Ini',mn:'Өнөөдрийн TBM'},
+  tbm_msg_title:{ko:'오늘의 안전메시지',en:"Today's Safety Message",th:'ข้อความความปลอดภัยวันนี้',id:'Pesan Keselamatan Hari Ini',mn:'Өнөөдрийн аюулгүй байдлын мессеж'},
+  tbm_msg_empty:{ko:'등록된 안전메시지가 아직 없습니다.',en:'No safety messages have been registered yet.',th:'ยังไม่มีข้อความความปลอดภัยที่ลงทะเบียน',id:'Belum ada pesan keselamatan yang terdaftar.',mn:'Одоогоор бүртгэгдсэн аюулгүй байдлын мессеж алга байна.'},
+  tbm_shared_title:{ko:'최근 사고 · 개선사례 공유',en:'Recent Incidents & Improvements',th:'อุบัติเหตุและกรณีปรับปรุงล่าสุด',id:'Insiden & Perbaikan Terbaru',mn:'Сүүлийн үеийн осол · сайжруулалт'},
+  tbm_select_process_hint:{ko:'공정을 선택하면 서명할 수 있습니다.',en:'Select a process to sign.',th:'เลือกกระบวนการเพื่อลงชื่อ',id:'Pilih proses untuk menandatangani.',mn:'Гарын үсэг зурахын тулд процессыг сонгоно уу.'},
+  tbm_progress_label:{ko:'서명 현황',en:'Signing Progress',th:'สถานะการลงชื่อ',id:'Status Tanda Tangan',mn:'Гарын үсгийн явц'},
+  tbm_deadline_passed:{ko:'오늘 서명 마감시간({time})이 지났습니다.',en:"Today's signing deadline ({time}) has passed.",th:'เวลาปิดรับลงชื่อวันนี้ ({time}) ผ่านไปแล้ว',id:'Batas waktu tanda tangan hari ini ({time}) telah lewat.',mn:'Өнөөдрийн гарын үсэг зурах эцсийн хугацаа ({time}) өнгөрсөн байна.'},
+  tbm_name_placeholder:{ko:'본인 이름을 입력하세요',en:'Enter your name',th:'กรอกชื่อของคุณ',id:'Masukkan nama Anda',mn:'Өөрийн нэрийг оруулна уу'},
+  tbm_sign_btn:{ko:'서명하기',en:'Sign',th:'ลงชื่อ',id:'Tanda Tangan',mn:'Гарын үсэг зурах'},
+  tbm_signed_list_title:{ko:'오늘 {process} 서명자 ({n}명)',en:"Today's Signers for {process} ({n})",th:'ผู้ลงชื่อวันนี้สำหรับ {process} ({n})',id:'Penandatangan Hari Ini untuk {process} ({n})',mn:'Өнөөдөр {process}-д гарын үсэг зурсан ({n})'},
+  tbm_no_signers:{ko:'아직 서명한 사람이 없습니다.',en:'No one has signed yet.',th:'ยังไม่มีผู้ลงชื่อ',id:'Belum ada yang menandatangani.',mn:'Одоогоор хэн ч гарын үсэг зураагүй байна.'},
+  tbm_sign_success:{ko:'서명이 저장되었습니다',en:'Signature saved',th:'บันทึกลายเซ็นแล้ว',id:'Tanda tangan tersimpan',mn:'Гарын үсэг хадгалагдлаа'},
+  tbm_admin_title:{ko:'TBM 관리',en:'TBM Management',th:'การจัดการ TBM',id:'Manajemen TBM',mn:'TBM удирдлага'},
+  tbm_deadline_setting:{ko:'마감시간 설정',en:'Deadline Setting',th:'ตั้งเวลาปิดรับ',id:'Pengaturan Batas Waktu',mn:'Эцсийн хугацааны тохиргоо'},
+  tbm_headcount_setting:{ko:'오늘 공정별 예상인원',en:"Today's Expected Headcount by Process",th:'จำนวนคนที่คาดไว้ต่อกระบวนการวันนี้',id:'Perkiraan Jumlah Orang per Proses Hari Ini',mn:'Өнөөдрийн процесс тус бүрийн таамаг тоо'},
+  tbm_headcount_hint:{ko:'입력해두면 서명 진행률이 표시됩니다. (선택사항)',en:'If entered, signing progress will be shown. (Optional)',th:'หากกรอกไว้ จะแสดงความคืบหน้าการลงชื่อ (ไม่บังคับ)',id:'Jika diisi, kemajuan tanda tangan akan ditampilkan. (Opsional)',mn:'Оруулсан бол гарын үсгийн явцыг харуулна. (Заавал биш)'},
+  tbm_expected_count:{ko:'예상 인원수',en:'Expected Count',th:'จำนวนที่คาดไว้',id:'Jumlah Perkiraan',mn:'Таамаг тоо'},
+  tbm_pool_title:{ko:'공통 안전메시지 풀',en:'Common Safety Message Pool',th:'คลังข้อความความปลอดภัยส่วนกลาง',id:'Kumpulan Pesan Keselamatan Umum',mn:'Нийтлэг аюулгүй байдлын мессежийн сан'},
+  tbm_pool_hint:{ko:'등록한 순서대로 하루에 하나씩 자동으로 순환됩니다. 끝까지 돌면 처음부터 다시 반복됩니다.',en:'Rotates automatically one per day in the order registered. Repeats from the start once it reaches the end.',th:'หมุนเวียนอัตโนมัติวันละหนึ่งรายการตามลำดับที่ลงทะเบียน เมื่อถึงรายการสุดท้ายจะเริ่มใหม่จากต้น',id:'Berputar otomatis satu per hari sesuai urutan pendaftaran. Berulang dari awal setelah mencapai akhir.',mn:'Бүртгэсэн дарааллаар өдөрт нэгээр автоматаар эргэлддэг. Төгсгөлд хүрвэл эхнээс дахин давтагдана.'},
+  tbm_pool_low_warning:{ko:'⚠ 등록된 메시지가 적어서 반복 주기가 짧습니다. 여러 개 더 등록해두시는 걸 추천합니다.',en:'⚠ Few messages registered, so the rotation repeats quickly. Consider adding more.',th:'⚠ มีข้อความน้อย ทำให้รอบหมุนเวียนสั้น แนะนำให้เพิ่มอีก',id:'⚠ Pesan terdaftar sedikit sehingga rotasi cepat berulang. Sebaiknya tambahkan lebih banyak.',mn:'⚠ Бүртгэсэн мессеж цөөн тул эргэлт хурдан давтагдана. Илүү олноор нэмэхийг зөвлөж байна.'},
+  tbm_today_tag:{ko:'오늘',en:'Today',th:'วันนี้',id:'Hari ini',mn:'Өнөөдөр'},
+  tbm_pool_empty:{ko:'등록된 메시지가 없습니다.',en:'No messages registered.',th:'ไม่มีข้อความที่ลงทะเบียน',id:'Tidak ada pesan terdaftar.',mn:'Бүртгэсэн мессеж алга байна.'},
+  tbm_content_placeholder:{ko:'예: 오늘도 안전화·안전모 착용 상태를 서로 확인합시다.',en:'e.g. Let\'s check each other\'s safety shoes and helmets today too.',th:'เช่น วันนี้มาตรวจสอบรองเท้าและหมวกนิรภัยของกันและกันด้วยกัน',id:'contoh: Mari saling memeriksa sepatu dan helm keselamatan hari ini juga.',mn:'жишээ нь: Өнөөдөр ч бас хамгаалалтын гутал, малгайгаа бие биенээсээ шалгацгаая.'},
+  tbm_content_add_btn:{ko:'메시지 추가',en:'Add Message',th:'เพิ่มข้อความ',id:'Tambah Pesan',mn:'Мессеж нэмэх'},
+  tbm_history_title:{ko:'날짜별 실시 현황',en:'Status by Date',th:'สถานะตามวันที่',id:'Status per Tanggal',mn:'Огноогоор явц'},
+  tbm_status_done:{ko:'실시함',en:'Done',th:'ดำเนินการแล้ว',id:'Selesai',mn:'Хийсэн'},
+  tbm_status_none:{ko:'미실시',en:'Not done',th:'ยังไม่ดำเนินการ',id:'Belum dilakukan',mn:'Хийгээгүй'},
+  tbm_signed_count:{ko:'서명 인원',en:'Signed Count',th:'จำนวนผู้ลงชื่อ',id:'Jumlah Penanda Tangan',mn:'Гарын үсэг зурсан тоо'},
 };
 function t(key){
   const entry = TRANSLATIONS[key];
@@ -1394,7 +1432,11 @@ const PATHS = {
   nearMiss:'near_miss_reports', // 아차사고 발견 (사고로 이어지지 않은 위험 상황)
   contractors:'contractors',
   contractorRecords:'contractor_records',
-  tbm:'tbm_records', // TBM(Tool Box Meeting) — 기능 개발 전, 경로만 예약
+  tbm:'tbm_records', // TBM(Tool Box Meeting) 서명 기록 — 날짜/공정별
+  tbmContent:'tbm_content_pool', // 전체관리자가 미리 채워두는 공통 안전메시지 풀 (순서대로 하루 1개씩 순환)
+  tbmSettings:'tbm_settings', // 마감시간, 오늘 사용 중인 콘텐츠 순번 등
+  tbmHeadcount:'tbm_headcount', // 날짜+공정별 예상 인원수 (선택 입력)
+  dailyVisits:'daily_visits', // 일일 방문자 집계 (날짜+기기ID를 키로 써서 중복 방문 제외)
   notices:'notices',
   contacts:'emergency_contacts',
   permitPartners:'permit_partners', // 작업허가 조회 전용 외주업체 (도급협의체와는 별개 — 고유링크로 접속)
@@ -1416,7 +1458,7 @@ const VIEW_PATHS = {
   risks: [PATHS.risks],
   incidents: [PATHS.incidents, PATHS.nearMiss],
   contractors: [PATHS.contractors, PATHS.contractorRecords],
-  tbm: [PATHS.tbm],
+  tbm: [PATHS.tbm, PATHS.tbmContent, PATHS.tbmSettings, PATHS.tbmHeadcount, PATHS.risks, PATHS.incidents, PATHS.nearMiss],
   notices: [PATHS.notices, PATHS.contacts],
   suggestions: [PATHS.suggestions],
   bugs: [PATHS.bugReports],
@@ -1594,6 +1636,12 @@ function fmtDateTime(d){
   if(isNaN(dt)) return d;
   return `${fmtDate(d)} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
 }
+function fmtTime(ts){
+  if(!ts) return '-';
+  const dt = new Date(ts);
+  if(isNaN(dt)) return '-';
+  return `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
 function daysBetween(a,b){
   return Math.floor((new Date(b) - new Date(a)) / 86400000);
 }
@@ -1649,9 +1697,9 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
-    : State.mode==='dept' ? NAV_ITEMS.filter(i=> !['tbm','contractors'].includes(i.id))
-    : State.mode==='user' ? NAV_ITEMS.filter(i=> !['contractors','tbm'].includes(i.id))
-    : NAV_ITEMS; // 전체관리자는 TBM 포함 전체 메뉴
+    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
+    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
+    : NAV_ITEMS; // 전체관리자는 전체 메뉴
   nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
     const isNew = hasNewItems(item.id);
@@ -1671,6 +1719,7 @@ function hasNewItems(viewId){
     const arr = objToArr(DataStore.get(PATHS.permits)).filter(p=>p.company===State.partnerCompany);
     return hasNewInList(arr, PATHS.permits);
   }
+  if(viewId==='contractors' && State.mode==='admin' && isPatrolOverdue()) return true; // 순회점검 미등록 경고 — 메뉴에서도 바로 보이게
   const pathMap = {
     permits: [PATHS.permits],
     risks: [PATHS.risks],
@@ -1704,9 +1753,8 @@ function navBadgeCount(viewId){
 
 function switchView(id){
   if(State.mode==='partner' && id!=='permits') id = 'permits';
-  if(State.mode==='dept' && ['tbm','contractors'].includes(id)) id = 'dashboard';
-  if(State.mode==='user' && ['contractors','tbm'].includes(id)) id = 'dashboard';
-  if(State.mode!=='admin' && id==='tbm') id = 'dashboard';
+  if(State.mode==='dept' && id==='contractors') id = 'dashboard';
+  if(State.mode==='user' && id==='contractors') id = 'dashboard';
   State.view = id;
   const pathsForView = (id==='dashboard' && State.mode!=='admin')
     ? VIEW_PATHS[id].filter(p=>p!==PATHS.contractors)
@@ -1888,6 +1936,37 @@ function usageCardHtml(){
   `;
 }
 
+function getOrCreateDeviceId(){
+  let id = localStorage.getItem('isc_device_id');
+  if(!id){
+    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+    localStorage.setItem('isc_device_id', id);
+  }
+  return id;
+}
+// 오늘 이 기기가 이미 집계됐으면 다시 안 씀 (날짜+기기ID를 키로 써서 중복 자체가 안 생기게)
+// — 실패해도 방문 집계는 핵심 기능이 아니므로 DataStore를 거치지 않고 조용히 무시한다.
+async function recordDailyVisit(){
+  if(!db) return;
+  try{
+    await db.ref(PATHS.dailyVisits+'/'+todayStr()+'_'+getOrCreateDeviceId()).set({ ts: Date.now() });
+  }catch(e){ console.warn('방문 집계 실패(무시 가능):', e); }
+}
+function todayVisitorCount(){
+  const today = todayStr();
+  return Object.keys(DataStore.get(PATHS.dailyVisits)).filter(k=>k.startsWith(today+'_')).length;
+}
+function visitorCardHtml(){
+  return `
+    <div class="list-card" style="margin-bottom:16px;">
+      <div class="lc-head"><h3>👥 오늘 방문자</h3></div>
+      <div style="padding:12px 16px;">
+        <div style="font-size:24px;font-weight:800;">${todayVisitorCount()}<span style="font-size:13px;font-weight:600;color:var(--ink-soft);"> 명</span></div>
+      </div>
+    </div>
+  `;
+}
+
 function renderDashboard(){
   const el = document.getElementById('view-dashboard');
   const permits = objToArr(DataStore.get(PATHS.permits));
@@ -1918,6 +1997,7 @@ function renderDashboard(){
     ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} ${t('config_banner')}</div>`:''}
 
     ${State.mode==='admin' ? usageCardHtml() : ''}
+    ${State.mode==='admin' ? visitorCardHtml() : ''}
 
     <div class="dash-charts">
       <div class="list-card">
@@ -1930,7 +2010,7 @@ function renderDashboard(){
       </div>
     </div>
 
-    <div class="grid-4" style="${State.mode==='admin'?'':'grid-template-columns:repeat(3,1fr);'}">
+    <div class="grid-4 ${State.mode==='admin'?'':'grid-3'}">
       <div class="card kpi c-safety">
         <div class="k-label">${icon('file-check',14)} ${t('kpi_permits')} ${hasNewInList(permits.filter(p=>p.status==='신청'||p.status==='검토중'), PATHS.permits) ? '<span class="badge-new">NEW</span>' : ''}</div>
         <div class="k-num">${openPermits}</div>
@@ -2773,17 +2853,23 @@ function openSignaturePad(title, onSave){
       <button class="btn btn-primary" id="sigSaveBtn">서명 완료</button>
     </div>
   `);
-  document.querySelectorAll('#modalBox2 [data-close]').forEach(el=> el.addEventListener('click', ()=>{ signaturePadOpen = false; }));
   const canvas = document.getElementById('sigCanvas');
   const ctx = canvas.getContext('2d');
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * 2;
-  canvas.height = rect.height * 2;
-  ctx.scale(2,2);
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#14192B';
   let drawing = false, hasDrawn = false;
+  // 모달이 화면에 완전히 자리잡은 다음 크기를 재야 정확하다 (열리자마자 재면
+  // 애니메이션 도중이라 0으로 잡혀 캔버스가 비어보이는 기기가 있었음)
+  function setupCanvasSize(){
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width || canvas.parentElement.clientWidth || 320;
+    const h = rect.height || Math.round(w*2/5) || 128;
+    canvas.width = w * 2;
+    canvas.height = h * 2;
+    ctx.scale(2,2);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#14192B';
+  }
+  requestAnimationFrame(setupCanvasSize);
   function getPos(e){
     const r = canvas.getBoundingClientRect();
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -2799,6 +2885,14 @@ function openSignaturePad(title, onSave){
   canvas.addEventListener('touchstart', start, {passive:false});
   canvas.addEventListener('touchmove', move, {passive:false});
   canvas.addEventListener('touchend', end);
+  // 이 모달이 열려있는 동안만 쓰는 임시 리스너라, 어떻게 닫히든(취소/저장/X)
+  // 반드시 여기서 window 리스너를 떼어내야 한다. 안 그러면 서명패드를 열 때마다
+  // window에 mouseup 리스너가 하나씩 계속 쌓인다(TBM 도입 후 서명이 훨씬 잦아지므로 중요).
+  function cleanup(){
+    signaturePadOpen = false;
+    window.removeEventListener('mouseup', end);
+  }
+  document.querySelectorAll('#modalBox2 [data-close]').forEach(el=> el.addEventListener('click', cleanup, {once:true}));
   document.getElementById('sigClearBtn').addEventListener('click', ()=>{
     ctx.clearRect(0,0,canvas.width,canvas.height);
     hasDrawn = false;
@@ -2806,7 +2900,7 @@ function openSignaturePad(title, onSave){
   document.getElementById('sigSaveBtn').addEventListener('click', ()=>{
     if(!hasDrawn){ toast('서명을 입력해주세요'); return; }
     const dataUrl = canvas.toDataURL('image/png');
-    signaturePadOpen = false;
+    cleanup();
     closeModal2();
     onSave(dataUrl);
   });
@@ -2996,6 +3090,7 @@ function renderRisks(){
   const processFilter = State.filters.risksProcess || '전체';
   const viewMode = State.filters.risksView || 'table';
   const isAdmin = State.mode==='admin';
+  const isManager = isAdmin || State.mode==='dept'; // 인쇄·엑셀 다운로드는 관리자(전체+부서) 공통
 
   function getFilteredRisks(){
     const arr = objToArr(DataStore.get(PATHS.risks)).sort((a,b)=>{
@@ -3017,8 +3112,8 @@ function renderRisks(){
           ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${processFilter===p?'selected':''}>${esc(p)}</option>`).join('')}
         </select>
         <button class="btn btn-sm" id="galleryToggleBtn">${viewMode==='table' ? icon('alert-triangle',14)+' '+t('btn_gallery_view') : icon('grid',14)+' '+t('btn_table_view')}</button>
-        ${isAdmin ? `<button class="btn btn-sm" id="printRisksBtn">${icon('file-check',14)} ${t('btn_print')}</button>` : ''}
-        ${isAdmin ? `<button class="btn btn-sm" id="excelRisksBtn">${icon('file-check',14)} ${t('btn_excel')}</button>` : ''}
+        ${isManager ? `<button class="btn btn-sm" id="printRisksBtn">${icon('file-check',14)} ${t('btn_print')}</button>` : ''}
+        ${isManager ? `<button class="btn btn-sm" id="excelRisksBtn">${icon('file-check',14)} ${t('btn_excel')}</button>` : ''}
         <button class="btn btn-primary" id="addRiskBtn">${icon('plus',15)} ${t('risks_add_btn')}</button>
       </div>
     </div>
@@ -3035,7 +3130,7 @@ function renderRisks(){
     State.filters.risksView = viewMode==='table' ? 'gallery' : 'table';
     renderRisks();
   });
-  if(isAdmin){
+  if(isManager){
     document.getElementById('printRisksBtn').addEventListener('click', ()=> printRisks(getFilteredRisks()));
     document.getElementById('excelRisksBtn').addEventListener('click', ()=> exportRisksExcel(getFilteredRisks()));
   }
@@ -3607,8 +3702,8 @@ function openRiskDetail(id){
       </div>` : ''}
     </div>
     <div class="modal-foot">
-      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
-      ${State.mode==='dept' ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      ${isAdmin ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      ${(State.mode==='dept' && r.status!=='완료') ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       ${(State.mode==='user' && r.status==='접수' && getMyOwnedIds('isc_my_risks').includes(id)) ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
@@ -3653,6 +3748,7 @@ function renderIncidentTab(){
   const filter = State.filters.incidents || '전체';
   const processFilter = State.filters.incidentsProcess || '전체';
   const isAdmin = State.mode==='admin';
+  const isManager = isAdmin || State.mode==='dept'; // 신고자·피해자 열람 및 조사상태 관리는 관리자(전체+부서) 공통
   el.innerHTML = `
     <div class="toolbar">
       <div class="tabs" id="incTabs">
@@ -3669,9 +3765,10 @@ function renderIncidentTab(){
     <div class="table-wrap"><table>
       <thead><tr>
         <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
-        ${isAdmin?`<th>${t('th_reporter')}</th><th>${t('lbl_injured_person')}</th>`:''}
+        ${isManager?`<th>${t('th_reporter')}</th><th>${t('lbl_injured_person')}</th>`:''}
         <th>${t('th_accidenttype')}</th><th>${t('th_injuryseverity')}</th>
-        ${isAdmin?`<th>${t('th_status')}</th><th>정식보고서</th>`:''}
+        ${isManager?`<th>${t('th_status')}</th>`:''}
+        ${isAdmin?`<th>정식보고서</th>`:''}
         <th class="tight">${t('btn_manage_col')}</th>
       </tr></thead>
       <tbody id="incBody"></tbody>
@@ -3689,7 +3786,7 @@ function renderIncidentTab(){
   let filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
   if(processFilter!=='전체') filtered = filtered.filter(i=>i.process===processFilter);
   const body = document.getElementById('incBody');
-  const colCount = isAdmin ? 10 : 6;
+  const colCount = 4 + (isManager?3:0) + (isAdmin?1:0) + 3;
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>${t('incidents_empty')}</div></td></tr>`;
     return;
@@ -3700,10 +3797,11 @@ function renderIncidentTab(){
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
-      ${isAdmin?`<td>${esc(i.reporter||'-')}</td><td>${esc(i.injuredPerson||'-')}</td>`:''}
+      ${isManager?`<td>${esc(i.reporter||'-')}</td><td>${esc(i.injuredPerson||'-')}</td>`:''}
       <td><span class="badge b-gray">${esc(i.accidentType ? (TRANSLATIONS['accidenttype_'+i.accidentType]?t('accidenttype_'+i.accidentType):i.accidentType) : '-')}</span></td>
       <td>${esc(i.injurySeverity ? t('sev_'+i.injurySeverity) : '-')}</td>
-      ${isAdmin?`<td>${statusBadge('incident', i.status)}</td><td>${rptStatusBadge(reportStatusOf(i))}</td>`:''}
+      ${isManager?`<td>${statusBadge('incident', i.status)}</td>`:''}
+      ${isAdmin?`<td>${rptStatusBadge(reportStatusOf(i))}</td>`:''}
       <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${i.id}">${t('btn_view')}</button></td>
     </tr>
   `).join('');
@@ -3862,7 +3960,6 @@ function openNearMissModal(existing){
         hazard: `아차사고 발견으로 등록됨: ${data.description}`,
         riskType: '', frequency: '', severity: '',
         measures: '',
-        reporter: data.reporter,
         status: '접수완료',
         linkedNearMissId: newId,
         createdAt: Date.now(),
@@ -3940,8 +4037,9 @@ function calcLeaveDays(incidentDatetime, returnDate){
 }
 
 function openIncidentModal(existing){
-  // 신고 접수 자체는 일반 사용자도 가능 (관리자 전용 아님) — 처리상태·조치내용은 관리자 권한
+  // 신고 접수 자체는 일반 사용자도 가능 (관리자 전용 아님) — 처리상태·조치내용은 관리자(전체+부서) 권한
   const isEdit = !!existing;
+  const isManager = State.mode==='admin' || State.mode==='dept';
   const v = existing || {};
   const leaveDays = calcLeaveDays(v.datetime, v.returnDate);
   showModal(`
@@ -3991,7 +4089,7 @@ function openIncidentModal(existing){
           ${photoFieldHtml('f_incPhoto2', v.photo2||'', v.photo2?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
         </div>
       </div>
-      ${State.mode==='admin' ? `
+      ${isManager ? `
       <div class="divider"></div>
       <div class="field"><label>${t('lbl_status_admin')}</label>
         <select id="f_status">${['접수','조사중','완료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
@@ -4023,7 +4121,7 @@ function openIncidentModal(existing){
       document.getElementById('f_injuredPerson').value = e.target.value;
     }
   });
-  if(State.mode==='admin'){
+  if(isManager){
     const recalc = ()=>{
       const d = calcLeaveDays(document.getElementById('f_datetime').value, document.getElementById('f_returnDate').value);
       document.getElementById('f_leaveDaysDisplay').value = d!=null ? d+'일' : '-';
@@ -4071,7 +4169,7 @@ function openIncidentModal(existing){
       }
       data.photo2Size = photo2File.size;
     }
-    if(State.mode==='admin'){
+    if(isManager){
       data.status = document.getElementById('f_status').value;
       data.action = document.getElementById('f_action').value.trim();
       data.returnDate = document.getElementById('f_returnDate').value;
@@ -4101,7 +4199,6 @@ function openIncidentModal(existing){
         riskType: accidentType==='기타(직접입력)' ? '' : accidentType,
         frequency: '', severity: data.injurySeverity || '',
         measures: '',
-        reporter: data.reporter,
         status: '접수완료',
         linkedIncidentId: newId,
         createdAt: Date.now(),
@@ -4123,6 +4220,9 @@ function openIncidentDetail(id){
   if(!raw) return;
   markRead(PATHS.incidents, id);
   const i = Object.assign({id}, raw);
+  const isAdmin = State.mode==='admin';
+  const isManager = isAdmin || State.mode==='dept';
+  const canEdit = isAdmin || (State.mode==='dept' && i.status!=='완료');
   const typeText = i.accidentType ? (i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||t('injury_기타')) : t('accidenttype_'+i.accidentType)) : '-';
   const linkedRisk = objToArr(DataStore.get(PATHS.risks)).find(r=>r.linkedIncidentId===id);
   showModal(`
@@ -4135,17 +4235,17 @@ function openIncidentDetail(id){
         <dt>${t('th_content')}</dt><dd>${esc(i.description)}</dd>
         <dt>${t('th_accidenttype')}</dt><dd>${esc(typeText)}</dd>
         <dt>${t('th_injuryseverity')}</dt><dd>${esc(i.injurySeverity ? t('sev_'+i.injurySeverity) : '-')}</dd>
-        ${State.mode==='admin' ? `
+        ${isManager ? `
         <dt>${t('th_reporter')}</dt><dd>${esc(i.reporter||'-')}</dd>
         <dt>${t('lbl_injured_person')}</dt><dd>${esc(i.injuredPerson||'-')}</dd>
         <dt>${t('lbl_injury_detail')}</dt><dd>${esc(i.injuryDetail||'-')}</dd>
         <dt>${t('th_status')}</dt><dd>${statusBadge('incident', i.status)}</dd>
         ${i.action?`<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>`:''}
         ${i.returnDate?`<dt>업무복귀일</dt><dd>${fmtDate(i.returnDate)} ${i.leaveDays!=null?`(휴업 ${i.leaveDays}일)`:''}</dd>`:''}
-        <dt>정식 보고서</dt><dd>${rptStatusBadge(reportStatusOf(i))}</dd>
         ` : ''}
+        ${isAdmin ? `<dt>정식 보고서</dt><dd>${rptStatusBadge(reportStatusOf(i))}</dd>` : ''}
       </dl>
-      ${(State.mode==='admin' && (i.photo1||i.photo2)) ? `
+      ${(isManager && (i.photo1||i.photo2)) ? `
       <div class="divider"></div>
       <div class="row2">
         ${i.photo1?`<img src="${i.photo1}" class="risk-thumb" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;">`:''}
@@ -4155,8 +4255,9 @@ function openIncidentDetail(id){
     </div>
     <div class="modal-foot">
       ${linkedRisk ? `<button class="btn" id="viewLinkedRiskBtn">${t('btn_view_linked_risk')}</button>` : ''}
-      ${State.mode==='admin' ? `<button class="btn btn-primary" id="reportBtn">📋 정식 보고서 작성</button>` : ''}
-      ${State.mode==='admin' ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn" id="editBtn">${t('btn_process_edit')}</button>` : ''}
+      ${isAdmin ? `<button class="btn btn-primary" id="reportBtn">📋 정식 보고서 작성</button>` : ''}
+      ${isAdmin ? `<button class="btn" id="delBtn">${t('btn_delete')}</button>` : ''}
+      ${canEdit ? `<button class="btn" id="editBtn">${t('btn_process_edit')}</button>` : ''}
       ${(State.mode==='user' && i.status==='접수' && getMyOwnedIds('isc_my_incidents').includes(id)) ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
@@ -4171,7 +4272,7 @@ function openIncidentDetail(id){
   if(document.getElementById('editBtn')){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openIncidentModal(i); });
   }
-  if(State.mode==='admin'){
+  if(isAdmin){
     document.getElementById('delBtn').addEventListener('click', async ()=>{
       if(confirm(t('confirm_delete_incident'))){
         await DataStore.remove(PATHS.incidents, id); closeModal(); toast(t('toast_deleted')); renderIncidents();
@@ -4836,7 +4937,7 @@ function renderContractors(){
 
     <div class="section-title"><span class="n">01</span> ${t('contractors_list_title')}</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>${t('th_company')}</th>${isAdmin?`<th>${t('th_type')}</th><th>${t('th_role')}</th><th>${t('th_contact')}</th><th class="tight">${t('btn_manage_col')}</th>`:''}</tr></thead>
+      <thead><tr><th>${t('th_company')}</th>${isAdmin?`<th>${t('th_type')}</th><th>담당자</th><th>${t('th_role')}</th><th>${t('th_contact')}</th><th class="tight">${t('btn_manage_col')}</th>`:''}</tr></thead>
       <tbody id="contractorBody"></tbody>
     </table></div>
 
@@ -4878,12 +4979,13 @@ function renderContractors(){
       <td class="cell-strong">${esc(c.name)}</td>
       ${isAdmin ? `
       <td><span class="badge b-info">${c.type?esc(contractorTypeLabel(c.type)):'-'}</span></td>
+      <td>${esc(c.manager||'-')}</td>
       <td>${esc(c.role||'-')}</td>
       <td class="mono">${esc(c.contact||'-')}</td>
       <td class="tight row-btns"><button class="btn btn-sm" data-edit-c="${c.id}">${t('btn_edit')}</button><button class="btn btn-sm" data-del-c="${c.id}">${t('btn_delete')}</button></td>
       ` : ''}
     </tr>
-  `).join('') : `<tr><td colspan="${isAdmin?5:1}"><div class="empty"><span class="big">${icon('hard-hat',22)}</span>${t('contractors_empty')}</div></td></tr>`;
+  `).join('') : `<tr><td colspan="${isAdmin?6:1}"><div class="empty"><span class="big">${icon('hard-hat',22)}</span>${t('contractors_empty')}</div></td></tr>`;
   cBody.querySelectorAll('[data-edit-c]').forEach(b=>b.addEventListener('click', ()=> openContractorModal(contractors.find(c=>c.id===b.dataset.editC))));
   cBody.querySelectorAll('[data-del-c]').forEach(b=>b.addEventListener('click', async ()=>{
     if(confirm(t('confirm_delete'))){ await DataStore.remove(PATHS.contractors, b.dataset.delC); toast(t('toast_deleted')); renderContractors(); }
@@ -4932,8 +5034,9 @@ function openContractorModal(existing){
         <div class="field"><label>${t('th_type')}</label>
           <select id="f_type">${['상주(용역)','정기납품','물류운송','공사·정비','기타'].map(ct=>`<option value="${ct}" ${v.type===ct?'selected':''}>${contractorTypeLabel(ct)}</option>`).join('')}</select>
         </div>
-        <div class="field"><label>${t('th_contact')}</label><input type="text" id="f_contact" value="${esc(v.contact||'')}"></div>
+        <div class="field"><label>담당자 이름</label><input type="text" id="f_manager" value="${esc(v.manager||'')}" placeholder="예: 홍길동"></div>
       </div>
+      <div class="field"><label>${t('th_contact')}</label><input type="text" id="f_contact" value="${esc(v.contact||'')}"></div>
       <div class="field"><label>${t('th_role')}</label><input type="text" id="f_role" value="${esc(v.role||'')}" placeholder="예: 주물용 중자 납품"></div>
     </div>
     <div class="modal-foot"><button class="btn" data-close>${t('btn_cancel')}</button><button class="btn btn-primary" id="saveContractorBtn">${t('btn_save')}</button></div>
@@ -4942,6 +5045,7 @@ function openContractorModal(existing){
     const data = {
       name: document.getElementById('f_name').value.trim(),
       type: document.getElementById('f_type').value,
+      manager: document.getElementById('f_manager').value.trim(),
       contact: document.getElementById('f_contact').value.trim(),
       role: document.getElementById('f_role').value.trim(),
     };
@@ -5215,19 +5319,301 @@ function openRecordDetail(id){
    ※ 기능 설계 중. 지금은 자리와 데이터 구조(PATHS.tbm)만 마련해두고,
       추후 패치로 실제 기능(체크리스트, 참석자, 사진 등)을 채울 예정.
 ============================================================= */
+/* ============================================================
+   TBM (Tool Box Meeting) — 작업 전 안전점검
+   - 공통 안전메시지는 전체관리자가 미리 등록한 순서대로 매일 하나씩 자동 순환
+     (날짜로 순번을 계산하는 방식이라 별도로 "오늘 몇 번째"를 저장해둘 필요가 없고,
+      누가 언제 접속해도 항상 같은 결과가 나온다)
+   - 사고접수·위험성평가 개선사례는 공정 구분 없이 전체 공유 (다른 공정 사고도 다 같이 알아야 하므로)
+   - 서명은 마감시간 전까지 각자 원할 때 개별적으로 (한 자리에 모일 필요 없음)
+   - 인쇄·다운로드는 전체관리자 전용 — 일상적인 서명 자체는 전 직원이 함
+============================================================= */
+function daysSinceEpoch(dateStr){
+  return Math.floor(new Date(dateStr+'T00:00:00').getTime() / 86400000);
+}
+function currentTimeStr(){
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function tbmContentPoolSorted(){
+  return objToArr(DataStore.get(PATHS.tbmContent)).sort((a,b)=> (a.createdAt||0)-(b.createdAt||0));
+}
+function tbmTodayContent(){
+  const pool = tbmContentPoolSorted();
+  if(!pool.length) return null;
+  const idx = daysSinceEpoch(todayStr()) % pool.length;
+  return pool[idx];
+}
+function tbmSettingsGet(){
+  return DataStore.get(PATHS.tbmSettings).main || {};
+}
+function tbmDeadline(){
+  return tbmSettingsGet().deadlineTime || '09:00';
+}
+function tbmIsPastDeadline(){
+  return currentTimeStr() > tbmDeadline();
+}
+function tbmRecordsOn(dateStr, process){
+  return objToArr(DataStore.get(PATHS.tbm)).filter(r=> r.date===dateStr && (!process || r.process===process));
+}
+function tbmHeadcountOn(dateStr, process){
+  const v = DataStore.get(PATHS.tbmHeadcount)[dateStr+'_'+process];
+  return v ? v.count : null;
+}
+
 function renderTbm(){
   const el = document.getElementById('view-tbm');
+  const isAdmin = State.mode==='admin';
+  const isManager = isAdmin || State.mode==='dept'; // 인원수 설정은 관리자(전체+부서) 공통 — 부서 사정은 부서관리자가 제일 잘 앎
+  const today = todayStr();
+  const deadline = tbmDeadline();
+  const pastDeadline = tbmIsPastDeadline();
+  const content = tbmTodayContent();
+  const selectedProcess = State.tbmProcess || '';
+
+  const recentIncidents = objToArr(DataStore.get(PATHS.incidents))
+    .sort((a,b)=> new Date(b.datetime||0)-new Date(a.datetime||0)).slice(0,3);
+  const recentRiskImprovements = objToArr(DataStore.get(PATHS.risks))
+    .filter(r=> r.status==='완료' || r.status==='일부개선완료')
+    .sort((a,b)=> (b.createdAt||0)-(a.createdAt||0)).slice(0,3);
+
+  const sectionNum = isAdmin ? 2 : (isManager ? 1 : 0);
+  const headcountSectionNum = isAdmin ? 2 : 1;
+
   el.innerHTML = `
-    <div class="card" style="padding:48px 24px;text-align:center;">
-      <div style="font-size:40px;margin-bottom:14px;">${icon('users',40)}</div>
-      <h3 style="margin:0 0 8px;font-size:17px;font-weight:800;">TBM 기능 준비중입니다</h3>
-      <p style="margin:0;color:var(--ink-soft);font-size:13.5px;line-height:1.7;">
-        작업 전 안전점검회의(Tool Box Meeting) 기록 기능을 준비하고 있습니다.<br>
-        곧 업데이트될 예정이니 조금만 기다려주세요.
-      </p>
-      <span class="badge b-caution" style="margin-top:16px;">개발중</span>
+    <div class="toolbar">
+      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('nav_tbm')} · ${today}</div>
+    </div>
+
+    ${isAdmin ? tbmAdminPanelHtml() : ''}
+    ${isManager ? `<div class="section-title"><span class="n">${String(headcountSectionNum).padStart(2,'0')}</span> ${t('tbm_headcount_setting')}</div>${tbmHeadcountPanelHtml()}` : ''}
+
+    <div class="section-title"><span class="n">${String(sectionNum+1).padStart(2,'0')}</span> ${t('tbm_today_title')}</div>
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">📢 ${t('tbm_msg_title')}</div>
+      <div style="font-size:13.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap;">${content ? esc(content.message) : t('tbm_msg_empty')}</div>
+    </div>
+
+    ${(recentIncidents.length || recentRiskImprovements.length) ? `
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">⚠ ${t('tbm_shared_title')}</div>
+      ${recentIncidents.map(i=>`<div style="font-size:13px;margin-bottom:6px;">🔸 [${t('nav_incidents')}] ${esc(i.process||'-')} · ${esc((i.description||'-').slice(0,40))}</div>`).join('')}
+      ${recentRiskImprovements.map(r=>`<div style="font-size:13px;margin-bottom:6px;">🔹 [${t('lbl_measures_only')}] ${esc(r.process||'-')} · ${esc((r.hazard||'-').slice(0,30))} → ${esc((r.measures||'-').slice(0,30))}</div>`).join('')}
+    </div>` : ''}
+
+    <div class="card" style="padding:18px;">
+      <div class="field"><label>${t('th_process')} *</label>
+        <select id="tbmProcessSelect">
+          <option value="">${t('opt_select_please')}</option>
+          ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${selectedProcess===p?'selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+      </div>
+      ${selectedProcess ? tbmSignAreaHtml(selectedProcess, pastDeadline, deadline) : `<p class="hint" style="margin-top:6px;">${t('tbm_select_process_hint')}</p>`}
     </div>
   `;
+
+  document.getElementById('tbmProcessSelect').addEventListener('change', (e)=>{
+    State.tbmProcess = e.target.value;
+    renderTbm();
+  });
+
+  if(isAdmin) bindTbmAdminEvents();
+  if(isManager) bindTbmHeadcountEvents();
+  if(selectedProcess) bindTbmSignEvents(selectedProcess);
+}
+
+function tbmSignAreaHtml(process, pastDeadline, deadline){
+  const today = todayStr();
+  const records = tbmRecordsOn(today, process).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
+  const headcount = tbmHeadcountOn(today, process);
+  const progressHtml = headcount ? `
+    <div style="margin:10px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-soft);margin-bottom:4px;">
+        <span>${t('tbm_progress_label')}</span><span>${records.length} / ${headcount}${t('unit_person')}</span>
+      </div>
+      <div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${Math.min(100, Math.round(records.length/headcount*100))}%;background:var(--ok);"></div>
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="divider" style="margin:14px 0;"></div>
+    ${progressHtml}
+    ${pastDeadline ? `
+      <div class="empty" style="padding:14px 0;">
+        <span class="big">${icon('siren',20)}</span>
+        ${t('tbm_deadline_passed').replace('{time}', esc(deadline))}
+      </div>
+    ` : `
+      <div class="field"><label>${t('lbl_name')} *</label><input type="text" id="tbmNameInput" placeholder="${t('tbm_name_placeholder')}"></div>
+      <button class="btn btn-primary" id="tbmSignBtn" style="width:100%;">${icon('users',15)} ${t('tbm_sign_btn')}</button>
+    `}
+    <div style="margin-top:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">${t('tbm_signed_list_title').replace('{process}', esc(process)).replace('{n}', records.length)}</div>
+      ${records.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${records.map(r=>`
+        <div style="display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 10px;">
+          <img src="${r.signature}" style="height:22px;background:#fff;border-radius:3px;">
+          <span style="font-size:12.5px;">${esc(r.name)}</span>
+          <span style="font-size:11px;color:var(--ink-faint);">${fmtTime(r.timestamp)}</span>
+        </div>
+      `).join('')}</div>` : `<p class="hint">${t('tbm_no_signers')}</p>`}
+    </div>
+  `;
+}
+
+function bindTbmSignEvents(process){
+  const btn = document.getElementById('tbmSignBtn');
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    const name = document.getElementById('tbmNameInput').value.trim();
+    if(!name){ toast(t('toast_fill_required')); return; }
+    openSignaturePad(`${process} · ${name}`, async (dataUrl)=>{
+      try{
+        await DataStore.push(PATHS.tbm, {
+          date: todayStr(), process, name,
+          signature: dataUrl,
+          timestamp: Date.now(),
+        });
+        toast(t('tbm_sign_success'));
+        renderTbm();
+      }catch(e){ /* DataStore가 실패 메시지를 이미 보여줌 */ }
+    });
+  });
+}
+
+/* ---- 인원수 설정: 전체관리자·부서관리자 공통 (부서 사정은 부서관리자가 제일 잘 앎) ---- */
+function tbmHeadcountPanelHtml(){
+  const selectedProcess = State.tbmProcess || '';
+  const today = todayStr();
+  const headcount = selectedProcess ? tbmHeadcountOn(today, selectedProcess) : null;
+  return `
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <p class="hint" style="margin:0 0 10px;">${t('tbm_headcount_hint')}</p>
+      <div class="row2">
+        <div class="field"><label>${t('th_process')}</label>
+          <select id="tbmHcProcessSelect">
+            <option value="">${t('opt_select_please')}</option>
+            ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${selectedProcess===p?'selected':''}>${esc(p)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>${t('tbm_expected_count')}</label>
+          <div style="display:flex;gap:8px;">
+            <input type="number" id="tbmHcCountInput" min="0" value="${headcount!=null?headcount:''}" placeholder="예: 12">
+            <button class="btn btn-sm btn-primary" id="tbmHcSaveBtn">${t('btn_save')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function bindTbmHeadcountEvents(){
+  document.getElementById('tbmHcProcessSelect').addEventListener('change', (e)=>{
+    State.tbmProcess = e.target.value;
+    renderTbm();
+  });
+  document.getElementById('tbmHcSaveBtn').addEventListener('click', async ()=>{
+    const process = document.getElementById('tbmHcProcessSelect').value;
+    const count = Number(document.getElementById('tbmHcCountInput').value);
+    if(!process || !count){ toast(t('toast_fill_required')); return; }
+    await DataStore.update(PATHS.tbmHeadcount, todayStr()+'_'+process, { count });
+    toast(t('toast_updated_generic'));
+    renderTbm();
+  });
+}
+
+/* ---- 전체관리자 전용: 콘텐츠 풀 · 마감시간 · 기록 조회 ---- */
+function tbmAdminPanelHtml(){
+  const pool = tbmContentPoolSorted();
+  const todayIdx = pool.length ? daysSinceEpoch(todayStr()) % pool.length : -1;
+  const deadline = tbmDeadline();
+  const today = todayStr();
+
+  return `
+    <div class="section-title"><span class="n">01</span> ${t('tbm_admin_title')}</div>
+
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">⏰ ${t('tbm_deadline_setting')}</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="time" id="tbmDeadlineInput" value="${esc(deadline)}" style="width:140px;">
+        <button class="btn btn-sm btn-primary" id="tbmDeadlineSaveBtn">${t('btn_save')}</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💬 ${t('tbm_pool_title')} (${pool.length}${t('unit_count')})</div>
+      <p class="hint" style="margin:0 0 10px;">${t('tbm_pool_hint')}</p>
+      ${pool.length < 5 ? `<div class="empty" style="padding:10px;margin-bottom:10px;background:#FFF7ED;border-radius:8px;">${t('tbm_pool_low_warning')}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:220px;overflow-y:auto;">
+        ${pool.length ? pool.map((c,i)=>`
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--paper);border-radius:8px;${i===todayIdx?'border:1.5px solid var(--safety);':''}">
+            <span style="font-size:11px;color:var(--ink-faint);white-space:nowrap;">#${i+1}${i===todayIdx?` <b style="color:var(--safety);">${t('tbm_today_tag')}</b>`:''}</span>
+            <span style="font-size:13px;flex:1;white-space:pre-wrap;">${esc(c.message)}</span>
+            <button class="btn btn-sm" data-del-tbmcontent="${c.id}">${t('btn_delete')}</button>
+          </div>
+        `).join('') : `<p class="hint">${t('tbm_pool_empty')}</p>`}
+      </div>
+      <div class="field"><textarea id="tbmContentInput" placeholder="${t('tbm_content_placeholder')}" style="min-height:60px;"></textarea></div>
+      <button class="btn btn-sm btn-primary" id="tbmContentAddBtn">${icon('plus',14)} ${t('tbm_content_add_btn')}</button>
+    </div>
+
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">📊 ${t('tbm_history_title')}</div>
+      <div class="field"><label>${t('th_date')}</label><input type="date" id="tbmHistoryDate" value="${today}"></div>
+      <div id="tbmHistoryTable"></div>
+    </div>
+  `;
+}
+
+function tbmHistoryTableHtml(dateStr){
+  const records = tbmRecordsOn(dateStr, null);
+  const rows = PROCESS_OPTIONS.map(p=>{
+    const cnt = records.filter(r=>r.process===p).length;
+    const hc = tbmHeadcountOn(dateStr, p);
+    const done = cnt>0;
+    return `<tr>
+      <td>${esc(p)}</td>
+      <td class="mono">${cnt}${hc!=null?` / ${hc}`:''}</td>
+      <td>${done ? `<span class="badge b-ok">${t('tbm_status_done')}</span>` : `<span class="badge b-danger">${t('tbm_status_none')}</span>`}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>${t('th_process')}</th><th>${t('tbm_signed_count')}</th><th>${t('th_status')}</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function bindTbmAdminEvents(){
+  document.getElementById('tbmDeadlineSaveBtn').addEventListener('click', async ()=>{
+    const val = document.getElementById('tbmDeadlineInput').value;
+    if(!val){ toast(t('toast_fill_required')); return; }
+    await DataStore.update(PATHS.tbmSettings, 'main', { deadlineTime: val });
+    toast(t('toast_updated_generic'));
+    renderTbm();
+  });
+
+  document.getElementById('tbmContentAddBtn').addEventListener('click', async ()=>{
+    const msg = document.getElementById('tbmContentInput').value.trim();
+    if(!msg){ toast(t('toast_fill_required')); return; }
+    await DataStore.push(PATHS.tbmContent, { message: msg, createdAt: Date.now() });
+    toast(t('toast_registered_generic'));
+    renderTbm();
+  });
+  document.querySelectorAll('[data-del-tbmcontent]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(confirm(t('confirm_delete'))){
+        await DataStore.remove(PATHS.tbmContent, b.dataset.delTbmcontent);
+        toast(t('toast_deleted'));
+        renderTbm();
+      }
+    });
+  });
+
+  const historyDateInput = document.getElementById('tbmHistoryDate');
+  const historyTableEl = document.getElementById('tbmHistoryTable');
+  historyTableEl.innerHTML = tbmHistoryTableHtml(historyDateInput.value);
+  historyDateInput.addEventListener('change', ()=>{
+    historyTableEl.innerHTML = tbmHistoryTableHtml(historyDateInput.value);
+  });
 }
 
 /* ============================================================
@@ -6218,6 +6604,7 @@ function boot(){
     `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
 
   updateNotifyBtnUI();
+  recordDailyVisit(); // 오늘 이 기기의 방문을 한 번만 집계 (전체 역할 공통, 중복 제외)
 
   renderNav();
   switchView('dashboard');
