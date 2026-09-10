@@ -228,6 +228,17 @@ a{color:inherit;}
 @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr);}}
 .grid-4.grid-3{grid-template-columns:repeat(3,1fr);}
 @media(max-width:1100px){.grid-4.grid-3{grid-template-columns:repeat(2,1fr);}}
+.tbm-form-card{border:1.5px solid var(--navy-900);border-radius:10px;overflow:hidden;margin-bottom:14px;background:var(--card);}
+.tbm-form-title{background:var(--navy-900);color:#fff;text-align:center;padding:14px;font-weight:800;font-size:16px;letter-spacing:3px;}
+.tbm-form-header{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line);}
+.tbm-form-cell{flex:1;min-width:160px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-right:1px solid var(--line);}
+.tbm-form-cell:last-child{border-right:none;}
+.tbm-form-cell select{flex:1;}
+.tbm-form-label{font-weight:700;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+.tbm-form-section{padding:14px;border-bottom:1px solid var(--line);}
+.tbm-form-section:last-child{border-bottom:none;}
+.tbm-form-section-title{font-weight:700;font-size:13px;margin-bottom:10px;}
+@media(max-width:620px){.tbm-form-cell{border-right:none;border-bottom:1px solid var(--line);}}
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);
@@ -1418,6 +1429,36 @@ const TRANSLATIONS = {
   tbm_status_done:{ko:'실시함',en:'Done',th:'ดำเนินการแล้ว',id:'Selesai',mn:'Хийсэн'},
   tbm_status_none:{ko:'미실시',en:'Not done',th:'ยังไม่ดำเนินการ',id:'Belum dilakukan',mn:'Хийгээгүй'},
   tbm_signed_count:{ko:'서명 인원',en:'Signed Count',th:'จำนวนผู้ลงชื่อ',id:'Jumlah Penanda Tangan',mn:'Гарын үсэг зурсан тоо'},
+
+  tbm_tab_main:{ko:'TBM',en:'TBM',th:'TBM',id:'TBM',mn:'TBM'},
+  tbm_tab_admin:{ko:'관리자 설정',en:'Admin Settings',th:'การตั้งค่าผู้ดูแล',id:'Pengaturan Admin',mn:'Админ тохиргоо'},
+  tbm_form_title_suffix:{ko:'실시일지',en:'Log',th:'บันทึกการดำเนินการ',id:'Log Pelaksanaan',mn:'Гүйцэтгэлийн тэмдэглэл'},
+  tbm_test_mode_banner:{ko:'테스트 모드입니다. 지금 서명해도 실제 기록에는 집계되지 않습니다.',en:"Test mode. Signing now won't be counted in real records.",th:'โหมดทดสอบ การลงชื่อตอนนี้จะไม่นับในบันทึกจริง',id:'Mode uji. Menandatangani sekarang tidak akan dihitung dalam catatan sebenarnya.',mn:'Туршилтын горим. Одоо гарын үсэг зурсан ч бодит бүртгэлд тооцогдохгүй.'},
+  tbm_preview_note:{ko:'미리보기 화면입니다. 일반사용자에게 실제로 보이는 화면과 같습니다.',en:'This is a preview. It looks exactly as regular users will see it.',th:'นี่คือหน้าตัวอย่าง ซึ่งจะแสดงเหมือนที่ผู้ใช้ทั่วไปเห็นจริง',id:'Ini adalah pratinjau. Tampilannya sama seperti yang dilihat pengguna biasa.',mn:'Энэ бол урьдчилан үзэх дэлгэц бөгөөд энгийн хэрэглэгчдэд харагдах дэлгэцтэй ижил.'},
+  tbm_preview_cant_sign:{ko:'미리보기 화면에서는 서명할 수 없습니다.',en:'You cannot sign from the preview screen.',th:'ไม่สามารถลงชื่อจากหน้าตัวอย่างได้',id:'Anda tidak dapat menandatangani dari layar pratinjau.',mn:'Урьдчилан үзэх дэлгэцээс гарын үсэг зурах боломжгүй.'},
+  tbm_preview_btn:{ko:'미리보기',en:'Preview',th:'ดูตัวอย่าง',id:'Pratinjau',mn:'Урьдчилан үзэх'},
+  tbm_preview_title:{ko:'TBM 미리보기 (일반사용자 화면)',en:'TBM Preview (Regular User View)',th:'ดูตัวอย่าง TBM (มุมมองผู้ใช้ทั่วไป)',id:'Pratinjau TBM (Tampilan Pengguna Biasa)',mn:'TBM урьдчилан үзэх (энгийн хэрэглэгчийн харагдац)'},
+  tbm_test_mode_on:{ko:'테스트 모드 켜기',en:'Enable Test Mode',th:'เปิดโหมดทดสอบ',id:'Aktifkan Mode Uji',mn:'Туршилтын горим асаах'},
+  tbm_test_mode_off:{ko:'테스트 모드 끄기',en:'Disable Test Mode',th:'ปิดโหมดทดสอบ',id:'Nonaktifkan Mode Uji',mn:'Туршилтын горим унтраах'},
+  tbm_test_mode_on_toast:{ko:'테스트 모드가 켜졌습니다',en:'Test mode enabled',th:'เปิดโหมดทดสอบแล้ว',id:'Mode uji diaktifkan',mn:'Туршилтын горим асав'},
+  tbm_test_mode_off_toast:{ko:'테스트 모드가 꺼졌습니다',en:'Test mode disabled',th:'ปิดโหมดทดสอบแล้ว',id:'Mode uji dinonaktifkan',mn:'Туршилтын горим унтарлаа'},
+  tbm_edit_btn:{ko:'수정',en:'Edit',th:'แก้ไข',id:'Ubah',mn:'Засах'},
+  tbm_summary_done:{ko:'오늘 {done} / {total} 공정 실시 완료',en:'{done} / {total} processes done today',th:'วันนี้ดำเนินการแล้ว {done} / {total} กระบวนการ',id:'{done} / {total} proses selesai hari ini',mn:'Өнөөдөр {done} / {total} процесс хийгдсэн'},
+  tbm_summary_notdone_label:{ko:'아직 실시 안 한 공정',en:'Processes not done yet',th:'กระบวนการที่ยังไม่ได้ดำเนินการ',id:'Proses yang belum dilakukan',mn:'Одоогоор хийгдээгүй процесс'},
+  tbm_summary_all_done:{ko:'오늘 전체 공정 실시 완료',en:'All processes done today',th:'ดำเนินการครบทุกกระบวนการวันนี้',id:'Semua proses selesai hari ini',mn:'Өнөөдөр бүх процесс хийгдсэн'},
+
+  tbm_tab_stats:{ko:'통계',en:'Stats',th:'สถิติ',id:'Statistik',mn:'Статистик'},
+  tbm_stats_trend_title:{ko:'최근 14일 실시 추이',en:'Last 14-Day Trend',th:'แนวโน้ม 14 วันล่าสุด',id:'Tren 14 Hari Terakhir',mn:'Сүүлийн 14 хоногийн чиг хандлага'},
+  tbm_stats_trend_sub:{ko:'그날 실시(서명)가 있었던 공정 수입니다.',en:'Number of processes with at least one signature that day.',th:'จำนวนกระบวนการที่มีการลงชื่ออย่างน้อยหนึ่งครั้งในวันนั้น',id:'Jumlah proses dengan setidaknya satu tanda tangan hari itu.',mn:'Тухайн өдөр наад зах нь нэг гарын үсэгтэй байсан процессын тоо.'},
+  tbm_stats_trend_legend:{ko:'실시 공정 수',en:'Processes Done',th:'จำนวนกระบวนการที่ทำ',id:'Proses Selesai',mn:'Хийгдсэн процесс'},
+  tbm_stats_rate_title:{ko:'공정별 이번달 실시율',en:"This Month's Rate by Process",th:'อัตราการดำเนินการตามกระบวนการเดือนนี้',id:'Tingkat Bulan Ini per Proses',mn:'Энэ сарын процесс тус бүрийн хувь'},
+  tbm_stats_rate_sub:{ko:'이번달 지난 날짜 중 실시한 날의 비율입니다. 낮은 순으로 정렬됩니다.',en:'Share of days this month with at least one signature. Sorted lowest first.',th:'สัดส่วนวันที่มีการลงชื่ออย่างน้อยหนึ่งครั้งในเดือนนี้ เรียงจากน้อยไปมาก',id:'Persentase hari bulan ini dengan setidaknya satu tanda tangan. Diurutkan dari terendah.',mn:'Энэ сард наад зах нь нэг гарын үсэгтэй байсан өдрийн эзлэх хувь. Багаас нь эрэмбэлсэн.'},
+  tbm_stats_rate_legend:{ko:'실시율(%)',en:'Rate (%)',th:'อัตรา (%)',id:'Tingkat (%)',mn:'Хувь (%)'},
+
+  tbm_print_title:{ko:'인쇄 · 다운로드',en:'Print · Download',th:'พิมพ์ · ดาวน์โหลด',id:'Cetak · Unduh',mn:'Хэвлэх · Татах'},
+  tbm_print_hint:{ko:'날짜와 공정을 고르면 서명 기록을 인쇄용 화면으로 엽니다. 인쇄창에서 "PDF로 저장"을 고르면 파일로도 받을 수 있습니다.',en:'Pick a date and process to open a printable view of the signatures. Choose "Save as PDF" in the print dialog to download it as a file.',th:'เลือกวันที่และกระบวนการเพื่อเปิดหน้าพิมพ์ของลายเซ็น เลือก "บันทึกเป็น PDF" ในกล่องพิมพ์เพื่อดาวน์โหลดเป็นไฟล์',id:'Pilih tanggal dan proses untuk membuka tampilan cetak tanda tangan. Pilih "Simpan sebagai PDF" di dialog cetak untuk mengunduhnya sebagai file.',mn:'Огноо, процессыг сонгож гарын үсгийн хэвлэх дэлгэцийг нээнэ. Хэвлэх цонхонд "PDF болгон хадгалах"-ыг сонговол файл болгон татаж авах боломжтой.'},
+  tbm_print_btn:{ko:'인쇄 화면 열기',en:'Open Print View',th:'เปิดหน้าพิมพ์',id:'Buka Tampilan Cetak',mn:'Хэвлэх дэлгэц нээх'},
+  tbm_print_popup_blocked:{ko:'팝업이 차단되었습니다. 브라우저에서 팝업을 허용해주세요.',en:'Popup was blocked. Please allow popups in your browser.',th:'ป๊อปอัปถูกบล็อก กรุณาอนุญาตป๊อปอัปในเบราว์เซอร์',id:'Popup diblokir. Mohon izinkan popup di browser Anda.',mn:'Попап хаагдсан байна. Хөтчид попапыг зөвшөөрнө үү.'},
 };
 function t(key){
   const entry = TRANSLATIONS[key];
@@ -5338,11 +5379,14 @@ function currentTimeStr(){
 function tbmContentPoolSorted(){
   return objToArr(DataStore.get(PATHS.tbmContent)).sort((a,b)=> (a.createdAt||0)-(b.createdAt||0));
 }
-function tbmTodayContent(){
+function tbmContentForDate(dateStr){
   const pool = tbmContentPoolSorted();
   if(!pool.length) return null;
-  const idx = daysSinceEpoch(todayStr()) % pool.length;
+  const idx = daysSinceEpoch(dateStr) % pool.length;
   return pool[idx];
+}
+function tbmTodayContent(){
+  return tbmContentForDate(todayStr());
 }
 function tbmSettingsGet(){
   return DataStore.get(PATHS.tbmSettings).main || {};
@@ -5353,8 +5397,8 @@ function tbmDeadline(){
 function tbmIsPastDeadline(){
   return currentTimeStr() > tbmDeadline();
 }
-function tbmRecordsOn(dateStr, process){
-  return objToArr(DataStore.get(PATHS.tbm)).filter(r=> r.date===dateStr && (!process || r.process===process));
+function tbmRecordsOn(dateStr, process, includeTest){
+  return objToArr(DataStore.get(PATHS.tbm)).filter(r=> r.date===dateStr && (!process || r.process===process) && (includeTest || !r.isTest));
 }
 function tbmHeadcountOn(dateStr, process){
   const v = DataStore.get(PATHS.tbmHeadcount)[dateStr+'_'+process];
@@ -5364,12 +5408,129 @@ function tbmHeadcountOn(dateStr, process){
 function renderTbm(){
   const el = document.getElementById('view-tbm');
   const isAdmin = State.mode==='admin';
-  const isManager = isAdmin || State.mode==='dept'; // 인원수 설정은 관리자(전체+부서) 공통 — 부서 사정은 부서관리자가 제일 잘 앎
+  const isManager = isAdmin || State.mode==='dept';
+  let tab = isManager ? (State.tbmTab || 'main') : 'main';
+  if(tab==='stats' && !isAdmin) tab = 'main'; // 통계 탭은 전체관리자 전용
+
+  el.innerHTML = `
+    <div class="toolbar">
+      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('nav_tbm')} · ${todayStr()}</div>
+      ${isManager ? `
+      <div class="tabs" id="tbmTabs">
+        <button class="tab ${tab==='main'?'active':''}" data-tbmtab="main">${t('tbm_tab_main')}</button>
+        <button class="tab ${tab==='admin'?'active':''}" data-tbmtab="admin">${t('tbm_tab_admin')}</button>
+        ${isAdmin ? `<button class="tab ${tab==='stats'?'active':''}" data-tbmtab="stats">${t('tbm_tab_stats')}</button>` : ''}
+      </div>` : ''}
+    </div>
+    <div id="tbmTabBody"></div>
+  `;
+  if(isManager){
+    el.querySelectorAll('[data-tbmtab]').forEach(b=> b.addEventListener('click', ()=>{
+      State.tbmTab = b.dataset.tbmtab; renderTbm();
+    }));
+  }
+
+  const body = document.getElementById('tbmTabBody');
+  if(isAdmin && tab==='stats'){
+    body.innerHTML = tbmStatsTabHtml();
+    bindTbmStatsTabEvents();
+  }else if(isManager && tab==='admin'){
+    body.innerHTML = tbmAdminTabHtml(isAdmin);
+    bindTbmAdminTabEvents(isAdmin);
+  }else{
+    body.innerHTML = tbmMainTabHtml({ preview:false });
+    bindTbmMainTabEvents();
+  }
+}
+
+/* ---- 통계 탭: 최근 실시 추이 · 공정별 이번달 실시율 (전체관리자 전용) ---- */
+let tbmTrendChartInstance = null;
+let tbmRateChartInstance = null;
+function tbmComputeDailyTrend(daysBack){
+  const labels = [];
+  const counts = [];
+  const now = new Date();
+  for(let i=daysBack-1; i>=0; i--){
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+    counts.push(new Set(tbmRecordsOn(ds, null, false).map(r=>r.process)).size);
+  }
+  return { labels, counts };
+}
+function tbmComputeMonthlyRate(){
+  const now = new Date();
+  const daysSoFar = now.getDate();
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthRecords = objToArr(DataStore.get(PATHS.tbm)).filter(r=> !r.isTest && (r.date||'').startsWith(monthPrefix));
+  return PROCESS_OPTIONS.map(p=>{
+    const daysDone = new Set(monthRecords.filter(r=>r.process===p).map(r=>r.date)).size;
+    return { process:p, rate: daysSoFar>0 ? Math.round(daysDone/daysSoFar*100) : 0, daysDone, daysSoFar };
+  }).sort((a,b)=> a.rate-b.rate);
+}
+function tbmStatsTabHtml(){
+  return `
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📈 ${t('tbm_stats_trend_title')}</div>
+      <p class="hint" style="margin:0 0 10px;">${t('tbm_stats_trend_sub')}</p>
+      <div style="height:220px;"><canvas id="tbmTrendChart"></canvas></div>
+    </div>
+    <div class="card" style="padding:18px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📊 ${t('tbm_stats_rate_title')}</div>
+      <p class="hint" style="margin:0 0 10px;">${t('tbm_stats_rate_sub')}</p>
+      <div style="height:${Math.max(220, PROCESS_OPTIONS.length*22)}px;"><canvas id="tbmRateChart"></canvas></div>
+    </div>
+  `;
+}
+function bindTbmStatsTabEvents(){
+  if(typeof Chart==='undefined') return;
+  const trend = tbmComputeDailyTrend(14);
+  const trendCanvas = document.getElementById('tbmTrendChart');
+  if(tbmTrendChartInstance){ tbmTrendChartInstance.destroy(); }
+  tbmTrendChartInstance = new Chart(trendCanvas.getContext('2d'), {
+    type:'line',
+    data:{ labels: trend.labels, datasets:[{
+      label: t('tbm_stats_trend_legend'), data: trend.counts,
+      borderColor:'#FF6A13', backgroundColor:'rgba(255,106,19,.12)', fill:true, tension:.3, pointRadius:3
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        y:{ beginAtZero:true, max:PROCESS_OPTIONS.length, ticks:{precision:0, color:'#667085', font:{size:10.5}}, grid:{color:'#EEF1F5'} },
+        x:{ ticks:{color:'#667085', font:{size:10}}, grid:{display:false} }
+      }
+    }
+  });
+
+  const rateData = tbmComputeMonthlyRate();
+  const rateCanvas = document.getElementById('tbmRateChart');
+  if(tbmRateChartInstance){ tbmRateChartInstance.destroy(); }
+  tbmRateChartInstance = new Chart(rateCanvas.getContext('2d'), {
+    type:'bar',
+    data:{ labels: rateData.map(d=>d.process), datasets:[{
+      label: t('tbm_stats_rate_legend'), data: rateData.map(d=>d.rate),
+      backgroundColor: rateData.map(d=> d.rate<50?'#E5484D':d.rate<80?'#FFC93C':'#1DA46F'),
+      borderRadius:4, maxBarThickness:20
+    }]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ min:0, max:100, ticks:{color:'#667085', font:{size:10}}, grid:{color:'#EEF1F5'} },
+        y:{ ticks:{color:'#667085', font:{size:10}}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+/* ---- 메인 화면: 실제 종이 양식과 같은 모양으로 구성 (공정명·일자 → 안전이슈 → 참여자 명단 → 서명하기) ---- */
+function tbmMainTabHtml({ preview }){
+  const isAdmin = State.mode==='admin';
   const today = todayStr();
   const deadline = tbmDeadline();
   const pastDeadline = tbmIsPastDeadline();
   const content = tbmTodayContent();
   const selectedProcess = State.tbmProcess || '';
+  const testMode = isAdmin && State.tbmTestMode;
 
   const recentIncidents = objToArr(DataStore.get(PATHS.incidents))
     .sort((a,b)=> new Date(b.datetime||0)-new Date(a.datetime||0)).slice(0,3);
@@ -5377,55 +5538,8 @@ function renderTbm(){
     .filter(r=> r.status==='완료' || r.status==='일부개선완료')
     .sort((a,b)=> (b.createdAt||0)-(a.createdAt||0)).slice(0,3);
 
-  const sectionNum = isAdmin ? 2 : (isManager ? 1 : 0);
-  const headcountSectionNum = isAdmin ? 2 : 1;
-
-  el.innerHTML = `
-    <div class="toolbar">
-      <div style="font-size:13px;color:var(--ink-soft);font-weight:600;">${t('nav_tbm')} · ${today}</div>
-    </div>
-
-    ${isAdmin ? tbmAdminPanelHtml() : ''}
-    ${isManager ? `<div class="section-title"><span class="n">${String(headcountSectionNum).padStart(2,'0')}</span> ${t('tbm_headcount_setting')}</div>${tbmHeadcountPanelHtml()}` : ''}
-
-    <div class="section-title"><span class="n">${String(sectionNum+1).padStart(2,'0')}</span> ${t('tbm_today_title')}</div>
-    <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">📢 ${t('tbm_msg_title')}</div>
-      <div style="font-size:13.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap;">${content ? esc(content.message) : t('tbm_msg_empty')}</div>
-    </div>
-
-    ${(recentIncidents.length || recentRiskImprovements.length) ? `
-    <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">⚠ ${t('tbm_shared_title')}</div>
-      ${recentIncidents.map(i=>`<div style="font-size:13px;margin-bottom:6px;">🔸 [${t('nav_incidents')}] ${esc(i.process||'-')} · ${esc((i.description||'-').slice(0,40))}</div>`).join('')}
-      ${recentRiskImprovements.map(r=>`<div style="font-size:13px;margin-bottom:6px;">🔹 [${t('lbl_measures_only')}] ${esc(r.process||'-')} · ${esc((r.hazard||'-').slice(0,30))} → ${esc((r.measures||'-').slice(0,30))}</div>`).join('')}
-    </div>` : ''}
-
-    <div class="card" style="padding:18px;">
-      <div class="field"><label>${t('th_process')} *</label>
-        <select id="tbmProcessSelect">
-          <option value="">${t('opt_select_please')}</option>
-          ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${selectedProcess===p?'selected':''}>${esc(p)}</option>`).join('')}
-        </select>
-      </div>
-      ${selectedProcess ? tbmSignAreaHtml(selectedProcess, pastDeadline, deadline) : `<p class="hint" style="margin-top:6px;">${t('tbm_select_process_hint')}</p>`}
-    </div>
-  `;
-
-  document.getElementById('tbmProcessSelect').addEventListener('change', (e)=>{
-    State.tbmProcess = e.target.value;
-    renderTbm();
-  });
-
-  if(isAdmin) bindTbmAdminEvents();
-  if(isManager) bindTbmHeadcountEvents();
-  if(selectedProcess) bindTbmSignEvents(selectedProcess);
-}
-
-function tbmSignAreaHtml(process, pastDeadline, deadline){
-  const today = todayStr();
-  const records = tbmRecordsOn(today, process).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
-  const headcount = tbmHeadcountOn(today, process);
+  const records = selectedProcess ? tbmRecordsOn(today, selectedProcess, testMode).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0)) : [];
+  const headcount = selectedProcess ? tbmHeadcountOn(today, selectedProcess) : null;
   const progressHtml = headcount ? `
     <div style="margin:10px 0;">
       <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-soft);margin-bottom:4px;">
@@ -5437,57 +5551,197 @@ function tbmSignAreaHtml(process, pastDeadline, deadline){
     </div>` : '';
 
   return `
-    <div class="divider" style="margin:14px 0;"></div>
-    ${progressHtml}
-    ${pastDeadline ? `
-      <div class="empty" style="padding:14px 0;">
-        <span class="big">${icon('siren',20)}</span>
-        ${t('tbm_deadline_passed').replace('{time}', esc(deadline))}
-      </div>
-    ` : `
-      <div class="field"><label>${t('lbl_name')} *</label><input type="text" id="tbmNameInput" placeholder="${t('tbm_name_placeholder')}"></div>
-      <button class="btn btn-primary" id="tbmSignBtn" style="width:100%;">${icon('users',15)} ${t('tbm_sign_btn')}</button>
-    `}
-    <div style="margin-top:16px;">
-      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">${t('tbm_signed_list_title').replace('{process}', esc(process)).replace('{n}', records.length)}</div>
-      ${records.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${records.map(r=>`
-        <div style="display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 10px;">
-          <img src="${r.signature}" style="height:22px;background:#fff;border-radius:3px;">
-          <span style="font-size:12.5px;">${esc(r.name)}</span>
-          <span style="font-size:11px;color:var(--ink-faint);">${fmtTime(r.timestamp)}</span>
+    ${testMode && !preview ? `<div class="empty" style="padding:10px;margin-bottom:12px;background:#FFF7ED;border:1px solid var(--caution);border-radius:8px;">🧪 ${t('tbm_test_mode_banner')}</div>` : ''}
+    ${preview ? `<div class="empty" style="padding:10px;margin-bottom:12px;background:#EEF1F5;border-radius:8px;">👁 ${t('tbm_preview_note')}</div>` : ''}
+
+    <div class="tbm-form-card">
+      <div class="tbm-form-title">TBM ${t('tbm_form_title_suffix')}</div>
+      <div class="tbm-form-header">
+        <div class="tbm-form-cell">
+          <span class="tbm-form-label">${t('th_process')}</span>
+          <select id="tbmProcessSelect" ${preview?'disabled':''}>
+            <option value="">${t('opt_select_please')}</option>
+            ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${selectedProcess===p?'selected':''}>${esc(p)}</option>`).join('')}
+          </select>
         </div>
-      `).join('')}</div>` : `<p class="hint">${t('tbm_no_signers')}</p>`}
+        <div class="tbm-form-cell">
+          <span class="tbm-form-label">${t('th_date')}</span>
+          <span class="mono">${today}</span>
+        </div>
+      </div>
+      <div class="tbm-form-section">
+        <div class="tbm-form-section-title">📢 ${t('tbm_msg_title')}</div>
+        <div style="font-size:13.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap;">${content ? esc(content.message) : t('tbm_msg_empty')}</div>
+      </div>
+      ${(recentIncidents.length || recentRiskImprovements.length) ? `
+      <div class="tbm-form-section">
+        <div class="tbm-form-section-title">⚠ ${t('tbm_shared_title')}</div>
+        ${recentIncidents.map(i=>`<div style="font-size:13px;margin-bottom:6px;">🔸 [${t('nav_incidents')}] ${esc(i.process||'-')} · ${esc((i.description||'-').slice(0,40))}</div>`).join('')}
+        ${recentRiskImprovements.map(r=>`<div style="font-size:13px;margin-bottom:6px;">🔹 [${t('lbl_measures_only')}] ${esc(r.process||'-')} · ${esc((r.hazard||'-').slice(0,30))} → ${esc((r.measures||'-').slice(0,30))}</div>`).join('')}
+      </div>` : ''}
+      <div class="tbm-form-section">
+        <div class="tbm-form-section-title">${t('tbm_signed_list_title').replace('{process}', esc(selectedProcess||t('opt_select_please'))).replace('{n}', records.length)}</div>
+        ${progressHtml}
+        ${!selectedProcess ? `<p class="hint">${t('tbm_select_process_hint')}</p>` : records.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${records.map(r=>`
+          <div style="display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 10px;">
+            <img src="${r.signature}" style="height:22px;background:#fff;border-radius:3px;">
+            <span style="font-size:12.5px;">${esc(r.name)}${r.isTest?' 🧪':''}</span>
+            <span style="font-size:11px;color:var(--ink-faint);">${fmtTime(r.timestamp)}</span>
+            ${(isAdmin && !preview) ? `<button class="bullet-remove" data-del-tbmsign="${r.id}" title="${t('btn_delete')}" style="margin-left:2px;">✕</button>` : ''}
+          </div>
+        `).join('')}</div>` : `<p class="hint">${t('tbm_no_signers')}</p>`}
+      </div>
     </div>
+
+    ${selectedProcess ? `
+      <div class="card" style="padding:18px;">
+        ${preview ? `
+          <p class="hint">${t('tbm_preview_cant_sign')}</p>
+        ` : pastDeadline ? `
+          <div class="empty" style="padding:14px 0;">
+            <span class="big">${icon('siren',20)}</span>
+            ${t('tbm_deadline_passed').replace('{time}', esc(deadline))}
+          </div>
+        ` : `
+          <div class="field"><label>${t('lbl_name')} *</label><input type="text" id="tbmNameInput" placeholder="${t('tbm_name_placeholder')}"></div>
+          <button class="btn btn-primary" id="tbmSignBtn" style="width:100%;">${icon('users',15)} ${t('tbm_sign_btn')}</button>
+        `}
+      </div>
+    ` : ''}
   `;
 }
 
-function bindTbmSignEvents(process){
+function bindTbmMainTabEvents(){
+  const sel = document.getElementById('tbmProcessSelect');
+  if(sel){
+    sel.addEventListener('change', (e)=>{
+      State.tbmProcess = e.target.value;
+      renderTbm();
+    });
+  }
   const btn = document.getElementById('tbmSignBtn');
-  if(!btn) return;
-  btn.addEventListener('click', ()=>{
-    const name = document.getElementById('tbmNameInput').value.trim();
-    if(!name){ toast(t('toast_fill_required')); return; }
-    openSignaturePad(`${process} · ${name}`, async (dataUrl)=>{
-      try{
-        await DataStore.push(PATHS.tbm, {
-          date: todayStr(), process, name,
-          signature: dataUrl,
-          timestamp: Date.now(),
-        });
-        toast(t('tbm_sign_success'));
+  if(btn){
+    const process = State.tbmProcess;
+    const isAdmin = State.mode==='admin';
+    btn.addEventListener('click', ()=>{
+      const name = document.getElementById('tbmNameInput').value.trim();
+      if(!name){ toast(t('toast_fill_required')); return; }
+      openSignaturePad(`${process} · ${name}`, async (dataUrl)=>{
+        try{
+          const data = { date: todayStr(), process, name, signature: dataUrl, timestamp: Date.now() };
+          if(isAdmin && State.tbmTestMode) data.isTest = true;
+          await DataStore.push(PATHS.tbm, data);
+          toast(t('tbm_sign_success'));
+          renderTbm();
+        }catch(e){ /* DataStore가 실패 메시지를 이미 보여줌 */ }
+      });
+    });
+  }
+  document.querySelectorAll('[data-del-tbmsign]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(confirm(t('confirm_delete'))){
+        await DataStore.remove(PATHS.tbm, b.dataset.delTbmsign);
+        toast(t('toast_deleted'));
         renderTbm();
-      }catch(e){ /* DataStore가 실패 메시지를 이미 보여줌 */ }
+      }
     });
   });
 }
 
-/* ---- 인원수 설정: 전체관리자·부서관리자 공통 (부서 사정은 부서관리자가 제일 잘 앎) ---- */
-function tbmHeadcountPanelHtml(){
-  const selectedProcess = State.tbmProcess || '';
-  const today = todayStr();
-  const headcount = selectedProcess ? tbmHeadcountOn(today, selectedProcess) : null;
+function tbmOpenPreview(){
+  showModal(`
+    <div class="modal-head"><h3>👁 ${t('tbm_preview_title')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">${tbmMainTabHtml({ preview:true })}</div>
+    <div class="modal-foot"><button class="btn" data-close>${t('btn_close')}</button></div>
+  `);
+}
+
+/* ---- 인쇄 / 다운로드(PDF로 저장) — 지정한 날짜·공정의 TBM 기록을 새 창에 인쇄용으로 띄운다.
+   워드 파일을 직접 만들지 않고 브라우저 인쇄 기능을 쓰는 이유: 참여자 수가 매일 달라지는데
+   고정된 워드 양식은 그런 가변 인원의 서명 이미지를 안전하게 못 담아서, 화면 그대로 인쇄/PDF저장
+   하는 방식이 훨씬 안정적이다. 다운로드가 필요하면 인쇄창에서 "PDF로 저장"을 고르면 된다. ---- */
+function tbmPrintDay(dateStr, process){
+  const records = tbmRecordsOn(dateStr, process, false).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
+  const content = tbmContentForDate(dateStr);
+  const win = window.open('', '_blank');
+  if(!win){ toast(t('tbm_print_popup_blocked')); return; }
+  const rowsHtml = records.length ? records.map((r,i)=>`
+    <tr>
+      <td style="text-align:center;">${i+1}</td>
+      <td>${esc(r.name)}</td>
+      <td style="text-align:center;"><img src="${r.signature}" style="height:36px;background:#fff;"></td>
+      <td style="text-align:center;">${fmtTime(r.timestamp)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="4" style="text-align:center;color:#888;">${t('tbm_no_signers')}</td></tr>`;
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>TBM ${esc(process)} ${dateStr}</title>
+    <style>
+      body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;padding:24px;color:#14192B;}
+      h1{text-align:center;background:#101B33;color:#fff;padding:14px;letter-spacing:6px;font-size:20px;margin:0 0 16px;}
+      table{width:100%;border-collapse:collapse;margin-bottom:18px;}
+      td,th{border:1px solid #333;padding:8px 10px;font-size:13px;}
+      .hd{background:#EEF1F5;font-weight:700;width:110px;}
+      h3{font-size:14px;border-bottom:2px solid #101B33;padding-bottom:6px;}
+      @media print{ body{padding:0;} }
+    </style>
+  </head><body>
+    <h1>T B M ${t('tbm_form_title_suffix')}</h1>
+    <table><tr><td class="hd">${esc(t('th_process'))}</td><td>${esc(process)}</td><td class="hd">${esc(t('th_date'))}</td><td>${dateStr}</td></tr></table>
+    <h3>📢 ${esc(t('tbm_msg_title'))}</h3>
+    <p style="white-space:pre-wrap;font-size:13.5px;">${content ? esc(content.message) : esc(t('tbm_msg_empty'))}</p>
+    <h3>${esc(t('tbm_signed_list_title')).replace('{process}', esc(process)).replace('{n}', records.length)}</h3>
+    <table>
+      <tr><th style="width:40px;">No</th><th>${esc(t('lbl_name'))}</th><th style="width:120px;">${esc(t('tbm_sign_btn'))}</th><th style="width:80px;">Time</th></tr>
+      ${rowsHtml}
+    </table>
+  </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>{ try{ win.print(); }catch(e){} }, 350);
+}
+
+/* ---- 실시현황: 표 대신 한눈에 보이는 요약 (오늘 몇 공정 실시했는지 + 미실시 공정만 표시) ---- */
+function tbmHistorySummaryHtml(dateStr){
+  const records = tbmRecordsOn(dateStr, null, false);
+  const doneSet = new Set(records.map(r=>r.process));
+  const notDone = PROCESS_OPTIONS.filter(p=>!doneSet.has(p));
   return `
+    <div style="font-size:14px;font-weight:700;margin-bottom:10px;">${t('tbm_summary_done').replace('{done}', doneSet.size).replace('{total}', PROCESS_OPTIONS.length)}</div>
+    ${notDone.length ? `
+      <div class="hint" style="margin-bottom:6px;">${t('tbm_summary_notdone_label')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${notDone.map(p=>`<span class="badge b-danger">${esc(p)}</span>`).join('')}</div>
+    ` : `<span class="badge b-ok">${t('tbm_summary_all_done')}</span>`}
+  `;
+}
+
+/* ---- 관리자 설정 탭: 마감시간 · 콘텐츠 풀(수정/삭제) · 인원수 · 실시현황 요약 · 미리보기 · 테스트모드 ---- */
+function tbmAdminTabHtml(isAdmin){
+  const pool = tbmContentPoolSorted();
+  const todayIdx = pool.length ? daysSinceEpoch(todayStr()) % pool.length : -1;
+  const deadline = tbmDeadline();
+  const today = todayStr();
+  const selectedProcess = State.tbmProcess || '';
+  const headcount = selectedProcess ? tbmHeadcountOn(today, selectedProcess) : null;
+  const editingId = State.tbmEditingContentId || null;
+
+  return `
+    ${isAdmin ? `
     <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-weight:700;font-size:14px;">⏰ ${t('tbm_deadline_setting')}</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" id="tbmPreviewBtn">👁 ${t('tbm_preview_btn')}</button>
+          <button class="btn btn-sm ${State.tbmTestMode?'btn-primary':''}" id="tbmTestModeBtn">🧪 ${State.tbmTestMode ? t('tbm_test_mode_off') : t('tbm_test_mode_on')}</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+        <input type="time" id="tbmDeadlineInput" value="${esc(deadline)}" style="width:140px;">
+        <button class="btn btn-sm btn-primary" id="tbmDeadlineSaveBtn">${t('btn_save')}</button>
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📋 ${t('tbm_headcount_setting')}</div>
       <p class="hint" style="margin:0 0 10px;">${t('tbm_headcount_hint')}</p>
       <div class="row2">
         <div class="field"><label>${t('th_process')}</label>
@@ -5504,9 +5758,61 @@ function tbmHeadcountPanelHtml(){
         </div>
       </div>
     </div>
+
+    ${isAdmin ? `
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💬 ${t('tbm_pool_title')} (${pool.length}${t('unit_count')})</div>
+      <p class="hint" style="margin:0 0 10px;">${t('tbm_pool_hint')}</p>
+      ${pool.length < 5 ? `<div class="empty" style="padding:10px;margin-bottom:10px;background:#FFF7ED;border-radius:8px;">${t('tbm_pool_low_warning')}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:260px;overflow-y:auto;">
+        ${pool.length ? pool.map((c,i)=> editingId===c.id ? `
+          <div style="padding:8px 10px;background:var(--paper);border-radius:8px;">
+            <textarea id="tbmEditInput_${c.id}" style="min-height:56px;width:100%;">${esc(c.message)}</textarea>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button class="btn btn-sm btn-primary" data-save-tbmedit="${c.id}">${t('btn_save')}</button>
+              <button class="btn btn-sm" data-cancel-tbmedit="1">${t('btn_cancel')}</button>
+            </div>
+          </div>
+        ` : `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--paper);border-radius:8px;${i===todayIdx?'border:1.5px solid var(--safety);':''}">
+            <span style="font-size:11px;color:var(--ink-faint);white-space:nowrap;">#${i+1}${i===todayIdx?` <b style="color:var(--safety);">${t('tbm_today_tag')}</b>`:''}</span>
+            <span style="font-size:13px;flex:1;white-space:pre-wrap;">${esc(c.message)}</span>
+            <button class="btn btn-sm" data-edit-tbmcontent="${c.id}">${t('tbm_edit_btn')}</button>
+            <button class="btn btn-sm" data-del-tbmcontent="${c.id}">${t('btn_delete')}</button>
+          </div>
+        `).join('') : `<p class="hint">${t('tbm_pool_empty')}</p>`}
+      </div>
+      <div class="field"><textarea id="tbmContentInput" placeholder="${t('tbm_content_placeholder')}" style="min-height:60px;"></textarea></div>
+      <button class="btn btn-sm btn-primary" id="tbmContentAddBtn">${icon('plus',14)} ${t('tbm_content_add_btn')}</button>
+    </div>
+
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:14px;">📊 ${t('tbm_history_title')}</div>
+        <input type="date" id="tbmHistoryDate" value="${today}">
+      </div>
+      <div id="tbmHistorySummary">${tbmHistorySummaryHtml(today)}</div>
+    </div>
+
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">🖨 ${t('tbm_print_title')}</div>
+      <p class="hint" style="margin:0 0 10px;">${t('tbm_print_hint')}</p>
+      <div class="row2">
+        <div class="field"><label>${t('th_date')}</label><input type="date" id="tbmPrintDate" value="${today}"></div>
+        <div class="field"><label>${t('th_process')}</label>
+          <select id="tbmPrintProcess">
+            <option value="">${t('opt_select_please')}</option>
+            ${PROCESS_OPTIONS.map(p=>`<option value="${p}">${esc(p)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-primary" id="tbmPrintBtn">🖨 ${t('tbm_print_btn')}</button>
+    </div>
+    ` : ''}
   `;
 }
-function bindTbmHeadcountEvents(){
+
+function bindTbmAdminTabEvents(isAdmin){
   document.getElementById('tbmHcProcessSelect').addEventListener('change', (e)=>{
     State.tbmProcess = e.target.value;
     renderTbm();
@@ -5519,70 +5825,16 @@ function bindTbmHeadcountEvents(){
     toast(t('toast_updated_generic'));
     renderTbm();
   });
-}
 
-/* ---- 전체관리자 전용: 콘텐츠 풀 · 마감시간 · 기록 조회 ---- */
-function tbmAdminPanelHtml(){
-  const pool = tbmContentPoolSorted();
-  const todayIdx = pool.length ? daysSinceEpoch(todayStr()) % pool.length : -1;
-  const deadline = tbmDeadline();
-  const today = todayStr();
+  if(!isAdmin) return;
 
-  return `
-    <div class="section-title"><span class="n">01</span> ${t('tbm_admin_title')}</div>
+  document.getElementById('tbmPreviewBtn').addEventListener('click', tbmOpenPreview);
+  document.getElementById('tbmTestModeBtn').addEventListener('click', ()=>{
+    State.tbmTestMode = !State.tbmTestMode;
+    toast(State.tbmTestMode ? t('tbm_test_mode_on_toast') : t('tbm_test_mode_off_toast'));
+    renderTbm();
+  });
 
-    <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">⏰ ${t('tbm_deadline_setting')}</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="time" id="tbmDeadlineInput" value="${esc(deadline)}" style="width:140px;">
-        <button class="btn btn-sm btn-primary" id="tbmDeadlineSaveBtn">${t('btn_save')}</button>
-      </div>
-    </div>
-
-    <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💬 ${t('tbm_pool_title')} (${pool.length}${t('unit_count')})</div>
-      <p class="hint" style="margin:0 0 10px;">${t('tbm_pool_hint')}</p>
-      ${pool.length < 5 ? `<div class="empty" style="padding:10px;margin-bottom:10px;background:#FFF7ED;border-radius:8px;">${t('tbm_pool_low_warning')}</div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:220px;overflow-y:auto;">
-        ${pool.length ? pool.map((c,i)=>`
-          <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--paper);border-radius:8px;${i===todayIdx?'border:1.5px solid var(--safety);':''}">
-            <span style="font-size:11px;color:var(--ink-faint);white-space:nowrap;">#${i+1}${i===todayIdx?` <b style="color:var(--safety);">${t('tbm_today_tag')}</b>`:''}</span>
-            <span style="font-size:13px;flex:1;white-space:pre-wrap;">${esc(c.message)}</span>
-            <button class="btn btn-sm" data-del-tbmcontent="${c.id}">${t('btn_delete')}</button>
-          </div>
-        `).join('') : `<p class="hint">${t('tbm_pool_empty')}</p>`}
-      </div>
-      <div class="field"><textarea id="tbmContentInput" placeholder="${t('tbm_content_placeholder')}" style="min-height:60px;"></textarea></div>
-      <button class="btn btn-sm btn-primary" id="tbmContentAddBtn">${icon('plus',14)} ${t('tbm_content_add_btn')}</button>
-    </div>
-
-    <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">📊 ${t('tbm_history_title')}</div>
-      <div class="field"><label>${t('th_date')}</label><input type="date" id="tbmHistoryDate" value="${today}"></div>
-      <div id="tbmHistoryTable"></div>
-    </div>
-  `;
-}
-
-function tbmHistoryTableHtml(dateStr){
-  const records = tbmRecordsOn(dateStr, null);
-  const rows = PROCESS_OPTIONS.map(p=>{
-    const cnt = records.filter(r=>r.process===p).length;
-    const hc = tbmHeadcountOn(dateStr, p);
-    const done = cnt>0;
-    return `<tr>
-      <td>${esc(p)}</td>
-      <td class="mono">${cnt}${hc!=null?` / ${hc}`:''}</td>
-      <td>${done ? `<span class="badge b-ok">${t('tbm_status_done')}</span>` : `<span class="badge b-danger">${t('tbm_status_none')}</span>`}</td>
-    </tr>`;
-  }).join('');
-  return `<div class="table-wrap"><table>
-    <thead><tr><th>${t('th_process')}</th><th>${t('tbm_signed_count')}</th><th>${t('th_status')}</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table></div>`;
-}
-
-function bindTbmAdminEvents(){
   document.getElementById('tbmDeadlineSaveBtn').addEventListener('click', async ()=>{
     const val = document.getElementById('tbmDeadlineInput').value;
     if(!val){ toast(t('toast_fill_required')); return; }
@@ -5598,6 +5850,29 @@ function bindTbmAdminEvents(){
     toast(t('toast_registered_generic'));
     renderTbm();
   });
+  document.querySelectorAll('[data-edit-tbmcontent]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      State.tbmEditingContentId = b.dataset.editTbmcontent;
+      renderTbm();
+    });
+  });
+  document.querySelectorAll('[data-cancel-tbmedit]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      State.tbmEditingContentId = null;
+      renderTbm();
+    });
+  });
+  document.querySelectorAll('[data-save-tbmedit]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.saveTbmedit;
+      const msg = document.getElementById('tbmEditInput_'+id).value.trim();
+      if(!msg){ toast(t('toast_fill_required')); return; }
+      await DataStore.update(PATHS.tbmContent, id, { message: msg });
+      State.tbmEditingContentId = null;
+      toast(t('toast_updated_generic'));
+      renderTbm();
+    });
+  });
   document.querySelectorAll('[data-del-tbmcontent]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       if(confirm(t('confirm_delete'))){
@@ -5609,10 +5884,16 @@ function bindTbmAdminEvents(){
   });
 
   const historyDateInput = document.getElementById('tbmHistoryDate');
-  const historyTableEl = document.getElementById('tbmHistoryTable');
-  historyTableEl.innerHTML = tbmHistoryTableHtml(historyDateInput.value);
+  const historySummaryEl = document.getElementById('tbmHistorySummary');
   historyDateInput.addEventListener('change', ()=>{
-    historyTableEl.innerHTML = tbmHistoryTableHtml(historyDateInput.value);
+    historySummaryEl.innerHTML = tbmHistorySummaryHtml(historyDateInput.value);
+  });
+
+  document.getElementById('tbmPrintBtn').addEventListener('click', ()=>{
+    const dateStr = document.getElementById('tbmPrintDate').value;
+    const process = document.getElementById('tbmPrintProcess').value;
+    if(!dateStr || !process){ toast(t('toast_fill_required')); return; }
+    tbmPrintDay(dateStr, process);
   });
 }
 
