@@ -3498,7 +3498,8 @@ function generateRiskExcel(list){
       // 접수일: 사고접수에서 자동연계된 건(linkedIncidentId 있음)은 그 사고의 접수일(등록시각) 기준,
       // 그 외(제보로 직접 등록한 건)는 이 위험성평가 자체의 접수일(createdAt) 기준
       const linkedIncident = r.linkedIncidentId ? DataStore.get(PATHS.incidents)[r.linkedIncidentId] : null;
-      const receivedDate = linkedIncident ? (linkedIncident.createdAt || linkedIncident.datetime) : r.createdAt;
+      // 접수일: 사고접수에서 자동연계된 건은 "사고 등록시각"이 아니라 "사고 발생일자(datetime)"를 써야 함
+      const receivedDate = linkedIncident ? (linkedIncident.datetime || linkedIncident.createdAt) : r.createdAt;
       return buildRow(6+idx, {
         B: String(idx+1),
         C: r.process||'',
@@ -3942,14 +3943,14 @@ function renderIncidentTab(){
       </div>
     </div>
     <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;">
-      <input type="text" id="incSearchBox" class="searchbox" placeholder="검색 (내용·이름·장소)" value="${esc(State.filters.incidentsSearch||'')}" style="flex:1;min-width:180px;">
-      ${isManager ? `<button class="btn btn-sm" id="incDownloadSelBtn">📥 선택 다운로드 (<span id="incSelCount">0</span>)</button>` : ''}
+      <input type="text" id="incSearchBox" class="searchbox" placeholder="검색 (내용·이름·장소)" value="${esc(State.filters.incidentsSearch||'')}" style="max-width:280px;">
+      ${isManager ? `<button class="btn btn-primary" id="incDownloadSelBtn">${icon('plus',15)} 선택 다운로드 (<span id="incSelCount">0</span>)</button>` : ''}
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
         ${isManager?`<th class="tight"><input type="checkbox" id="incSelectAll"></th>`:''}
         <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
-        ${isManager?`<th>${t('th_reporter')}</th><th>${t('lbl_injured_person')}</th>`:''}
+        ${isManager?`<th>${t('lbl_injured_person')}</th>`:''}
         <th>${t('th_accidenttype')}</th><th>${t('th_injuryseverity')}</th>
         ${isManager?`<th>${t('th_status')}</th>`:''}
         ${isAdmin?`<th>정식보고서</th>`:''}
@@ -3986,7 +3987,7 @@ function renderIncidentTab(){
     );
   }
   const body = document.getElementById('incBody');
-  const colCount = 4 + (isManager?4:0) + (isAdmin?1:0) + 3;
+  const colCount = 4 + (isManager?3:0) + (isAdmin?1:0) + 3;
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>${t('incidents_empty')}</div></td></tr>`;
     if(isManager) updateIncSelCount();
@@ -3999,7 +4000,7 @@ function renderIncidentTab(){
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
-      ${isManager?`<td>${esc(i.reporter||'-')}</td><td>${esc(i.injuredPerson||'-')}</td>`:''}
+      ${isManager?`<td>${esc(i.injuredPerson||'-')}</td>`:''}
       <td><span class="badge b-gray">${esc(i.accidentType ? (TRANSLATIONS['accidenttype_'+i.accidentType]?t('accidenttype_'+i.accidentType):i.accidentType) : '-')}</span></td>
       <td>${esc(i.injurySeverity ? t('sev_'+i.injurySeverity) : '-')}</td>
       ${isManager?`<td>${statusBadge('incident', i.status)}</td>`:''}
