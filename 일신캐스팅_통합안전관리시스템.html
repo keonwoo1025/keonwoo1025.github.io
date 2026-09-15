@@ -1781,9 +1781,9 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
-    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='stats')
-    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='stats')
-    : NAV_ITEMS; // 전체관리자는 전체 메뉴 ("통계"는 전체관리자 전용, 산안법상 안전관리자 업무)
+    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
+    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
+    : NAV_ITEMS; // "통계"는 대시보드 탭만 전체공개, 월별 인원수 입력은 전체관리자 전용(탭에서 갈림)
   nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
     const isNew = hasNewItems(item.id);
@@ -1839,7 +1839,7 @@ function switchView(id){
   if(State.mode==='partner' && id!=='permits') id = 'permits';
   if(State.mode==='dept' && id==='contractors') id = 'dashboard';
   if(State.mode==='user' && id==='contractors') id = 'dashboard';
-  if(id==='stats' && State.mode!=='admin') id = 'dashboard'; // 통계는 전체관리자 전용
+  if(id==='stats' && State.mode==='partner') id = 'permits'; // 외주업체 계정은 통계 접근 불가(작업허가만)
   State.view = id;
   const pathsForView = (id==='dashboard' && State.mode!=='admin')
     ? VIEW_PATHS[id].filter(p=>p!==PATHS.contractors)
@@ -2174,7 +2174,7 @@ function renderAccidentTypeChart(incidents){
   if(!canvas || typeof Chart==='undefined') return;
   const counts = {};
   incidents.forEach(i=>{
-    const label = i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||'미분류');
+    const label = i.accidentType==='기타(직접입력)' ? '기타' : (i.accidentType||'미분류'); // 기타는 자유입력 텍스트별로 쪼개지 않고 하나로 묶어 그래프가 지저분해지지 않게 함
     counts[label] = (counts[label]||0) + 1;
   });
   const labels = Object.keys(counts);
@@ -3458,11 +3458,28 @@ function generateRiskExcel(list){
     // 실제 필요한 만큼만 새로 만들어 채운다.
     const rowTplMatch = xml.match(/<row r="6"[^>]*>.*?<\/row>/s);
     const rowOpenMatch = rowTplMatch[0].match(/^<row([^>]*)>/);
-    const rowAttrs = rowOpenMatch[1].replace(/\s+r="6"/, '');
+    // 원본의 고정 높이(ht="28.5")는 떼어내고, 글자 양에 맞춰 행마다 높이를 다시 계산해서 넣는다(글 안 잘리게)
+    const rowAttrs = rowOpenMatch[1].replace(/\s+r="6"/, '').replace(/\s+ht="[^"]*"/, '').replace(/\s+customHeight="[^"]*"/, '');
     const cols = ['B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'];
     const colStyle = {B:9,C:10,D:11,E:10,F:11,G:10,H:11,I:10,J:10,K:10,L:10,M:11,N:10,O:12,P:13,Q:11};
+    // 줄바꿈(wrapText) 적용되는 칸들의 실제 열 너비(엑셀 단위) — 텍스트 길이로 필요한 줄 수를 추정하는 데 사용
+    const wrapColWidths = {E:11.7, F:18.7, H:17.7, M:20.7};
+
+    function estimateRowHeight(values){
+      let maxLines = 1;
+      Object.keys(wrapColWidths).forEach(c=>{
+        const txt = values[c];
+        if(!txt) return;
+        const charsPerLine = Math.max(6, Math.floor(wrapColWidths[c] / 1.9)); // 한글 기준 대략치(1글자 ≈ 1.9 엑셀 너비단위)
+        let lines = 0;
+        String(txt).split('\n').forEach(line=>{ lines += Math.max(1, Math.ceil(line.length / charsPerLine)); });
+        maxLines = Math.max(maxLines, lines);
+      });
+      return Math.max(28.5, maxLines*14 + 6); // 원본 기본 높이(28.5) 밑으로는 안 내려가게
+    }
 
     function buildRow(rowNum, values){
+      const height = estimateRowHeight(values);
       const cells = cols.map(c=>{
         const val = values[c];
         const s = colStyle[c];
@@ -3471,13 +3488,17 @@ function generateRiskExcel(list){
         }
         return `<c r="${c}${rowNum}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xlsxEscInline(val)}</t></is></c>`;
       }).join('');
-      return `<row r="${rowNum}"${rowAttrs}>${cells}</row>`;
+      return `<row r="${rowNum}"${rowAttrs} ht="${height}" customHeight="true">${cells}</row>`;
     }
 
     const newRowsXml = list.map((r, idx)=>{
       const score = (Number(r.frequency)||0)*(Number(r.severity)||0);
       const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
       const hazardCat = [r.hazardCategory, r.hazardDetailType].filter(Boolean).join(' · ');
+      // 접수일: 사고접수에서 자동연계된 건(linkedIncidentId 있음)은 그 사고의 접수일(등록시각) 기준,
+      // 그 외(제보로 직접 등록한 건)는 이 위험성평가 자체의 접수일(createdAt) 기준
+      const linkedIncident = r.linkedIncidentId ? DataStore.get(PATHS.incidents)[r.linkedIncidentId] : null;
+      const receivedDate = linkedIncident ? (linkedIncident.createdAt || linkedIncident.datetime) : r.createdAt;
       return buildRow(6+idx, {
         B: String(idx+1),
         C: r.process||'',
@@ -3486,13 +3507,13 @@ function generateRiskExcel(list){
         F: cleanHazardTextForExport(r.hazard),
         G: '',
         H: r.currentMeasures||'',
-        I: '',
+        I: '5X4', // "평가 척도" 칸 — 가능성(빈도) 1~5점 × 중대성(강도) 1~4점 척도임을 고정 표기
         J: r.frequency||'',
         K: r.severity||'',
         L: score||'',
         M: r.measures||'',
         N: afterScore,
-        O: r.createdAt ? fmtDate(r.createdAt) : '',
+        O: receivedDate ? fmtDate(receivedDate) : '',
         P: '',
         Q: r.reporter||'',
       });
@@ -3886,6 +3907,7 @@ function renderIncidents(){
   renderNearMissTab();
 }
 
+let incSelectedIds = new Set();
 function renderIncidentTab(){
   const el = document.getElementById('incidentPane');
   if(!el) return;
@@ -3893,12 +3915,25 @@ function renderIncidentTab(){
   const processFilter = State.filters.incidentsProcess || '전체';
   const isAdmin = State.mode==='admin';
   const isManager = isAdmin || State.mode==='dept'; // 신고자·피해자 열람 및 조사상태 관리는 관리자(전체+부서) 공통
+  const allIncidents = objToArr(DataStore.get(PATHS.incidents));
+  const incYears = Array.from(new Set(allIncidents.filter(i=>i.datetime).map(i=> new Date(i.datetime).getFullYear()))).sort((a,b)=>b-a);
+  if(State.filters.incidentsYear===undefined){
+    // 기본값: 올해(데이터가 있으면 올해, 없으면 최신 연도) — 과거 연도는 선택해야 보이게
+    const thisYear = new Date().getFullYear();
+    State.filters.incidentsYear = incYears.includes(thisYear) ? String(thisYear) : (incYears[0] ? String(incYears[0]) : '전체');
+  }
+  const yearFilter = State.filters.incidentsYear;
+  const searchQ = (State.filters.incidentsSearch||'').trim().toLowerCase();
   el.innerHTML = `
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;">
       <div class="tabs" id="incTabs">
         ${['전체','접수','조사중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="incYearFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체" ${yearFilter==='전체'?'selected':''}>전체 연도</option>
+          ${incYears.map(y=>`<option value="${y}" ${yearFilter===String(y)?'selected':''}>${y}년</option>`).join('')}
+        </select>
         <select id="incProcessFilter" class="btn btn-sm" style="font-weight:700;">
           <option value="전체">${t('tab_all')} (${t('th_process')})</option>
           ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${processFilter===p?'selected':''}>${esc(p)}</option>`).join('')}
@@ -3906,8 +3941,13 @@ function renderIncidentTab(){
         <button class="btn btn-primary" id="addIncBtn">${icon('plus',15)} ${t('incidents_add_btn')}</button>
       </div>
     </div>
+    <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;">
+      <input type="text" id="incSearchBox" class="searchbox" placeholder="검색 (내용·이름·장소)" value="${esc(State.filters.incidentsSearch||'')}" style="flex:1;min-width:180px;">
+      ${isManager ? `<button class="btn btn-sm" id="incDownloadSelBtn">📥 선택 다운로드 (<span id="incSelCount">0</span>)</button>` : ''}
+    </div>
     <div class="table-wrap"><table>
       <thead><tr>
+        ${isManager?`<th class="tight"><input type="checkbox" id="incSelectAll"></th>`:''}
         <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
         ${isManager?`<th>${t('th_reporter')}</th><th>${t('lbl_injured_person')}</th>`:''}
         <th>${t('th_accidenttype')}</th><th>${t('th_injuryseverity')}</th>
@@ -3921,23 +3961,41 @@ function renderIncidentTab(){
   el.querySelectorAll('#incTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.incidents = t.dataset.s; renderIncidents();
   }));
+  document.getElementById('incYearFilter').addEventListener('change', e=>{
+    State.filters.incidentsYear = e.target.value; renderIncidents();
+  });
   document.getElementById('incProcessFilter').addEventListener('change', e=>{
     State.filters.incidentsProcess = e.target.value; renderIncidents();
   });
+  document.getElementById('incSearchBox').addEventListener('input', e=>{
+    State.filters.incidentsSearch = e.target.value; renderIncidents();
+  });
   el.querySelector('#addIncBtn').addEventListener('click', ()=> openIncidentModal());
 
-  const arr = objToArr(DataStore.get(PATHS.incidents)).sort((a,b)=> new Date(b.datetime||0) - new Date(a.datetime||0));
+  const arr = allIncidents.sort((a,b)=> new Date(b.datetime||0) - new Date(a.datetime||0));
   let filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
   if(processFilter!=='전체') filtered = filtered.filter(i=>i.process===processFilter);
+  if(yearFilter!=='전체') filtered = filtered.filter(i=> i.datetime && new Date(i.datetime).getFullYear()===Number(yearFilter));
+  if(searchQ){
+    filtered = filtered.filter(i=>
+      (i.description||'').toLowerCase().includes(searchQ) ||
+      (i.reporter||'').toLowerCase().includes(searchQ) ||
+      (i.injuredPerson||'').toLowerCase().includes(searchQ) ||
+      (i.location||'').toLowerCase().includes(searchQ) ||
+      (i.process||'').toLowerCase().includes(searchQ)
+    );
+  }
   const body = document.getElementById('incBody');
-  const colCount = 4 + (isManager?3:0) + (isAdmin?1:0) + 3;
+  const colCount = 4 + (isManager?4:0) + (isAdmin?1:0) + 3;
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>${t('incidents_empty')}</div></td></tr>`;
+    if(isManager) updateIncSelCount();
     return;
   }
   body.innerHTML = filtered.map(i=>`
     <tr>
-      <td class="mono">${newBadge(i, PATHS.incidents)}${fmtDateTime(i.datetime)}</td>
+      ${isManager?`<td class="tight"><input type="checkbox" class="inc-row-chk" data-id="${i.id}" ${incSelectedIds.has(i.id)?'checked':''}></td>`:''}
+      <td class="mono">${newBadge(i, PATHS.incidents)}${i.isIndustrialAccident?'<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;margin-right:4px;">산재</span>':''}${i.hasInvestigationReport?'<span class="badge" style="background:#3B82F6;color:#fff;font-weight:700;margin-right:4px;">조사표</span>':''}${fmtDateTime(i.datetime)}</td>
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
@@ -3950,6 +4008,54 @@ function renderIncidentTab(){
     </tr>
   `).join('');
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openIncidentDetail(b.dataset.viewId)));
+
+  if(isManager){
+    // 필터가 바뀌면 화면에 없는 건의 선택은 정리(항상 눈에 보이는 것만 유지)
+    const visibleIds = new Set(filtered.map(i=>i.id));
+    incSelectedIds.forEach(id=>{ if(!visibleIds.has(id)) incSelectedIds.delete(id); });
+    updateIncSelCount();
+    const selectAll = document.getElementById('incSelectAll');
+    selectAll.checked = filtered.length>0 && filtered.every(i=>incSelectedIds.has(i.id));
+    selectAll.addEventListener('change', ()=>{
+      if(selectAll.checked) filtered.forEach(i=>incSelectedIds.add(i.id));
+      else filtered.forEach(i=>incSelectedIds.delete(i.id));
+      body.querySelectorAll('.inc-row-chk').forEach(chk=> chk.checked = selectAll.checked);
+      updateIncSelCount();
+    });
+    body.querySelectorAll('.inc-row-chk').forEach(chk=>{
+      chk.addEventListener('change', ()=>{
+        if(chk.checked) incSelectedIds.add(chk.dataset.id);
+        else incSelectedIds.delete(chk.dataset.id);
+        updateIncSelCount();
+      });
+    });
+    document.getElementById('incDownloadSelBtn').addEventListener('click', ()=> downloadSelectedIncidentsXlsx());
+  }
+}
+function updateIncSelCount(){
+  const span = document.getElementById('incSelCount');
+  if(span) span.textContent = incSelectedIds.size;
+}
+function downloadSelectedIncidentsXlsx(){
+  if(incSelectedIds.size===0){ toast('먼저 다운로드할 건을 선택해주세요'); return; }
+  if(typeof XLSX==='undefined'){ toast('다운로드 도구를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  const all = DataStore.get(PATHS.incidents);
+  const rows = Array.from(incSelectedIds).map(id=> all[id]).filter(Boolean)
+    .sort((a,b)=> new Date(a.datetime||0) - new Date(b.datetime||0));
+  const header = ['발생일시','공정','장소','내용','신고자','피해자','사고유형','부상정도','상태','산재여부','조사표','조치내용','업무복귀일','휴업일수'];
+  const aoa = [header, ...rows.map(i=>[
+    fmtDateTime(i.datetime), i.process||'', i.location||'', i.description||'',
+    i.reporter||'', i.injuredPerson||'',
+    i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||''),
+    i.injurySeverity ? t('sev_'+i.injurySeverity) : '',
+    i.status||'', i.isIndustrialAccident ? '산재' : '', i.hasInvestigationReport ? '작성완료' : '미작성',
+    i.action||'', i.returnDate||'', i.leaveDays!=null ? i.leaveDays : '',
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = header.map(()=>({wch:16}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '사고접수');
+  XLSX.writeFile(wb, `일신캐스팅_사고접수_선택다운로드_${todayStr()}.xlsx`);
 }
 
 // 아차사고 상황유형 (사고접수보다 훨씬 단순화 — 다친 사람이 없으므로 재해자·부상정도 등 항목 자체를 뺐습니다)
@@ -4238,6 +4344,12 @@ function openIncidentModal(existing){
       <div class="field"><label>${t('lbl_status_admin')}</label>
         <select id="f_status">${['접수','조사중','완료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
       </div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:700;">
+        <input type="checkbox" id="f_isIndustrialAccident" ${v.isIndustrialAccident?'checked':''} style="width:16px;height:16px;"> 산재 처리 건 (근로복지공단 산재 승인/신청)
+      </label></div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:700;">
+        <input type="checkbox" id="f_hasInvestigationReport" ${v.hasInvestigationReport?'checked':''} style="width:16px;height:16px;"> 조사표 작성 완료
+      </label></div>
       <div class="field"><label>${t('lbl_action_admin')}</label><textarea id="f_action">${esc(v.action||'')}</textarea></div>
       <div class="row2">
         <div class="field"><label>업무복귀일 (관리자)</label><input type="date" id="f_returnDate" value="${v.returnDate||''}"></div>
@@ -4315,6 +4427,8 @@ function openIncidentModal(existing){
     }
     if(isManager){
       data.status = document.getElementById('f_status').value;
+      data.isIndustrialAccident = document.getElementById('f_isIndustrialAccident').checked;
+      data.hasInvestigationReport = document.getElementById('f_hasInvestigationReport').checked;
       data.action = document.getElementById('f_action').value.trim();
       data.returnDate = document.getElementById('f_returnDate').value;
       const d = calcLeaveDays(data.datetime, data.returnDate);
@@ -4384,6 +4498,8 @@ function openIncidentDetail(id){
         <dt>${t('lbl_injured_person')}</dt><dd>${esc(i.injuredPerson||'-')}</dd>
         <dt>${t('lbl_injury_detail')}</dt><dd>${esc(i.injuryDetail||'-')}</dd>
         <dt>${t('th_status')}</dt><dd>${statusBadge('incident', i.status)}</dd>
+        <dt>산재 여부</dt><dd>${i.isIndustrialAccident ? '<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;">산재 처리 건</span>' : '<span class="badge b-gray">해당없음</span>'}</dd>
+        <dt>조사표</dt><dd>${i.hasInvestigationReport ? '<span class="badge" style="background:#3B82F6;color:#fff;font-weight:700;">작성 완료</span>' : '<span class="badge b-gray">미작성</span>'}</dd>
         ${i.action?`<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>`:''}
         ${i.returnDate?`<dt>업무복귀일</dt><dd>${fmtDate(i.returnDate)} ${i.leaveDays!=null?`(휴업 ${i.leaveDays}일)`:''}</dd>`:''}
         ` : ''}
@@ -7466,6 +7582,12 @@ const STATS_GROUP8_PROCESSES = ['환경정리','생산관리','래들보수','�
 const STATS_HOUR_RATE = { group8: 8, group105: 10.5 };
 // LTIFR에 카운트할 "휴업재해" 판정 기준 — 산업안전보건법 시행규칙 제4조(3일 이상의 휴업)
 const STATS_LTI_THRESHOLD_DAYS = 3;
+// 재해율 동종업계(제조업) 평균 비교 기준 — 국내에서 업종별로 매년 공식 발표되는 지표는 재해율뿐이라 이것만 비교치로 제공함.
+// LTIFR(도수율)·강도율은 업종별 공식 평균이 별도로 공표되지 않아 비교 수치 없이 자사 추이로만 판단하도록 안내함.
+const STATS_INDUSTRY_BENCHMARK = {
+  injuryRate: 0.60, // 2024년 제조업 평균 재해율(%) — 재해자 24,409명 / 근로자 4,081,069명
+  source: '2024년 제조업 평균 재해율 0.60% (고용노동부 「산업재해현황」, 재해자 24,409명/근로자 4,081,069명 기준)',
+};
 
 // 국내 공휴일 목록(2025~2027) — 근무일수 자동계산 시 기본 제외 대상.
 // 근무일수는 평일(월~금) 기준 자동계산, 공휴일은 기본 미근무로 처리하되
@@ -7567,20 +7689,21 @@ let statsLtifrChart = null, statsRateChart = null;
 
 function renderStats(){
   const el = document.getElementById('view-stats');
+  const isAdmin = State.mode==='admin';
+  if(!isAdmin) StatsState.tab = 'dashboard'; // 전체관리자가 아니면 대시보드만 보임(인원수 입력 탭 자체가 없음)
   el.innerHTML = `
+    ${isAdmin ? `
     <div class="tabs" style="margin-bottom:14px;">
       <button class="tab ${StatsState.tab==='dashboard'?'active':''}" data-stats-tab="dashboard">📊 통계 대시보드</button>
       <button class="tab ${StatsState.tab==='workforce'?'active':''}" data-stats-tab="workforce">👥 월별 인원수 입력</button>
-      <button class="tab ${StatsState.tab==='import'?'active':''}" data-stats-tab="import">📥 과거 데이터 가져오기</button>
-    </div>
+    </div>` : ''}
     <div id="statsTabBody"></div>
   `;
   el.querySelectorAll('[data-stats-tab]').forEach(b=> b.addEventListener('click', ()=>{
     StatsState.tab = b.dataset.statsTab; renderStats();
   }));
   const body = document.getElementById('statsTabBody');
-  if(StatsState.tab==='workforce') renderStatsWorkforceTab(body);
-  else if(StatsState.tab==='import') renderStatsImportTab(body);
+  if(isAdmin && StatsState.tab==='workforce') renderStatsWorkforceTab(body);
   else renderStatsDashboardTab(body);
 }
 
@@ -7589,6 +7712,9 @@ function renderStatsDashboardTab(body){
   const years = statsAvailableYears();
   if(!years.includes(StatsState.year)) StatsState.year = years[years.length-1];
   const yr = statsComputeYear(StatsState.year);
+  const injuryRateBenchmark = STATS_INDUSTRY_BENCHMARK.injuryRate;
+  const injuryRateDiff = yr.injuryRate - injuryRateBenchmark;
+  const injuryRateGood = injuryRateDiff <= 0;
 
   body.innerHTML = `
     <div class="toolbar" style="margin-bottom:12px;">
@@ -7598,10 +7724,24 @@ function renderStatsDashboardTab(body){
       <button class="btn btn-primary" id="statsDownloadBtn">📥 통계 다운로드 (엑셀)</button>
     </div>
 
-    <div class="dash-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
-      <div class="card kpi"><div class="k-label">${StatsState.year}년 LTIFR</div><div class="k-num">${statsFmt(yr.ltifr,2)}</div><div class="k-sub">휴업재해 ${yr.sumLost}건 / 총근로시간 ${Math.round(yr.sumHours).toLocaleString()}h</div></div>
-      <div class="card kpi"><div class="k-label">${StatsState.year}년 재해율</div><div class="k-num">${statsFmt(yr.injuryRate,2)}%</div><div class="k-sub">재해자 ${yr.sumInjured}명 / 평균근로자 ${statsFmt(yr.avgEmployees,1)}명</div></div>
+    <div class="dash-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:10px;">
+      <div class="card kpi"><div class="k-label">${StatsState.year}년 LTIFR(도수율)</div><div class="k-num">${statsFmt(yr.ltifr,2)}</div><div class="k-sub">휴업재해 ${yr.sumLost}건 / 총근로시간 ${Math.round(yr.sumHours).toLocaleString()}h</div></div>
+      <div class="card kpi"><div class="k-label">${StatsState.year}년 재해율</div><div class="k-num">${statsFmt(yr.injuryRate,2)}%</div>
+        <div class="k-sub">재해자 ${yr.sumInjured}명 / 평균근로자 ${statsFmt(yr.avgEmployees,1)}명</div>
+        <div style="margin-top:4px;font-size:11.5px;font-weight:700;color:${injuryRateGood?'#1DA46F':'#E5484D'};">
+          ${injuryRateGood?'▼':'▲'} 제조업 평균(${statsFmt(injuryRateBenchmark,2)}%) 대비 ${statsFmt(Math.abs(injuryRateDiff),2)}%p ${injuryRateGood?'낮음(양호)':'높음(주의)'}
+        </div>
+      </div>
       <div class="card kpi"><div class="k-label">${StatsState.year}년 강도율</div><div class="k-num">${statsFmt(yr.severityRate,2)}</div><div class="k-sub">총요양근로손실일수 ${statsFmt(yr.sumSeverityDays,1)}일</div></div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;margin-bottom:14px;background:#F8FAFC;">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">ℹ️ 지표가 뭘 의미하는지 · 어느 정도면 괜찮은지</div>
+      <ul style="margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-soft);line-height:1.7;">
+        <li><b>LTIFR(=도수율)</b>: 근로자 100만 시간당 휴업재해가 몇 건 났는지. <b>0에 가까울수록 좋고</b>, 국내에서는 업종별 공식 평균이 따로 공표되지 않아 절대 비교보다는 <b>우리 회사의 월별·연도별 추이(늘고 있는지 줄고 있는지)</b>로 보는 게 정확합니다.</li>
+        <li><b>재해율</b>: 근로자 100명 중 몇 명이 재해를 입었는지(%). 고용노동부가 매년 업종별로 공식 발표하는 유일한 지표라 비교가 가능합니다 — 위 카드에 2024년 제조업 평균(${statsFmt(injuryRateBenchmark,2)}%, 고용노동부 산업재해현황) 대비 표시를 넣었습니다.</li>
+        <li><b>강도율</b>: 근로 1,000시간당 재해로 손실된 근로일수. <b>숫자가 클수록 한 건 한 건이 무겁다(중대재해에 가깝다)</b>는 뜻이고, 이것도 업종 평균이 공식 공표되진 않아 자사 추이 비교용으로 보시면 됩니다.</li>
+      </ul>
     </div>
 
     <div class="card" style="padding:18px;margin-bottom:14px;">
@@ -7641,6 +7781,7 @@ function renderStatsDashboardTab(body){
       재해율 = 재해자수 / 근로자수 × 100 &nbsp;·&nbsp;
       강도율 = 총요양근로손실일수(leaveDays×300/365 합산) / 총근로시간 × 1,000
     </p>
+    <p class="hint" style="margin-top:4px;">재해율 비교 기준: ${STATS_INDUSTRY_BENCHMARK.source}</p>
   `;
   document.getElementById('statsYearSel').addEventListener('change', e=>{
     StatsState.year = Number(e.target.value); renderStats();
@@ -7668,6 +7809,8 @@ function bindStatsCharts(yr){
     data:{ labels, datasets:[
       { label:'재해율(%)', data: yr.months.map(m=>Number(m.injuryRate.toFixed(2))), backgroundColor:'#1DA46F', borderRadius:4 },
       { label:'강도율', data: yr.months.map(m=>Number(m.severityRate.toFixed(2))), backgroundColor:'#3B82F6', borderRadius:4 },
+      { label:'제조업 평균 재해율(%)', type:'line', data: labels.map(()=>STATS_INDUSTRY_BENCHMARK.injuryRate),
+        borderColor:'#E5484D', borderDash:[6,4], borderWidth:2, pointRadius:0, fill:false },
     ]},
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{position:'bottom', labels:{color:'#667085', font:{size:11}}} },
@@ -7687,6 +7830,13 @@ function renderStatsWorkforceTab(body){
         ${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}년</option>`).join('')}
       </select>
       <span style="font-size:12.5px;color:var(--ink-soft);">8시간 그룹: 환경정리·생산관리·래들보수·공정품질·개발·관리직(사무직) &nbsp;|&nbsp; 10.5시간 그룹: 나머지 생산 공정</span>
+    </div>
+    <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12.5px;font-weight:700;">${year}년 전체 월에 한 번에 적용:</span>
+      <input type="number" min="0" id="wfBulkGroup8" placeholder="8시간 그룹" style="width:100px;">
+      <input type="number" min="0" id="wfBulkGroup105" placeholder="10.5시간 그룹" style="width:110px;">
+      <button class="btn btn-sm btn-primary" id="wfBulkApplyBtn">${year}년 12개월에 일괄 적용</button>
+      <span class="hint" style="width:100%;margin-top:2px;">한 해 동안 인원 변동이 거의 없을 때 쓰세요. 이미 입력된 달도 이 값으로 덮어씁니다 — 일부 달만 다르면 적용 후 해당 달만 다시 고치면 됩니다.</span>
     </div>
     <div class="table-wrap">
       <table>
@@ -7718,6 +7868,17 @@ function renderStatsWorkforceTab(body){
   `;
   document.getElementById('statsWfYearSel').addEventListener('change', e=>{
     StatsState.year = Number(e.target.value); renderStats();
+  });
+  document.getElementById('wfBulkApplyBtn').addEventListener('click', async ()=>{
+    const g8 = Math.max(0, Math.floor(Number(document.getElementById('wfBulkGroup8').value)||0));
+    const g105 = Math.max(0, Math.floor(Number(document.getElementById('wfBulkGroup105').value)||0));
+    if(!g8 && !g105){ toast('인원수를 입력해주세요'); return; }
+    if(!confirm(`${year}년 1~12월 전체에 8시간 그룹 ${g8}명 / 10.5시간 그룹 ${g105}명을 일괄 적용할까요? (기존 입력값은 덮어씌워집니다)`)) return;
+    for(let m=1;m<=12;m++){
+      await DataStore.update(PATHS.statsWorkforce, statsYmKey(year,m), { group8: g8, group105: g105 });
+    }
+    toast(`${year}년 전체에 일괄 적용했습니다`);
+    renderStats();
   });
   body.querySelectorAll('.wf-input').forEach(inp=>{
     inp.addEventListener('change', async ()=>{
@@ -7769,37 +7930,6 @@ function openStatsHolidayModal(key){
   });
 }
 
-/* ---- 탭 3: 과거 데이터(엑셀) 가져오기 ---- */
-// 2025.01~2026.05 재해상세기록(엑셀) 39건 — 공정명은 새 6그룹 기준으로 재분류해서 반영.
-// 이미 사고접수에 등록돼 있을 수 있으니(중복은 관리자가 직접 확인 후 정리) 가져오기 전에 항상 안내함.
-const STATS_EXCEL_IMPORT_DATA = [{"process": "전기", "datetime": "2025-01-20T08:00", "location": "전기반", "accidentType": "부딪힘", "accidentTypeOther": "", "description": "파이프렌치 작업 중 손가락 부딪힘 인대파열", "reporter": "원종수", "injuredPerson": "원종수", "injurySeverity": "1", "injuryDetail": "파이프렌치 작업 중 손가락 부딪힘 인대파열", "status": "완료", "action": "병원: 탑정형외과 / 결제수단: 개인지출 / 진료비 41,950원", "returnDate": "2025-01-20", "leaveDays": 0, "excelImported": true, "excelRowNo": 1}, {"process": "후처리", "datetime": "2025-01-21T08:00", "location": "후처리", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "똑", "injuredPerson": "똑", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 법인카드 / 진료비 89,100원", "returnDate": "2025-01-21", "leaveDays": 0, "excelImported": true, "excelRowNo": 2}, {"process": "조형", "datetime": "2025-01-24T08:00", "location": "조형", "accidentType": "기타(직접입력)", "accidentTypeOther": "그라인더 작업 이후 계단에서 내려오던", "description": "그라인더 작업 이후 계단에서 내려오던 도중 그라인더에 손등을 가져다 댐", "reporter": "임병록", "injuredPerson": "임병록", "injurySeverity": "1", "injuryDetail": "그라인더 작업 이후 계단에서 내려오던 도중 그라인더에 손등을 가져다 댐", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 법인카드 / 진료비 116,020원", "returnDate": "2025-01-24", "leaveDays": 0, "excelImported": true, "excelRowNo": 3}, {"process": "조형", "datetime": "2025-02-03T08:00", "location": "조형", "accidentType": "기타(직접입력)", "accidentTypeOther": "비정형 작업(철판옮기기) 작업 중 발", "description": "비정형 작업(철판옮기기) 작업 중 발목 접질림", "reporter": "황광익", "injuredPerson": "황광익", "injurySeverity": "2", "injuryDetail": "비정형 작업(철판옮기기) 작업 중 발목 접질림", "status": "완료", "action": "병원: 성지병원 / 결제수단: 개인지출 / 진료비 746,220원", "returnDate": "2025-02-03", "leaveDays": 0, "excelImported": true, "excelRowNo": 4}, {"process": "UVT", "datetime": "2025-02-26T08:00", "location": "uvt", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "손현주", "injuredPerson": "손현주", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 개인지출 / 진료비 29,700원", "returnDate": "2025-02-26", "leaveDays": 0, "excelImported": true, "excelRowNo": 5}, {"process": "기계", "datetime": "2025-03-14T08:00", "location": "기계반", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "김정남", "injuredPerson": "김정남", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 연세프라임안과 / 결제수단: 개인지출 / 진료비 17,000원", "returnDate": "2025-03-14", "leaveDays": 0, "excelImported": true, "excelRowNo": 6}, {"process": "조형", "datetime": "2025-04-16T08:00", "location": "조형", "accidentType": "기타(직접입력)", "accidentTypeOther": "발등 구조물 낙하로인한 타박상", "description": "발등 구조물 낙하로인한 타박상", "reporter": "김진호", "injuredPerson": "김진호", "injurySeverity": "2", "injuryDetail": "발등 구조물 낙하로인한 타박상", "status": "완료", "action": "병원: 원주연세병원 / 결제수단: 법인카드 / 진료비 310,010원", "returnDate": "2025-04-16", "leaveDays": 0, "excelImported": true, "excelRowNo": 7}, {"process": "공정품질", "datetime": "2025-04-23T08:00", "location": "측정실", "accidentType": "부딪힘", "accidentTypeOther": "", "description": "지게차 포크에 발뒷꿈치 부딪혀 타박상", "reporter": "박상건", "injuredPerson": "박상건", "injurySeverity": "1", "injuryDetail": "지게차 포크에 발뒷꿈치 부딪혀 타박상", "status": "완료", "action": "병원: 탑정형외과 / 결제수단: 개인지출 / 진료비 129,660원", "returnDate": "2025-04-23", "leaveDays": 0, "excelImported": true, "excelRowNo": 8}, {"process": "용해", "datetime": "2025-05-29T08:00", "location": "용해", "accidentType": "끼임(협착)", "accidentTypeOther": "", "description": "로 하강 시 발 끼임 타박상", "reporter": "김계수", "injuredPerson": "김계수", "injurySeverity": "1", "injuryDetail": "로 하강 시 발 끼임 타박상", "status": "완료", "action": "병원: 원주연세병원 / 결제수단: 법인카드 / 진료비 68,180원", "returnDate": "2025-05-29", "leaveDays": 0, "excelImported": true, "excelRowNo": 9}, {"process": "전기", "datetime": "2025-05-30T08:00", "location": "전기반", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "함영식", "injuredPerson": "함영식", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 법인카드 / 진료비 19,400원", "returnDate": "2025-05-30", "leaveDays": 0, "excelImported": true, "excelRowNo": 10}, {"process": "생산관리", "datetime": "2025-06-25T08:00", "location": "관리부", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "경비실 앞 목재 파레트에 발이걸려 넘어져 왼쪽 팔꿈치 탈골", "reporter": "김형래", "injuredPerson": "김형래", "injurySeverity": "2", "injuryDetail": "경비실 앞 목재 파레트에 발이걸려 넘어져 왼쪽 팔꿈치 탈골", "status": "완료", "action": "병원: 원주연세병원 / 결제수단: 법인카드 / 진료비 722,680원", "returnDate": "2025-06-25", "leaveDays": 0, "excelImported": true, "excelRowNo": 11}, {"process": "합리화", "datetime": "2025-07-20T08:00", "location": "합리화", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "용해 로상 계단 보행 중 넘어짐 사고", "reporter": "한용환", "injuredPerson": "한용환", "injurySeverity": "2", "injuryDetail": "용해 로상 계단 보행 중 넘어짐 사고", "status": "완료", "action": "병원: 원주 의료원 / 결제수단: 개인지출 / 진료비 210,240원", "returnDate": "2025-07-20", "leaveDays": 0, "excelImported": true, "excelRowNo": 12}, {"process": "기계", "datetime": "2025-07-31T08:00", "location": "기계반", "accidentType": "기타(직접입력)", "accidentTypeOther": "3라인 조형기 정비 중 L렌치와 파이", "description": "3라인 조형기 정비 중 L렌치와 파이프가 빠져 전치 깨짐", "reporter": "이영규", "injuredPerson": "이영규", "injurySeverity": "1", "injuryDetail": "3라인 조형기 정비 중 L렌치와 파이프가 빠져 전치 깨짐", "status": "완료", "action": "병원: 원주성지병원(치과) / 결제수단: 개인지출 / 진료비 425,700원", "returnDate": "2025-07-31", "leaveDays": 0, "excelImported": true, "excelRowNo": 13}, {"process": "전기", "datetime": "2025-08-06T08:00", "location": "전기", "accidentType": "기타(직접입력)", "accidentTypeOther": "과로로 인한 장염", "description": "과로로 인한 장염", "reporter": "마종열", "injuredPerson": "마종열", "injurySeverity": "1", "injuryDetail": "과로로 인한 장염", "status": "완료", "action": "병원: 원주성지병원 / 결제수단: 법인카드 / 진료비 169,110원", "returnDate": "2025-08-07", "leaveDays": 1, "excelImported": true, "excelRowNo": 14}, {"process": "UVT", "datetime": "2025-08-13T08:00", "location": "UVT", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "장현정", "injuredPerson": "장현정", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 개인지출 / 진료비 20,200원", "returnDate": "2025-08-13", "leaveDays": 0, "excelImported": true, "excelRowNo": 15}, {"process": "생산관리", "datetime": "2025-08-22T08:00", "location": "사무실", "accidentType": "추락", "accidentTypeOther": "", "description": "6톤로 냉각호스 정비 작업 중 추락사고", "reporter": "채창길", "injuredPerson": "채창길", "injurySeverity": "2", "injuryDetail": "6톤로 냉각호스 정비 작업 중 추락사고", "status": "완료", "action": "병원: 원주프라임병원,기독병원,김동우외과 / 결제수단: 개인지출", "returnDate": "2025-12-20", "leaveDays": 120, "excelImported": true, "excelRowNo": 16}, {"process": "후처리", "datetime": "2025-08-25T08:00", "location": "후처리", "accidentType": "기타(직접입력)", "accidentTypeOther": "온열질환으로 인한 열사병", "description": "온열질환으로 인한 열사병", "reporter": "킴", "injuredPerson": "킴", "injurySeverity": "1", "injuryDetail": "온열질환으로 인한 열사병", "status": "완료", "action": "병원: 성모병원 / 결제수단: 법인카드 / 진료비 312,600원", "returnDate": "2025-08-25", "leaveDays": 0, "excelImported": true, "excelRowNo": 17}, {"process": "합리화", "datetime": "2025-09-12T08:00", "location": "합리화", "accidentType": "절단·베임", "accidentTypeOther": "", "description": "1라인 후처리 디디온 보수 작업 중 왼손 손목 베임사고", "reporter": "본", "injuredPerson": "본", "injurySeverity": "2", "injuryDetail": "1라인 후처리 디디온 보수 작업 중 왼손 손목 베임사고", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 법인카드", "returnDate": "2025-09-26", "leaveDays": 14, "excelImported": true, "excelRowNo": 18}, {"process": "개발", "datetime": "2025-09-18T08:00", "location": "개발", "accidentType": "절단·베임", "accidentTypeOther": "", "description": "띠톱 작업 중 오른손 엄지손가락 베임", "reporter": "이영범", "injuredPerson": "이영범", "injurySeverity": "1", "injuryDetail": "띠톱 작업 중 오른손 엄지손가락 베임", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 법인카드 / 진료비 56,100원", "returnDate": "2025-09-18", "leaveDays": 0, "excelImported": true, "excelRowNo": 19}, {"process": "후처리", "datetime": "2025-09-30T08:00", "location": "후처리", "accidentType": "기타(직접입력)", "accidentTypeOther": "결막염(충혈) - 개인질병으로 휴급공", "description": "결막염(충혈) - 개인질병으로 휴급공제", "reporter": "낙", "injuredPerson": "낙", "injurySeverity": "1", "injuryDetail": "결막염(충혈) - 개인질병으로 휴급공제", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 법인카드 / 진료비 27,300원", "returnDate": "2025-09-30", "leaveDays": 0, "excelImported": true, "excelRowNo": 20}, {"process": "후처리", "datetime": "2025-09-30T08:00", "location": "후처리", "accidentType": "절단·베임", "accidentTypeOther": "", "description": "에어프런 컨베이어 이동 중 발목 접질림", "reporter": "욹", "injuredPerson": "욹", "injurySeverity": "1", "injuryDetail": "에어프런 컨베이어 이동 중 발목 접질림", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 법인카드 / 진료비 81,200원", "returnDate": "2025-10-03", "leaveDays": 3, "excelImported": true, "excelRowNo": 21}, {"process": "전기", "datetime": "2025-10-13T08:00", "location": "전기반", "accidentType": "끼임(협착)", "accidentTypeOther": "", "description": "모터에 바지 말림으로 인한 끼임(타박상)", "reporter": "반석", "injuredPerson": "반석", "injurySeverity": "1", "injuryDetail": "모터에 바지 말림으로 인한 끼임(타박상)", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 법인카드 / 진료비 31,100원", "returnDate": "2025-10-13", "leaveDays": 0, "excelImported": true, "excelRowNo": 22}, {"process": "보온로", "datetime": "2025-10-22T08:00", "location": "3라인 보온로", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "심재활", "injuredPerson": "심재활", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 개인지출 / 진료비 24,700원", "returnDate": "2025-10-22", "leaveDays": 0, "excelImported": true, "excelRowNo": 23}, {"process": "용해", "datetime": "2025-11-17T08:00", "location": "용해", "accidentType": "기타(직접입력)", "accidentTypeOther": "용탕의 비산으로 인한 좌안에 튐", "description": "용탕의 비산으로 인한 좌안에 튐", "reporter": "유준열", "injuredPerson": "유준열", "injurySeverity": "1", "injuryDetail": "용탕의 비산으로 인한 좌안에 튐", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 법인카드 / 진료비 30,400원", "returnDate": "2025-11-17", "leaveDays": 0, "excelImported": true, "excelRowNo": 24}, {"process": "후처리", "datetime": "2025-12-10T08:00", "location": "후처리", "accidentType": "기타(직접입력)", "accidentTypeOther": "에이프런 벨트 발목 꺾임", "description": "에이프런 벨트 발목 꺾임", "reporter": "로니", "injuredPerson": "로니", "injurySeverity": "1", "injuryDetail": "에이프런 벨트 발목 꺾임", "status": "완료", "action": "병원: 지성정형외과 / 결제수단: 법인카드 / 진료비 58,000원", "returnDate": "2025-12-12", "leaveDays": 2, "excelImported": true, "excelRowNo": 25}, {"process": "합리화", "datetime": "2025-12-18T08:00", "location": "합리화", "accidentType": "기타(직접입력)", "accidentTypeOther": "로드셀 작업 중 눈에 이물질 침투", "description": "로드셀 작업 중 눈에 이물질 침투", "reporter": "본", "injuredPerson": "본", "injurySeverity": "1", "injuryDetail": "로드셀 작업 중 눈에 이물질 침투", "status": "완료", "action": "병원: 이상진안과의원 / 결제수단: 법인카드 / 진료비 111,310원", "returnDate": "2025-12-20", "leaveDays": 2, "excelImported": true, "excelRowNo": 26}, {"process": "개발", "datetime": "2025-12-19T08:00", "location": "개발", "accidentType": "절단·베임", "accidentTypeOther": "", "description": "핸드 그라인더 작업 중 우측수부 베임", "reporter": "김길수", "injuredPerson": "김길수", "injurySeverity": "2", "injuryDetail": "핸드 그라인더 작업 중 우측수부 베임", "status": "완료", "action": "병원: 원주연세병원 / 결제수단: 법인카드 / 진료비 2,588,560원", "returnDate": "2026-01-11", "leaveDays": 23, "excelImported": true, "excelRowNo": 27}, {"process": "전기", "datetime": "2026-01-27T08:00", "location": "전기반", "accidentType": "화상", "accidentTypeOther": "", "description": "테스터기 사용 중 기기 고장으로 인한 화상", "reporter": "함영식", "injuredPerson": "함영식", "injurySeverity": "2", "injuryDetail": "테스터기 사용 중 기기 고장으로 인한 화상", "status": "완료", "action": "병원: 연세 원주세브란스기독병원 / 결제수단: 개인지출 / 진료비 65,100원", "returnDate": "2026-02-02", "leaveDays": 6, "excelImported": true, "excelRowNo": 28}, {"process": "조형", "datetime": "2026-01-28T08:00", "location": "조형", "accidentType": "기타(직접입력)", "accidentTypeOther": "불량품 확인 작업 중 지게차 작업자의", "description": "불량품 확인 작업 중 지게차 작업자의 부주의로 PLT에 충돌", "reporter": "황광익", "injuredPerson": "황광익", "injurySeverity": "2", "injuryDetail": "불량품 확인 작업 중 지게차 작업자의 부주의로 PLT에 충돌", "status": "완료", "action": "병원: 의료재단 성지병원 / 결제수단: 개인지출 / 진료비 264,810원", "returnDate": "2026-02-02", "leaveDays": 5, "excelImported": true, "excelRowNo": 29}, {"process": "기계", "datetime": "2026-03-04T08:00", "location": "기계반", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질 침투", "description": "눈에 이물질 침투", "reporter": "홍성진", "injuredPerson": "홍성진", "injurySeverity": "1", "injuryDetail": "눈에 이물질 침투", "status": "완료", "action": "병원: 공상 치료비 미지출 / 결제수단: 개인지출", "returnDate": "2026-03-04", "leaveDays": 0, "excelImported": true, "excelRowNo": 30}, {"process": "조형", "datetime": "2026-03-18T08:00", "location": "조형", "accidentType": "부딪힘", "accidentTypeOther": "", "description": "뒷걸음질로 인한 부딪힘", "reporter": "황광익", "injuredPerson": "황광익", "injurySeverity": "1", "injuryDetail": "뒷걸음질로 인한 부딪힘", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 개인지출", "returnDate": "2026-03-19", "leaveDays": 1, "excelImported": true, "excelRowNo": 31}, {"process": "용해", "datetime": "2026-04-01T08:00", "location": "용해", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "용해 크레인 계단에서 넘어짐", "reporter": "한영주", "injuredPerson": "한영주", "injurySeverity": "2", "injuryDetail": "용해 크레인 계단에서 넘어짐", "status": "완료", "action": "병원: 원주연세병원 / 결제수단: 법인카드", "returnDate": "2026-05-15", "leaveDays": 44, "excelImported": true, "excelRowNo": 32}, {"process": "공정품질", "datetime": "2026-04-07T08:00", "location": "품질사무실", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "1라인 주입 계단 넘어짐 사고(갈비뼈 염좌)", "reporter": "박상건", "injuredPerson": "박상건", "injurySeverity": "2", "injuryDetail": "1라인 주입 계단 넘어짐 사고(갈비뼈 염좌)", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 개인지출 / 진료비 65,200원", "returnDate": "2026-04-10", "leaveDays": 3, "excelImported": true, "excelRowNo": 33}, {"process": "보온로", "datetime": "2026-04-24T08:00", "location": "보온로", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "보온로 계단에서 넘어짐(미세골절)", "reporter": "에드윌", "injuredPerson": "에드윌", "injurySeverity": "2", "injuryDetail": "보온로 계단에서 넘어짐(미세골절)", "status": "완료", "action": "병원: 김동우외과의원 / 결제수단: 법인카드 / 진료비 49,600원", "returnDate": "2026-04-26", "leaveDays": 2, "excelImported": true, "excelRowNo": 34}, {"process": "주입", "datetime": "2026-04-25T08:00", "location": "주입", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "주입룸 계단 통행 시 넘어짐으로 인한 부상", "reporter": "한기환", "injuredPerson": "한기환", "injurySeverity": "1", "injuryDetail": "주입룸 계단 통행 시 넘어짐으로 인한 부상", "status": "완료", "action": "병원: 엄재동 정형외과 / 결제수단: 개인지출 / 진료비 202,400원", "returnDate": "2026-04-25", "leaveDays": 0, "excelImported": true, "excelRowNo": 35}, {"process": "UVT", "datetime": "2026-04-25T08:00", "location": "uvt", "accidentType": "기타(직접입력)", "accidentTypeOther": "눈에 이물질", "description": "눈에 이물질", "reporter": "장현정", "injuredPerson": "장현정", "injurySeverity": "1", "injuryDetail": "눈에 이물질", "status": "완료", "action": "병원: 손안과의원 / 결제수단: 개인지출 / 진료비 11,000원", "returnDate": "2026-04-25", "leaveDays": 0, "excelImported": true, "excelRowNo": 36}, {"process": "생산관리", "datetime": "2026-05-02T08:00", "location": "생산관리", "accidentType": "기타(직접입력)", "accidentTypeOther": "체육대회 족구경기 중 좌측 아킬레스건", "description": "체육대회 족구경기 중 좌측 아킬레스건 파열", "reporter": "이재영", "injuredPerson": "이재영", "injurySeverity": "2", "injuryDetail": "체육대회 족구경기 중 좌측 아킬레스건 파열", "status": "완료", "action": "병원: 원주연세병원 / 결제수단: 산재보험", "returnDate": "2026-07-01", "leaveDays": 60, "excelImported": true, "excelRowNo": 37}, {"process": "합리화", "datetime": "2026-05-20T08:00", "location": "합리화", "accidentType": "끼임(협착)", "accidentTypeOther": "", "description": "본진 믹서 블레이드 교체 작업 중 손가락 끼임 사고", "reporter": "본", "injuredPerson": "본", "injurySeverity": "1", "injuryDetail": "본진 믹서 블레이드 교체 작업 중 손가락 끼임 사고", "status": "완료", "action": "병원: 김동우외과의원, 연세메디하임병원 / 결제수단: 법인카드 / 진료비 166,460원", "returnDate": "2026-05-20", "leaveDays": 0, "excelImported": true, "excelRowNo": 38}, {"process": "합리화", "datetime": "2026-05-23T08:00", "location": "합리화", "accidentType": "넘어짐", "accidentTypeOther": "", "description": "작업대 밟고 미끄러져 넘어짐(손목골절)", "reporter": "정인영", "injuredPerson": "정인영", "injurySeverity": "2", "injuryDetail": "작업대 밟고 미끄러져 넘어짐(손목골절)", "status": "완료", "action": "병원: 미래365병원,의료원,원주연세병원 / 결제수단: 법인카드", "returnDate": "2026-07-05", "leaveDays": 43, "excelImported": true, "excelRowNo": 39}];
-
-function renderStatsImportTab(body){
-  const importedCount = objToArr(DataStore.get(PATHS.incidents)).filter(i=>i.excelImported).length;
-  body.innerHTML = `
-    <div class="card" style="padding:18px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">📥 엑셀 재해상세기록(2025.01~2026.05) 가져오기</div>
-      <p class="hint" style="margin:0 0 6px;">기존 LTIFR 관리 엑셀 파일의 재해상세기록 ${STATS_EXCEL_IMPORT_DATA.length}건을 사고접수 데이터로 가져옵니다.
-      공정명은 새 근로시간 그룹 기준(8시간/10.5시간)에 맞게 재분류했습니다(일부는 근사 매칭 — 예: "3라인 보온로"→"보온로", "전기반"→"전기").</p>
-      <p class="hint" style="margin:0 0 6px;">이미 사고접수에 같은 건이 등록돼 있을 수 있습니다. 가져온 뒤 중복 건은 사고접수 메뉴에서 직접 확인 후 삭제해주세요.
-      가져온 건은 목록에서 구분할 수 있게 표시해둡니다.</p>
-      <p class="hint" style="margin:0 0 12px;">현재까지 가져온 건수: <b>${importedCount}건</b> / 전체 ${STATS_EXCEL_IMPORT_DATA.length}건</p>
-      <button class="btn btn-primary" id="statsImportBtn" ${importedCount>0?'disabled':''}>${importedCount>0?'이미 가져오기 완료됨':'📥 가져오기 실행 ('+STATS_EXCEL_IMPORT_DATA.length+'건)'}</button>
-    </div>
-  `;
-  const btn = document.getElementById('statsImportBtn');
-  if(btn && importedCount===0){
-    btn.addEventListener('click', async ()=>{
-      if(!confirm(`엑셀 재해상세기록 ${STATS_EXCEL_IMPORT_DATA.length}건을 사고접수로 가져올까요? 이미 등록된 건과 중복될 수 있으니, 가져온 뒤 꼭 확인해주세요.`)) return;
-      btn.disabled = true; btn.textContent = '가져오는 중...';
-      for(const rec of STATS_EXCEL_IMPORT_DATA){
-        await DataStore.push(PATHS.incidents, Object.assign({ createdAt: Date.now() }, rec));
-      }
-      toast('과거 사고 데이터를 가져왔습니다');
-      renderStatsImportTab(body);
-    });
-  }
-}
 
 /* ---- 통계 엑셀 다운로드 (서식 지정된 회사 양식이 없어 새로 디자인해서 생성) ---- */
 function downloadStatsXlsx(year){
