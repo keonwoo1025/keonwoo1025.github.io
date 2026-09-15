@@ -2119,11 +2119,11 @@ function renderDashboard(){
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>${t('recent_incidents_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">${t('view_all')}</button></div>
-        <div class="lc-body" id="dashMiniIncidents">${renderMiniList(incidents, i=>({
+        <div class="lc-body" id="dashMiniIncidents">${renderMiniList([...incidents].sort((a,b)=> new Date(b.datetime||b.createdAt||0) - new Date(a.datetime||a.createdAt||0)), i=>({
           title: i.location||'-',
           meta: fmtDate(i.datetime),
           badge: State.mode==='admin' ? statusBadge('incident', i.status) : (i.injurySeverity ? `<span class="badge b-gray">${esc(i.injurySeverity)}</span>` : '')
-        }), PATHS.incidents)}</div>
+        }), PATHS.incidents, true)}</div>
       </div>
     </div>
 
@@ -4442,14 +4442,45 @@ function bindBulletList(idPrefix){
     });
   }
   container.querySelectorAll('.bullet-line-row').forEach(bindRemove);
-  addBtn.addEventListener('click', ()=>{
-    const div = document.createElement('div');
-    div.className = 'bullet-line-row';
-    div.innerHTML = `<span class="bullet-dot">▪</span><input type="text" class="bullet-line-input" value=""><button type="button" class="bullet-remove" title="이 줄 삭제">✕</button>`;
-    container.appendChild(div);
-    bindRemove(div);
-    div.querySelector('input').focus();
+  // "+" 버튼은 idPrefix당(모달 인스턴스당) 딱 한 번만 리스너를 붙임 — bindBulletList가 같은 idPrefix로
+  // 여러 번 호출되어도(예: autoFillCauses가 목록을 다시 그린 뒤 재호출) 버튼에 리스너가 누적되지 않도록 함
+  if(addBtn && !addBtn.dataset.bulletBound){
+    addBtn.dataset.bulletBound = '1';
+    addBtn.addEventListener('click', ()=>{
+      const div = document.createElement('div');
+      div.className = 'bullet-line-row';
+      div.innerHTML = `<span class="bullet-dot">▪</span><input type="text" class="bullet-line-input" value=""><button type="button" class="bullet-remove" title="이 줄 삭제">✕</button>`;
+      container.appendChild(div);
+      bindRemove(div);
+      div.querySelector('input').focus();
+    });
+  }
+}
+// 미흡사항 체크 자동연동(항목 5·6)에서 재사용하는 헬퍼 — bulletListInputHtml 목록에 줄을 추가/삭제
+function bulletListAddLineIfMissing(idPrefix, text){
+  const listEl = document.getElementById(idPrefix+'_list');
+  if(!listEl) return;
+  const inputs = Array.from(listEl.querySelectorAll('.bullet-line-input'));
+  if(inputs.some(inp=>inp.value.trim()===text)) return; // 이미 같은 줄이 있으면 중복 추가하지 않음
+  const emptyInput = inputs.find(inp=>!inp.value.trim());
+  if(emptyInput){ emptyInput.value = text; return; }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = bulletLineRowHtml(text);
+  const row = tmp.firstElementChild;
+  listEl.appendChild(row);
+  row.querySelector('.bullet-remove').addEventListener('click', ()=>{
+    if(listEl.children.length>1) row.remove();
+    else row.querySelector('.bullet-line-input').value = '';
   });
+}
+function bulletListRemoveLine(idPrefix, text){
+  const listEl = document.getElementById(idPrefix+'_list');
+  if(!listEl) return;
+  const rows = Array.from(listEl.querySelectorAll('.bullet-line-row'));
+  const match = rows.find(r=>r.querySelector('.bullet-line-input').value.trim()===text);
+  if(!match) return;
+  if(listEl.children.length>1) match.remove();
+  else match.querySelector('.bullet-line-input').value = '';
 }
 function collectBulletList(idPrefix){
   const container = document.getElementById(idPrefix+'_list');
@@ -4685,6 +4716,15 @@ function openIncidentReportModal(incident){
    'rpt_cm_cause_0','rpt_cm_measure_0','rpt_cm_cause_1','rpt_cm_measure_1','rpt_cm_cause_2','rpt_cm_measure_2'
   ].forEach(id=> bindBulletList(id));
 
+  // 원인 칸(rpt_cm_cause_0/1/2)에 사용자가 "직접" 타이핑한 적 있는지 추적 — 있으면 그 이후로는 자동채움을 멈춤
+  // (autoFillCauses가 innerHTML로 프로그램적으로 값을 채우는 것은 input 이벤트를 발생시키지 않으므로 이 플래그에 영향 없음)
+  ['rpt_cm_cause_0','rpt_cm_cause_1','rpt_cm_cause_2'].forEach(id=>{
+    const listEl = document.getElementById(id+'_list');
+    listEl.addEventListener('input', e=>{
+      if(e.target.classList.contains('bullet-line-input')) listEl.dataset.userEdited = '1';
+    });
+  });
+
   // 비고 체크박스 — 체크했을 때만 입력창을 보여줌 (PPT에는 항상 원본 행이 유지되고, 값이 없으면 그 칸만 비워둠)
   document.getElementById('rpt_remarksCheck').addEventListener('change', e=>{
     document.getElementById('rpt_remarksField').style.display = e.target.checked ? '' : 'none';
@@ -4703,18 +4743,49 @@ function openIncidentReportModal(incident){
   }
   refreshDeficiencyHints();
 
+  // 체크한 게 하나도 없는(전부 O이거나 미체크) 카테고리는 미흡사항에 "해당 없음"을 자동으로 기입,
+  // 반대로 X/△가 하나라도 있으면 그 "해당 없음" placeholder는 제거함
+  function applyNoIssueDefaults(cat){
+    let hasFlagged = false;
+    document.querySelectorAll(`#rpt_checklistGrid .rpt-chk-btns[data-cat="${cat}"]`).forEach(group=>{
+      const active = group.querySelector('.rpt-chk-btn.active');
+      if(active && (active.dataset.val==='X' || active.dataset.val==='△')) hasFlagged = true;
+    });
+    if(hasFlagged){
+      bulletListRemoveLine('rpt_def_'+cat, '해당 없음');
+    } else if(!collectBulletList('rpt_def_'+cat)){
+      bulletListAddLineIfMissing('rpt_def_'+cat, '해당 없음');
+    }
+  }
+
   // 체크리스트 버튼 토글
   document.querySelectorAll('#rpt_checklistGrid .rpt-chk-btns').forEach(group=>{
+    const cat = group.dataset.cat;
+    const idx = parseInt(group.dataset.idx,10);
+    const itemName = RPT_CHECKLIST[cat][idx];
     group.querySelectorAll('.rpt-chk-btn').forEach(btn=>{
       btn.addEventListener('click', ()=>{
+        const prevActive = group.querySelector('.rpt-chk-btn.active');
+        const prevVal = prevActive ? prevActive.dataset.val : null;
+        const newVal = btn.dataset.val;
         group.querySelectorAll('.rpt-chk-btn').forEach(b=>b.classList.remove('active'));
         btn.classList.add('active');
+        // 체크한 항목 수만큼 미흡사항에 줄 자동 추가/삭제
+        if(newVal==='X' || newVal==='△'){
+          bulletListAddLineIfMissing('rpt_def_'+cat, itemName);
+        } else if(prevVal==='X' || prevVal==='△'){
+          bulletListRemoveLine('rpt_def_'+cat, itemName);
+        }
+        applyNoIssueDefaults(cat);
         refreshDeficiencyHints();
+        autoFillCauses();
       });
     });
   });
+  // 모달을 처음 열었을 때도(기존 저장값 기준) "해당 없음" 기본값 적용
+  Object.keys(RPT_CHECKLIST).forEach(cat=> applyNoIssueDefaults(cat));
 
-  // 미흡사항 입력 시, 원인 칸이 비어있으면 자동으로 채워줌(직접 입력한 값은 덮어쓰지 않음)
+  // 미흡사항 입력 시, 원인 칸에 자동으로 반영함 — 단, 사용자가 그 원인 칸을 직접 수정한 적 있으면 멈춤
   function autoFillCauses(){
     const def = { 인적: collectBulletList('rpt_def_인적'),
                   물적: collectBulletList('rpt_def_물적'),
@@ -4722,11 +4793,13 @@ function openIncidentReportModal(incident){
                   환경: collectBulletList('rpt_def_환경') };
     const map = [ ['인적'], ['물적'], ['시스템','환경'] ];
     map.forEach((cats, idx)=>{
-      if(!collectBulletList('rpt_cm_cause_'+idx)){
-        const merged = cats.map(c=>def[c]).filter(x=>x && x!=='해당 없음').join('\n');
-        const listEl = document.getElementById('rpt_cm_cause_'+idx+'_list');
-        const lines2 = merged.split('\n').map(l=>l.trim()).filter(Boolean);
-        listEl.innerHTML = (lines2.length?lines2:['']).map(l=>bulletLineRowHtml(l)).join('');
+      const listEl = document.getElementById('rpt_cm_cause_'+idx+'_list');
+      if(listEl.dataset.userEdited === '1') return; // 사용자가 직접 손댄 적 있으면 자동채움 멈춤
+      const merged = cats.map(c=>def[c]).filter(x=>x && x!=='해당 없음').join('\n');
+      const lines2 = merged.split('\n').map(l=>l.trim()).filter(Boolean);
+      const nextHtml = (lines2.length?lines2:['']).map(l=>bulletLineRowHtml(l)).join('');
+      if(listEl.innerHTML !== nextHtml){
+        listEl.innerHTML = nextHtml;
         bindBulletList('rpt_cm_cause_'+idx);
       }
     });
