@@ -1256,6 +1256,7 @@ const TRANSLATIONS = {
   risk_new_title:{ko:'위험성평가 등록',en:'Register Risk Assessment',th:'ลงทะเบียนการประเมินความเสี่ยง',id:'Daftarkan Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ бүртгэх'},
   risk_edit_title:{ko:'위험성평가 수정',en:'Edit Risk Assessment',th:'แก้ไขการประเมินความเสี่ยง',id:'Ubah Penilaian Risiko',mn:'Эрсдэлийн үнэлгээ засах'},
   lbl_processname:{ko:'공정명',en:'Process Name',th:'ชื่อกระบวนการ',id:'Nama Proses',mn:'Процессын нэр'},
+  lbl_dept:{ko:'부서',en:'Department',th:'แผนก',id:'Departemen',mn:'Хэлтэс'},
   lbl_subtask:{ko:'세부 작업',en:'Sub-task',th:'งานย่อย',id:'Sub-tugas',mn:'Дэд ажил'},
   lbl_hazard:{ko:'유해위험요인',en:'Hazard',th:'อันตราย',id:'Bahaya',mn:'Эрсдэлийн хүчин зүйл'},
   lbl_risktype:{ko:'위험유형 (선택)',en:'Risk Type (Optional)',th:'ประเภทความเสี่ยง (ไม่บังคับ)',id:'Jenis Risiko (Opsional)',mn:'Эрсдэлийн төрөл (Заавал биш)'},
@@ -2332,6 +2333,15 @@ function statusBadge(kind, status){
 }
 // 위험성평가 공정 분류 (고정 목록 — 필터·등록 시 공통 사용)
 const PROCESS_OPTIONS = ['용해','보온로','주입','조형','사처리','후처리','래들보수','합리화','기계','전기','개발','UVT','스펙트로','실험실','공정품질','환경정리','생산관리','집진기'];
+// 공정 → 소속 부서 매핑 (위험성평가 등에서 "부서별" 필터·다운로드에 사용)
+const PROCESS_TO_DEPT = {
+  '용해':'생산부','보온로':'생산부','주입':'생산부','사처리':'생산부','조형':'생산부',
+  '후처리':'생산부','전기':'생산부','기계':'생산부','합리화':'생산부','래들보수':'생산부',
+  '개발':'품질관리부','UVT':'품질관리부','스펙트로':'품질관리부','실험실':'품질관리부','공정품질':'품질관리부',
+  '생산관리':'관리부','환경정리':'관리부',
+  '집진기':'안전환경부',
+};
+const DEPT_OPTIONS = ['생산부','품질관리부','관리부','안전환경부'];
 // 부서별 공정 매핑
 const PROCESS_DEPT_MAP = {
   '용해':'생산부','보온로':'생산부','주입':'생산부','조형':'생산부','사처리':'생산부','후처리':'생산부','래들보수':'생산부','합리화':'생산부','기계':'생산부','전기':'생산부',
@@ -3162,6 +3172,7 @@ function renderRisks(){
   const el = document.getElementById('view-risks');
   const filter = State.filters.risks || '전체';
   const processFilter = State.filters.risksProcess || '전체';
+  const deptFilter = State.filters.risksDept || '전체';
   const viewMode = State.filters.risksView || 'table';
   const isAdmin = State.mode==='admin';
   const isManager = isAdmin || State.mode==='dept'; // 인쇄·엑셀 다운로드는 관리자(전체+부서) 공통
@@ -3172,6 +3183,7 @@ function renderRisks(){
     });
     let f = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
     if(processFilter!=='전체') f = f.filter(r=>r.process===processFilter);
+    if(deptFilter!=='전체') f = f.filter(r=> PROCESS_TO_DEPT[r.process]===deptFilter);
     return f;
   }
 
@@ -3181,6 +3193,10 @@ function renderRisks(){
         ${['전체','접수완료','조치중','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="riskDeptFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체">${t('tab_all')} (${t('lbl_dept')})</option>
+          ${DEPT_OPTIONS.map(d=>`<option value="${d}" ${deptFilter===d?'selected':''}>${esc(d)}</option>`).join('')}
+        </select>
         <select id="riskProcessFilter" class="btn btn-sm" style="font-weight:700;">
           <option value="전체">${t('tab_all')} (${t('th_process_task')})</option>
           ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${processFilter===p?'selected':''}>${esc(p)}</option>`).join('')}
@@ -3197,6 +3213,9 @@ function renderRisks(){
   el.querySelectorAll('#riskTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.risks = t.dataset.s; renderRisks();
   }));
+  document.getElementById('riskDeptFilter').addEventListener('change', e=>{
+    State.filters.risksDept = e.target.value; renderRisks();
+  });
   document.getElementById('riskProcessFilter').addEventListener('change', e=>{
     State.filters.risksProcess = e.target.value; renderRisks();
   });
