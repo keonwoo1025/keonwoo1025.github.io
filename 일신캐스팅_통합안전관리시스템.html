@@ -3188,23 +3188,45 @@ function renderRisks(){
   const viewMode = State.filters.risksView || 'table';
   const isAdmin = State.mode==='admin';
   const isManager = isAdmin || State.mode==='dept'; // 인쇄·엑셀 다운로드는 관리자(전체+부서) 공통
+  const allRisks = objToArr(DataStore.get(PATHS.risks));
+  const riskYears = Array.from(new Set(allRisks.filter(r=>r.createdAt).map(r=> new Date(r.createdAt).getFullYear()))).sort((a,b)=>b-a);
+  if(State.filters.risksYear===undefined){
+    const thisYear = new Date().getFullYear();
+    State.filters.risksYear = riskYears.includes(thisYear) ? String(thisYear) : (riskYears[0] ? String(riskYears[0]) : '전체');
+  }
+  const yearFilter = State.filters.risksYear;
+  const searchQ = (State.filters.risksSearch||'').trim().toLowerCase();
 
   function getFilteredRisks(){
-    const arr = objToArr(DataStore.get(PATHS.risks)).sort((a,b)=>{
+    const arr = allRisks.slice().sort((a,b)=>{
       return riskLevel(b) - riskLevel(a);
     });
     let f = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
     if(processFilter!=='전체') f = f.filter(r=>r.process===processFilter);
     if(deptFilter!=='전체') f = f.filter(r=> PROCESS_TO_DEPT[r.process]===deptFilter);
+    if(yearFilter!=='전체') f = f.filter(r=> r.createdAt && new Date(r.createdAt).getFullYear()===Number(yearFilter));
+    if(searchQ){
+      f = f.filter(r=>
+        (r.hazard||'').toLowerCase().includes(searchQ) ||
+        (r.task||'').toLowerCase().includes(searchQ) ||
+        (r.measures||'').toLowerCase().includes(searchQ) ||
+        (r.reporter||'').toLowerCase().includes(searchQ) ||
+        (r.process||'').toLowerCase().includes(searchQ)
+      );
+    }
     return f;
   }
 
   el.innerHTML = `
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;">
       <div class="tabs" id="riskTabs">
         ${['전체','접수완료','조치중','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="riskYearFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체" ${yearFilter==='전체'?'selected':''}>전체 연도</option>
+          ${riskYears.map(y=>`<option value="${y}" ${yearFilter===String(y)?'selected':''}>${y}년</option>`).join('')}
+        </select>
         <select id="riskDeptFilter" class="btn btn-sm" style="font-weight:700;">
           <option value="전체">${t('tab_all')} (${t('lbl_dept')})</option>
           ${DEPT_OPTIONS.map(d=>`<option value="${d}" ${deptFilter===d?'selected':''}>${esc(d)}</option>`).join('')}
@@ -3219,17 +3241,26 @@ function renderRisks(){
         <button class="btn btn-primary" id="addRiskBtn">${icon('plus',15)} ${t('risks_add_btn')}</button>
       </div>
     </div>
+    <div class="toolbar" style="margin-top:-4px;">
+      <input type="text" id="riskSearchBox" class="searchbox" placeholder="검색 (위험요인·작업·대책·이름)" value="${esc(State.filters.risksSearch||'')}" style="max-width:280px;">
+    </div>
     ${viewMode==='table' ? riskLegendHtml() : ''}
     <div id="riskViewArea"></div>
   `;
   el.querySelectorAll('#riskTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.risks = t.dataset.s; renderRisks();
   }));
+  document.getElementById('riskYearFilter').addEventListener('change', e=>{
+    State.filters.risksYear = e.target.value; renderRisks();
+  });
   document.getElementById('riskDeptFilter').addEventListener('change', e=>{
     State.filters.risksDept = e.target.value; renderRisks();
   });
   document.getElementById('riskProcessFilter').addEventListener('change', e=>{
     State.filters.risksProcess = e.target.value; renderRisks();
+  });
+  document.getElementById('riskSearchBox').addEventListener('input', e=>{
+    State.filters.risksSearch = e.target.value; renderRisks();
   });
   document.getElementById('galleryToggleBtn').addEventListener('click', ()=>{
     State.filters.risksView = viewMode==='table' ? 'gallery' : 'table';
@@ -4066,21 +4097,46 @@ function nmTypeLabel(value){
   return idx>=0 ? t('nm_type_'+(idx+1)) : (value||'-');
 }
 
+let nmSelectedIds = new Set();
 function renderNearMissTab(){
   const el = document.getElementById('nearMissPane');
   if(!el) return;
   const filter = State.filters.nearMiss || '전체';
   const isAdmin = State.mode==='admin';
+  const processFilter = State.filters.nearMissProcess || '전체';
+  const allNm = objToArr(DataStore.get(PATHS.nearMiss));
+  const nmYears = Array.from(new Set(allNm.filter(i=>i.datetime).map(i=> new Date(i.datetime).getFullYear()))).sort((a,b)=>b-a);
+  if(State.filters.nearMissYear===undefined){
+    const thisYear = new Date().getFullYear();
+    State.filters.nearMissYear = nmYears.includes(thisYear) ? String(thisYear) : (nmYears[0] ? String(nmYears[0]) : '전체');
+  }
+  const yearFilter = State.filters.nearMissYear;
+  const searchQ = (State.filters.nearMissSearch||'').trim().toLowerCase();
   el.innerHTML = `
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;">
       <div class="tabs" id="nmTabs">
         ${['전체','접수','조치중','완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
-      <button class="btn btn-primary" id="addNmBtn">${icon('plus',15)} ${t('nm_add_btn')}</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="nmYearFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체" ${yearFilter==='전체'?'selected':''}>전체 연도</option>
+          ${nmYears.map(y=>`<option value="${y}" ${yearFilter===String(y)?'selected':''}>${y}년</option>`).join('')}
+        </select>
+        <select id="nmProcessFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체">${t('tab_all')} (${t('th_process')})</option>
+          ${PROCESS_OPTIONS.map(p=>`<option value="${p}" ${processFilter===p?'selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" id="addNmBtn">${icon('plus',15)} ${t('nm_add_btn')}</button>
+      </div>
     </div>
-    <p class="hint" style="margin:-4px 0 12px;">${t('nm_hint')}</p>
+    <p class="hint" style="margin:-4px 0 8px;">${t('nm_hint')}</p>
+    <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;">
+      <input type="text" id="nmSearchBox" class="searchbox" placeholder="검색 (내용·이름·장소)" value="${esc(State.filters.nearMissSearch||'')}" style="max-width:280px;">
+      ${isAdmin ? `<button class="btn btn-primary" id="nmDownloadSelBtn">${icon('plus',15)} 선택 다운로드 (<span id="nmSelCount">0</span>)</button>` : ''}
+    </div>
     <div class="table-wrap"><table>
       <thead><tr>
+        ${isAdmin?`<th class="tight"><input type="checkbox" id="nmSelectAll"></th>`:''}
         <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('nm_th_type')}</th><th>${t('nm_th_content')}</th>
         ${isAdmin?`<th>${t('nm_th_reporter')}</th><th>${t('th_status')}</th>`:''}
         <th class="tight">${t('btn_manage_col')}</th>
@@ -4091,18 +4147,39 @@ function renderNearMissTab(){
   el.querySelectorAll('#nmTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.nearMiss = t.dataset.s; renderNearMissTab();
   }));
+  document.getElementById('nmYearFilter').addEventListener('change', e=>{
+    State.filters.nearMissYear = e.target.value; renderNearMissTab();
+  });
+  document.getElementById('nmProcessFilter').addEventListener('change', e=>{
+    State.filters.nearMissProcess = e.target.value; renderNearMissTab();
+  });
+  document.getElementById('nmSearchBox').addEventListener('input', e=>{
+    State.filters.nearMissSearch = e.target.value; renderNearMissTab();
+  });
   el.querySelector('#addNmBtn').addEventListener('click', ()=> openNearMissModal());
 
-  const arr = objToArr(DataStore.get(PATHS.nearMiss)).sort((a,b)=> new Date(b.datetime||0) - new Date(a.datetime||0));
-  const filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
+  const arr = allNm.sort((a,b)=> new Date(b.datetime||0) - new Date(a.datetime||0));
+  let filtered = filter==='전체' ? arr : arr.filter(i=>i.status===filter);
+  if(processFilter!=='전체') filtered = filtered.filter(i=>i.process===processFilter);
+  if(yearFilter!=='전체') filtered = filtered.filter(i=> i.datetime && new Date(i.datetime).getFullYear()===Number(yearFilter));
+  if(searchQ){
+    filtered = filtered.filter(i=>
+      (i.description||'').toLowerCase().includes(searchQ) ||
+      (i.reporter||'').toLowerCase().includes(searchQ) ||
+      (i.location||'').toLowerCase().includes(searchQ) ||
+      (i.process||'').toLowerCase().includes(searchQ)
+    );
+  }
   const body = document.getElementById('nmBody');
-  const colCount = isAdmin ? 7 : 5;
+  const colCount = (isAdmin ? 7 : 5) + (isAdmin?1:0);
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('nm_empty')}</div></td></tr>`;
+    if(isAdmin) updateNmSelCount();
     return;
   }
   body.innerHTML = filtered.map(i=>`
     <tr>
+      ${isAdmin?`<td class="tight"><input type="checkbox" class="nm-row-chk" data-id="${i.id}" ${nmSelectedIds.has(i.id)?'checked':''}></td>`:''}
       <td class="mono">${newBadge(i, PATHS.nearMiss)}${fmtDateTime(i.datetime)}</td>
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
@@ -4113,6 +4190,50 @@ function renderNearMissTab(){
     </tr>
   `).join('');
   body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openNearMissDetail(b.dataset.viewId)));
+
+  if(isAdmin){
+    const visibleIds = new Set(filtered.map(i=>i.id));
+    nmSelectedIds.forEach(id=>{ if(!visibleIds.has(id)) nmSelectedIds.delete(id); });
+    updateNmSelCount();
+    const selectAll = document.getElementById('nmSelectAll');
+    selectAll.checked = filtered.length>0 && filtered.every(i=>nmSelectedIds.has(i.id));
+    selectAll.addEventListener('change', ()=>{
+      if(selectAll.checked) filtered.forEach(i=>nmSelectedIds.add(i.id));
+      else filtered.forEach(i=>nmSelectedIds.delete(i.id));
+      body.querySelectorAll('.nm-row-chk').forEach(chk=> chk.checked = selectAll.checked);
+      updateNmSelCount();
+    });
+    body.querySelectorAll('.nm-row-chk').forEach(chk=>{
+      chk.addEventListener('change', ()=>{
+        if(chk.checked) nmSelectedIds.add(chk.dataset.id);
+        else nmSelectedIds.delete(chk.dataset.id);
+        updateNmSelCount();
+      });
+    });
+    document.getElementById('nmDownloadSelBtn').addEventListener('click', ()=> downloadSelectedNearMissXlsx());
+  }
+}
+function updateNmSelCount(){
+  const span = document.getElementById('nmSelCount');
+  if(span) span.textContent = nmSelectedIds.size;
+}
+function downloadSelectedNearMissXlsx(){
+  if(nmSelectedIds.size===0){ toast('먼저 다운로드할 건을 선택해주세요'); return; }
+  if(typeof XLSX==='undefined'){ toast('다운로드 도구를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  const all = DataStore.get(PATHS.nearMiss);
+  const rows = Array.from(nmSelectedIds).map(id=> all[id]).filter(Boolean)
+    .sort((a,b)=> new Date(a.datetime||0) - new Date(b.datetime||0));
+  const header = ['발생일시','공정','장소','상황유형','내용','발견자','상태'];
+  const aoa = [header, ...rows.map(i=>[
+    fmtDateTime(i.datetime), i.process||'', i.location||'',
+    i.situationType==='기타(직접입력)' ? (i.situationTypeOther||nmTypeLabel(i.situationType)) : nmTypeLabel(i.situationType),
+    i.description||'', i.reporter||'', i.status||'',
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = header.map(()=>({wch:16}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '아차사고');
+  XLSX.writeFile(wb, `일신캐스팅_아차사고_선택다운로드_${todayStr()}.xlsx`);
 }
 
 function openNearMissModal(existing){
@@ -4345,12 +4466,14 @@ function openIncidentModal(existing){
       <div class="field"><label>${t('lbl_status_admin')}</label>
         <select id="f_status">${['접수','조사중','완료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
       </div>
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:700;">
-        <input type="checkbox" id="f_isIndustrialAccident" ${v.isIndustrialAccident?'checked':''} style="width:16px;height:16px;"> 산재 처리 건 (근로복지공단 산재 승인/신청)
-      </label></div>
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:700;">
-        <input type="checkbox" id="f_hasInvestigationReport" ${v.hasInvestigationReport?'checked':''} style="width:16px;height:16px;"> 조사표 작성 완료
-      </label></div>
+      <div class="field" style="display:flex;gap:20px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;">
+          <input type="checkbox" id="f_isIndustrialAccident" ${v.isIndustrialAccident?'checked':''} style="width:16px;height:16px;flex:none;"> 산재 처리 건
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;">
+          <input type="checkbox" id="f_hasInvestigationReport" ${v.hasInvestigationReport?'checked':''} style="width:16px;height:16px;flex:none;"> 조사표 작성 완료
+        </label>
+      </div>
       <div class="field"><label>${t('lbl_action_admin')}</label><textarea id="f_action">${esc(v.action||'')}</textarea></div>
       <div class="row2">
         <div class="field"><label>업무복귀일 (관리자)</label><input type="date" id="f_returnDate" value="${v.returnDate||''}"></div>
@@ -4499,8 +4622,14 @@ function openIncidentDetail(id){
         <dt>${t('lbl_injured_person')}</dt><dd>${esc(i.injuredPerson||'-')}</dd>
         <dt>${t('lbl_injury_detail')}</dt><dd>${esc(i.injuryDetail||'-')}</dd>
         <dt>${t('th_status')}</dt><dd>${statusBadge('incident', i.status)}</dd>
-        <dt>산재 여부</dt><dd>${i.isIndustrialAccident ? '<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;">산재 처리 건</span>' : '<span class="badge b-gray">해당없음</span>'}</dd>
-        <dt>조사표</dt><dd>${i.hasInvestigationReport ? '<span class="badge" style="background:#3B82F6;color:#fff;font-weight:700;">작성 완료</span>' : '<span class="badge b-gray">미작성</span>'}</dd>
+        <dt>산재 여부</dt><dd><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="dtlIsIA" ${i.isIndustrialAccident?'checked':''} style="width:15px;height:15px;flex:none;">
+          <span id="dtlIsIALabel" class="badge" style="${i.isIndustrialAccident?'background:#E5484D;color:#fff;':'background:var(--line);color:var(--ink-soft);'}font-weight:700;">${i.isIndustrialAccident?'산재 처리 건':'해당없음'}</span>
+        </label></dd>
+        <dt>조사표</dt><dd><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="dtlHasInv" ${i.hasInvestigationReport?'checked':''} style="width:15px;height:15px;flex:none;">
+          <span id="dtlHasInvLabel" class="badge" style="${i.hasInvestigationReport?'background:#3B82F6;color:#fff;':'background:var(--line);color:var(--ink-soft);'}font-weight:700;">${i.hasInvestigationReport?'작성 완료':'미작성'}</span>
+        </label></dd>
         ${i.action?`<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>`:''}
         ${i.returnDate?`<dt>업무복귀일</dt><dd>${fmtDate(i.returnDate)} ${i.leaveDays!=null?`(휴업 ${i.leaveDays}일)`:''}</dd>`:''}
         ` : ''}
@@ -4524,6 +4653,28 @@ function openIncidentDetail(id){
     </div>
   `);
   bindImageZoom(document.getElementById('modalBox'));
+  if(isManager){
+    const iaChk = document.getElementById('dtlIsIA');
+    if(iaChk) iaChk.addEventListener('change', async ()=>{
+      await DataStore.update(PATHS.incidents, id, { isIndustrialAccident: iaChk.checked });
+      const label = document.getElementById('dtlIsIALabel');
+      label.textContent = iaChk.checked ? '산재 처리 건' : '해당없음';
+      label.style.background = iaChk.checked ? '#E5484D' : 'var(--line)';
+      label.style.color = iaChk.checked ? '#fff' : 'var(--ink-soft)';
+      toast('저장되었습니다');
+      renderIncidents();
+    });
+    const invChk = document.getElementById('dtlHasInv');
+    if(invChk) invChk.addEventListener('change', async ()=>{
+      await DataStore.update(PATHS.incidents, id, { hasInvestigationReport: invChk.checked });
+      const label = document.getElementById('dtlHasInvLabel');
+      label.textContent = invChk.checked ? '작성 완료' : '미작성';
+      label.style.background = invChk.checked ? '#3B82F6' : 'var(--line)';
+      label.style.color = invChk.checked ? '#fff' : 'var(--ink-soft)';
+      toast('저장되었습니다');
+      renderIncidents();
+    });
+  }
   if(document.getElementById('reportBtn')){
     document.getElementById('reportBtn').addEventListener('click', ()=>{ closeModal(); openIncidentReportModal(i); });
   }
