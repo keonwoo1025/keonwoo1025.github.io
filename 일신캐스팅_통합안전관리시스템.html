@@ -3209,9 +3209,9 @@ function renderRisks(){
   const searchQ = (State.filters.risksSearch||'').trim().toLowerCase();
 
   function getFilteredRisks(){
-    const arr = allRisks.slice().sort((a,b)=>{
-      return riskLevel(b) - riskLevel(a);
-    });
+    // 사고접수에서 연계된 건은 사고 발생일(재해일자) 기준, 위험성평가만 단독 등록된 건은 접수일 기준으로 정렬
+    // (접수일만으로 정렬하면 사고 발생 순서와 등록 순서가 달라 뒤섞여 보이는 문제가 있었음)
+    const arr = allRisks.slice().sort((a,b)=> new Date(riskSortDate(b)) - new Date(riskSortDate(a)));
     let f = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
     if(processFilter!=='전체') f = f.filter(r=>r.process===processFilter);
     if(deptFilter!=='전체') f = f.filter(r=> PROCESS_TO_DEPT[r.process]===deptFilter);
