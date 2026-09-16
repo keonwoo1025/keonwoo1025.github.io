@@ -2142,10 +2142,10 @@ function renderDashboard(){
     <div class="dash-lower">
       <div class="list-card">
         <div class="lc-head"><h3>${t('dash_risks_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="risks">${t('view_all')}</button></div>
-        <div class="lc-body" id="dashMiniRisks">${renderMiniList(risks.filter(r=>riskLevel(r)>=4), r=>({
+        <div class="lc-body" id="dashMiniRisks">${renderMiniList([...risks.filter(r=>riskLevel(r)>=4)].sort((a,b)=> new Date(riskSortDate(b)) - new Date(riskSortDate(a))), r=>({
           title:`${r.process||'-'} · ${r.hazard||'-'}`,
           meta:`위험도 ${r.frequency||0}×${r.severity||0}`, badge: statusBadge('risk', r.status)
-        }), PATHS.risks)}</div>
+        }), PATHS.risks, true)}</div>
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>${t('dash_notices_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="notices">${t('view_all')}</button></div>
@@ -2362,6 +2362,17 @@ const PROCESS_DEPT_MAP = {
   '집진기':'안전환경부'
 };
 function processDept(process){ return PROCESS_DEPT_MAP[process] || '-'; }
+
+// 위험성평가 정렬용 날짜 — 사고접수에서 자동연계된 건(linkedIncidentId 있음)은 그 사고의 발생일(datetime) 기준,
+// 제보로 직접 등록한 건은 위험성평가 자체의 접수일(createdAt) 기준. 단순 접수일로만 정렬하면 사고 발생 순서와
+// 등록 순서가 달라 뒤섞여 보이는 문제가 있어 이렇게 나눔.
+function riskSortDate(r){
+  if(r.linkedIncidentId){
+    const linked = DataStore.get(PATHS.incidents)[r.linkedIncidentId];
+    if(linked) return linked.datetime || linked.createdAt || 0;
+  }
+  return r.createdAt || 0;
+}
 
 // 위험도 등급 — 회사 「위험성평가 실시규정」의 빈도강도법(6단계, Ⅰ~Ⅵ) 기준
 function riskLevel(r){
@@ -3314,14 +3325,14 @@ function renderRisks(){
     <div class="table-wrap"><table>
       <thead><tr>
         ${isManager?`<th class="tight"><input type="checkbox" id="riskCheckAll"></th>`:''}
-        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel_before')}</th><th class="tight">${t('th_risklevel_after')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th><th>${t('th_reporter_applicant')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
+        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel_before')}</th><th class="tight">${t('th_risklevel_after')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th>${isManager?`<th>${t('th_reporter_applicant')}</th>`:''}<th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
       </tr></thead>
       <tbody id="riskBody"></tbody>
     </table></div>
   `;
   const body = document.getElementById('riskBody');
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="${isManager?13:12}"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="${isManager?13:11}"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(r=>`
@@ -3336,7 +3347,7 @@ function renderRisks(){
       <td>${esc(r.measures||'-')}</td>
       <td>${riskThumb(r.photoBefore)}</td>
       <td>${riskThumb(r.photoAfter)}</td>
-      <td>${esc(r.reporter||'-')}</td>
+      ${isManager?`<td>${esc(r.reporter||'-')}</td>`:''}
       <td>${statusBadge('risk', r.status)}</td>
       <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${r.id}">${t('btn_view')}</button></td>
     </tr>
@@ -3869,6 +3880,7 @@ function openRiskDetail(id){
   markRead(PATHS.risks, id);
   const r = Object.assign({id}, raw);
   const isAdmin = State.mode==='admin';
+  const isManager = isAdmin || State.mode==='dept';
   const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : null;
   showModal(`
     <div class="modal-head"><h3>${t('risk_detail_title')}</h3><button class="x-btn" data-close>✕</button></div>
@@ -3880,7 +3892,7 @@ function openRiskDetail(id){
         <dt>${t('th_risklevel_before')}</dt><dd>${riskLevelBadge(r)} &nbsp;(${t('th_frequency')} ${r.frequency} × ${t('th_severity')} ${r.severity})</dd>
         ${r.currentMeasures ? `<dt>${t('lbl_current_measures')}</dt><dd>${esc(r.currentMeasures)}</dd>` : ''}
         <dt>${t('lbl_measures_only')}</dt><dd>${esc(r.measures)}</dd>
-        <dt>${t('th_reporter_applicant')}</dt><dd>${esc(r.reporter||'-')}</dd>
+        ${isManager ? `<dt>${t('th_reporter_applicant')}</dt><dd>${esc(r.reporter||'-')}</dd>` : ''}
         <dt>${t('th_status')}</dt><dd>${statusBadge('risk', r.status)}</dd>
         ${isAdmin && (r.hazardCategory||r.hazardDetailType) ? `<dt>위험분류</dt><dd>${esc(r.hazardCategory||'-')} ${r.hazardDetailType?('· '+esc(r.hazardDetailType)):''}</dd>` : ''}
         ${afterScore!=null ? `<dt>${t('th_risklevel_after')}</dt><dd>${riskChip({frequency:r.afterFrequency,severity:r.afterSeverity})} &nbsp;(${t('th_frequency')} ${r.afterFrequency} × ${t('th_severity')} ${r.afterSeverity})</dd>` : ''}
@@ -3980,7 +3992,7 @@ function renderIncidentTab(){
     <div class="table-wrap"><table>
       <thead><tr>
         ${isManager?`<th class="tight"><input type="checkbox" id="incSelectAll"></th>`:''}
-        <th>${t('th_datetime')}</th><th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
+        <th>${t('th_datetime')}</th>${isManager?`<th class="tight">표시</th>`:''}<th>${t('th_process')}</th><th>${t('th_location')}</th><th>${t('th_content')}</th>
         ${isManager?`<th>${t('lbl_injured_person')}</th>`:''}
         <th>${t('th_accidenttype')}</th><th>${t('th_injuryseverity')}</th>
         ${isManager?`<th>${t('th_status')}</th>`:''}
@@ -4018,7 +4030,7 @@ function renderIncidentTab(){
     );
   }
   const body = document.getElementById('incBody');
-  const colCount = 4 + (isManager?3:0) + (isAdmin?1:0) + 3;
+  const colCount = 4 + (isManager?4:0) + (isAdmin?1:0) + 3;
   if(filtered.length===0){
     body.innerHTML = `<tr><td colspan="${colCount}"><div class="empty"><span class="big">${icon('siren',22)}</span>${t('incidents_empty')}</div></td></tr>`;
     if(isManager) updateIncSelCount();
@@ -4027,7 +4039,8 @@ function renderIncidentTab(){
   body.innerHTML = filtered.map(i=>`
     <tr>
       ${isManager?`<td class="tight"><input type="checkbox" class="inc-row-chk" data-id="${i.id}" ${incSelectedIds.has(i.id)?'checked':''}></td>`:''}
-      <td class="mono">${newBadge(i, PATHS.incidents)}${i.isIndustrialAccident?'<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;margin-right:4px;">산재</span>':''}${i.hasInvestigationReport?'<span class="badge" style="background:#3B82F6;color:#fff;font-weight:700;margin-right:4px;">조사표</span>':''}${fmtDateTime(i.datetime)}</td>
+      <td class="mono">${newBadge(i, PATHS.incidents)}${fmtDateTime(i.datetime)}</td>
+      ${isManager?`<td class="tight" style="white-space:nowrap;">${i.isIndustrialAccident?'<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;">산재</span>':''}${i.hasInvestigationReport?'<span class="badge" style="background:#3B82F6;color:#fff;font-weight:700;margin-left:2px;">조사표</span>':''}</td>`:''}
       <td>${esc(i.process||'-')}</td>
       <td>${esc(i.location||'-')}</td>
       <td>${esc((i.description||'-').slice(0,28))}${(i.description||'').length>28?'…':''}</td>
@@ -4071,16 +4084,17 @@ function updateIncSelCount(){
 function downloadSelectedIncidentsXlsx(){
   if(incSelectedIds.size===0){ toast('먼저 다운로드할 건을 선택해주세요'); return; }
   if(typeof XLSX==='undefined'){ toast('다운로드 도구를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  const isManagerDl = State.mode==='admin' || State.mode==='dept'; // 산재여부·조사표는 부서관리자까지는 확인 가능(전체관리자만 수정)
   const all = DataStore.get(PATHS.incidents);
   const rows = Array.from(incSelectedIds).map(id=> all[id]).filter(Boolean)
     .sort((a,b)=> new Date(a.datetime||0) - new Date(b.datetime||0));
-  const header = ['발생일시','공정','장소','내용','신고자','피해자','사고유형','부상정도','상태','산재여부','조사표','조치내용','업무복귀일','휴업일수'];
+  const header = ['발생일시','공정','장소','내용','신고자','피해자','사고유형','부상정도','상태', ...(isManagerDl?['산재여부','조사표']:[]), '조치내용','업무복귀일','휴업일수'];
   const aoa = [header, ...rows.map(i=>[
     fmtDateTime(i.datetime), i.process||'', i.location||'', i.description||'',
     i.reporter||'', i.injuredPerson||'',
     i.accidentType==='기타(직접입력)' ? (i.accidentTypeOther||'기타') : (i.accidentType||''),
     i.injurySeverity ? t('sev_'+i.injurySeverity) : '',
-    i.status||'', i.isIndustrialAccident ? '산재' : '', i.hasInvestigationReport ? '작성완료' : '미작성',
+    i.status||'', ...(isManagerDl?[i.isIndustrialAccident ? '산재' : '', i.hasInvestigationReport ? '작성완료' : '미작성']:[]),
     i.action||'', i.returnDate||'', i.leaveDays!=null ? i.leaveDays : '',
   ])];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -4412,6 +4426,7 @@ function openIncidentModal(existing){
   // 신고 접수 자체는 일반 사용자도 가능 (관리자 전용 아님) — 처리상태·조치내용은 관리자(전체+부서) 권한
   const isEdit = !!existing;
   const isManager = State.mode==='admin' || State.mode==='dept';
+  const isAdmin = State.mode==='admin';
   const v = existing || {};
   const leaveDays = calcLeaveDays(v.datetime, v.returnDate);
   showModal(`
@@ -4466,6 +4481,7 @@ function openIncidentModal(existing){
       <div class="field"><label>${t('lbl_status_admin')}</label>
         <select id="f_status">${['접수','조사중','완료'].map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
       </div>
+      ${isAdmin ? `
       <div class="field" style="display:flex;gap:20px;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;">
           <input type="checkbox" id="f_isIndustrialAccident" ${v.isIndustrialAccident?'checked':''} style="width:16px;height:16px;flex:none;"> 산재 처리 건
@@ -4474,6 +4490,7 @@ function openIncidentModal(existing){
           <input type="checkbox" id="f_hasInvestigationReport" ${v.hasInvestigationReport?'checked':''} style="width:16px;height:16px;flex:none;"> 조사표 작성 완료
         </label>
       </div>
+      ` : ''}
       <div class="field"><label>${t('lbl_action_admin')}</label><textarea id="f_action">${esc(v.action||'')}</textarea></div>
       <div class="row2">
         <div class="field"><label>업무복귀일 (관리자)</label><input type="date" id="f_returnDate" value="${v.returnDate||''}"></div>
@@ -4551,8 +4568,10 @@ function openIncidentModal(existing){
     }
     if(isManager){
       data.status = document.getElementById('f_status').value;
-      data.isIndustrialAccident = document.getElementById('f_isIndustrialAccident').checked;
-      data.hasInvestigationReport = document.getElementById('f_hasInvestigationReport').checked;
+      if(isAdmin){
+        data.isIndustrialAccident = document.getElementById('f_isIndustrialAccident').checked;
+        data.hasInvestigationReport = document.getElementById('f_hasInvestigationReport').checked;
+      }
       data.action = document.getElementById('f_action').value.trim();
       data.returnDate = document.getElementById('f_returnDate').value;
       const d = calcLeaveDays(data.datetime, data.returnDate);
@@ -4622,6 +4641,10 @@ function openIncidentDetail(id){
         <dt>${t('lbl_injured_person')}</dt><dd>${esc(i.injuredPerson||'-')}</dd>
         <dt>${t('lbl_injury_detail')}</dt><dd>${esc(i.injuryDetail||'-')}</dd>
         <dt>${t('th_status')}</dt><dd>${statusBadge('incident', i.status)}</dd>
+        ${i.action?`<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>`:''}
+        ${i.returnDate?`<dt>업무복귀일</dt><dd>${fmtDate(i.returnDate)} ${i.leaveDays!=null?`(휴업 ${i.leaveDays}일)`:''}</dd>`:''}
+        ` : ''}
+        ${isAdmin ? `
         <dt>산재 여부</dt><dd><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
           <input type="checkbox" id="dtlIsIA" ${i.isIndustrialAccident?'checked':''} style="width:15px;height:15px;flex:none;">
           <span id="dtlIsIALabel" class="badge" style="${i.isIndustrialAccident?'background:#E5484D;color:#fff;':'background:var(--line);color:var(--ink-soft);'}font-weight:700;">${i.isIndustrialAccident?'산재 처리 건':'해당없음'}</span>
@@ -4630,9 +4653,10 @@ function openIncidentDetail(id){
           <input type="checkbox" id="dtlHasInv" ${i.hasInvestigationReport?'checked':''} style="width:15px;height:15px;flex:none;">
           <span id="dtlHasInvLabel" class="badge" style="${i.hasInvestigationReport?'background:#3B82F6;color:#fff;':'background:var(--line);color:var(--ink-soft);'}font-weight:700;">${i.hasInvestigationReport?'작성 완료':'미작성'}</span>
         </label></dd>
-        ${i.action?`<dt>${t('lbl_action_admin')}</dt><dd>${esc(i.action)}</dd>`:''}
-        ${i.returnDate?`<dt>업무복귀일</dt><dd>${fmtDate(i.returnDate)} ${i.leaveDays!=null?`(휴업 ${i.leaveDays}일)`:''}</dd>`:''}
-        ` : ''}
+        ` : (isManager ? `
+        <dt>산재 여부</dt><dd><span class="badge" style="${i.isIndustrialAccident?'background:#E5484D;color:#fff;':'background:var(--line);color:var(--ink-soft);'}font-weight:700;">${i.isIndustrialAccident?'산재 처리 건':'해당없음'}</span></dd>
+        <dt>조사표</dt><dd><span class="badge" style="${i.hasInvestigationReport?'background:#3B82F6;color:#fff;':'background:var(--line);color:var(--ink-soft);'}font-weight:700;">${i.hasInvestigationReport?'작성 완료':'미작성'}</span></dd>
+        ` : '')}
         ${isAdmin ? `<dt>정식 보고서</dt><dd>${rptStatusBadge(reportStatusOf(i))}</dd>` : ''}
       </dl>
       ${(isManager && (i.photo1||i.photo2)) ? `
@@ -4653,7 +4677,7 @@ function openIncidentDetail(id){
     </div>
   `);
   bindImageZoom(document.getElementById('modalBox'));
-  if(isManager){
+  if(isAdmin){
     const iaChk = document.getElementById('dtlIsIA');
     if(iaChk) iaChk.addEventListener('change', async ()=>{
       await DataStore.update(PATHS.incidents, id, { isIndustrialAccident: iaChk.checked });
