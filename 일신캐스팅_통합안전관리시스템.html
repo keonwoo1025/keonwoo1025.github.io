@@ -878,7 +878,7 @@ const isMobileDevice = /android|iphone|ipad|ipod|windows phone/i.test(navigator.
 function photoFieldHtml(id, existingSrc, hintHtml){
   return `
     <input type="file" accept="image/*" id="${id}" style="display:none">
-    <div id="${id}_dropzone" tabindex="0" style="position:relative;width:100%;max-width:240px;min-height:150px;border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;outline:none;overflow:hidden;background:#FAFBFC;">
+    <div id="${id}_dropzone" tabindex="0" style="position:relative;width:100%;min-height:150px;border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;outline:none;overflow:hidden;background:#FAFBFC;">
       <div id="${id}_empty" style="display:${existingSrc?'none':'flex'};flex-direction:column;align-items:center;gap:8px;padding:16px;text-align:center;">
         <button type="button" id="${id}_pick" style="width:44px;height:44px;border-radius:50%;border:none;background:var(--safety);color:#fff;font-size:24px;cursor:pointer;line-height:1;">+</button>
         ${isMobileDevice
@@ -4581,13 +4581,11 @@ function openIncidentModal(existing){
       <div class="field"><label>${t('lbl_injury_detail')}</label><textarea id="f_injuryDetail" placeholder="예: 우측 손가락 협착, 열상 등">${esc(v.injuryDetail||'')}</textarea></div>
       <p class="hint" style="margin:-8px 0 4px;">${t('hint_privacy_notice')}</p>
       <div class="divider"></div>
-      <div class="row2">
-        <div class="field"><label>${t('lbl_incphoto1')}</label>
-          ${photoFieldHtml('f_incPhoto1', v.photo1||'', v.photo1?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
-        </div>
-        <div class="field"><label>${t('lbl_incphoto2')}</label>
-          ${photoFieldHtml('f_incPhoto2', v.photo2||'', v.photo2?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
-        </div>
+      <div class="field"><label>${t('lbl_incphoto1')}</label>
+        ${photoFieldHtml('f_incPhoto1', v.photo1||'', v.photo1?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
+      </div>
+      <div class="field"><label>${t('lbl_incphoto2')}</label>
+        ${photoFieldHtml('f_incPhoto2', v.photo2||'', v.photo2?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
       </div>
       ${isManager ? `
       <div class="divider"></div>
@@ -8585,11 +8583,9 @@ function openS5SModal(tab, existing){
       <div class="field" id="s5s_completedDateField" style="display:${v.status==='완료'?'block':'none'};">
         <label>완료일 *</label><input type="date" id="s5s_completedDate" value="${v.completedDate||''}">
       </div>
-      <div class="row2">
-        <div class="field"><label>개선 전 사진 *</label>${photoFieldHtml('s5s_photoBefore', v.photoBefore, '')}</div>
-        <div class="field" id="s5s_photoAfterField" style="display:${v.status==='완료'?'block':'none'};">
-          <label>개선 후 사진 *</label>${photoFieldHtml('s5s_photoAfter', v.photoAfter, '')}
-        </div>
+      <div class="field"><label>개선 전 사진 *</label>${photoFieldHtml('s5s_photoBefore', v.photoBefore, '')}</div>
+      <div class="field" id="s5s_photoAfterField" style="display:${v.status==='완료'?'block':'none'};">
+        <label>개선 후 사진 *</label>${photoFieldHtml('s5s_photoAfter', v.photoAfter, '')}
       </div>
       ${v.status!=='완료' ? `<p class="hint" id="s5s_completeLaterHint">아직 개선 전이면 지금은 개선 전 사진만 등록하고, 나중에 목록 카드의 "완료 처리" 버튼으로 개선 후 사진·완료일을 등록하시면 됩니다.</p>` : ''}
       <div class="field"><label>비고</label><input type="text" id="s5s_note" value="${esc(v.note||'')}"></div>
