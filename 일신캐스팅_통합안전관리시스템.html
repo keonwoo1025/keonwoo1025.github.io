@@ -8199,9 +8199,9 @@ const S5S_DEPT_PATH = {
 const S5S_TABS = ['공통', ...S5S_DEPTS]; // 화면 탭 순서
 function s5sPathForTab(tab){ return tab==='공통' ? PATHS.s5sCommon : S5S_DEPT_PATH[tab]; }
 const S5S_GRADE_INFO = {
-  A: { label:'A등급', color:'#E5484D', desc:'안전사고·환경사고·법정 지적사항 등 가장 시급' },
-  B: { label:'B등급', color:'#F5A524', desc:'시급하지만 A등급만큼 안전사고 관련성은 없음' },
-  C: { label:'C등급', color:'#F5D90A', desc:'중장기적으로 개선하면 되는 안건' },
+  A: { label:'A등급', color:'#E5484D', desc:'법적 문제요소(최우선)' },
+  B: { label:'B등급', color:'#F5A524', desc:'시급' },
+  C: { label:'C등급', color:'#F5D90A', desc:'중장기' },
 };
 function s5sGradeBadge(grade){
   if(!grade || !S5S_GRADE_INFO[grade]) return '<span class="badge b-gray">미지정</span>';
@@ -8249,13 +8249,13 @@ function renderS5S(){
       <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">🧹 3정5S란?</div>
       <p style="margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.7;">
         <b>3정</b>: 정품(정해진 물품)·정량(정해진 수량)·정위치(정해진 위치)를 지키는 것 &nbsp;·&nbsp;
-        <b>5S</b>: 정리·정돈·청소·청결·습관. 공장 현장의 위험요소·환경문제를 등급(A~C)을 매겨 계획적으로 개선하는 활동입니다.
+        <b>5S</b>: 정리·정돈·청소·청결·습관
       </p>
     </div>
 
     <div class="dash-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;">
       <div class="card kpi"><div class="k-label">전체 등록</div><div class="k-num">${totalCount}</div><div class="k-sub">완료 ${doneCount}건 (${totalCount?Math.round(doneCount/totalCount*100):0}%)</div></div>
-      <div class="card kpi"><div class="k-label">A등급 미완료</div><div class="k-num" style="color:#E5484D;">${aOpenCount}</div><div class="k-sub">안전·환경·법정 시급 건</div></div>
+      <div class="card kpi"><div class="k-label">A등급 미완료</div><div class="k-num" style="color:#E5484D;">${aOpenCount}</div><div class="k-sub">법적 문제요소(최우선) 미완료 건</div></div>
       <div class="card kpi"><div class="k-label">기한 초과</div><div class="k-num" style="color:#E5484D;">${overdueCount}</div><div class="k-sub">목표일이 지났는데 미완료</div></div>
     </div>
 
@@ -8297,6 +8297,7 @@ function bindS5SDeptChart(allItems){
 }
 
 /* ---- 탭 본문: 검색/필터 + 카드 목록 ---- */
+let s5sSelectedIds = new Set();
 function renderS5STabBody(body){
   const tab = S5SState.tab;
   const path = s5sPathForTab(tab);
@@ -8316,9 +8317,12 @@ function renderS5STabBody(body){
       (i.location||'').toLowerCase().includes(searchQ) ||
       (i.manager||'').toLowerCase().includes(searchQ) ||
       (i.problem||'').toLowerCase().includes(searchQ) ||
-      (i.plan||'').toLowerCase().includes(searchQ)
+      (i.method||'').toLowerCase().includes(searchQ)
     );
   }
+  // 필터가 바뀌면 화면에 없는 항목의 선택은 정리
+  const visibleIds = new Set(filtered.map(i=>i.id));
+  s5sSelectedIds.forEach(id=>{ if(!visibleIds.has(id)) s5sSelectedIds.delete(id); });
 
   body.innerHTML = `
     <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;">
@@ -8337,10 +8341,15 @@ function renderS5STabBody(body){
           <option value="진행중" ${S5SState.status==='진행중'?'selected':''}>진행중</option>
           <option value="완료" ${S5SState.status==='완료'?'selected':''}>완료</option>
         </select>
-        <button class="btn btn-sm" id="s5sDownloadFilteredBtn">📥 화면에 보이는 것만 다운로드 (${filtered.length}건)</button>
-        <button class="btn btn-sm" id="s5sDownloadAllBtn">📥 전체 다운로드</button>
         ${canEdit ? `<button class="btn btn-primary" id="s5sAddBtn">${icon('plus',15)} 새 항목 등록</button>` : ''}
       </div>
+    </div>
+    <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink-soft);">
+        <input type="checkbox" id="s5sSelectAll"> 전체선택
+      </label>
+      <button class="btn btn-sm" id="s5sDownloadSelBtn">📥 선택 다운로드 (<span id="s5sSelCount">0</span>)</button>
+      <button class="btn btn-sm" id="s5sDownloadAllBtn">📥 전체 다운로드 (5개 탭 전부)</button>
     </div>
     ${!canEdit ? `<p class="hint" style="margin:-2px 0 10px;">${tab} 탭은 열람만 가능합니다 (등록·수정은 ${tab==='공통'?'전체관리자':tab+' 계정'}만 가능).</p>` : ''}
     <div id="s5sCardGrid" class="gallery-grid"></div>
@@ -8348,38 +8357,103 @@ function renderS5STabBody(body){
   document.getElementById('s5sSearchBox').addEventListener('input', e=>{ S5SState.search=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sGradeFilter').addEventListener('change', e=>{ S5SState.grade=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sStatusFilter').addEventListener('change', e=>{ S5SState.status=e.target.value; renderS5STabBody(body); });
-  document.getElementById('s5sDownloadFilteredBtn').addEventListener('click', ()=> downloadS5SXlsx(filtered, `3정5S_${tab}_필터`));
+  document.getElementById('s5sDownloadSelBtn').addEventListener('click', ()=>{
+    const all = DataStore.get(path);
+    const chosen = Array.from(s5sSelectedIds).map(id=> Object.assign({id, _tab:tab}, all[id])).filter(x=>x.location!==undefined);
+    downloadS5SXlsx(chosen, `3정5S_${tab}_선택`);
+  });
   document.getElementById('s5sDownloadAllBtn').addEventListener('click', ()=> downloadS5SXlsxAll());
   const addBtn = document.getElementById('s5sAddBtn');
   if(addBtn) addBtn.addEventListener('click', ()=> openS5SModal(tab));
 
   const grid = document.getElementById('s5sCardGrid');
+  const updateSelCount = ()=>{ document.getElementById('s5sSelCount').textContent = s5sSelectedIds.size; };
+  updateSelCount();
+  const selectAll = document.getElementById('s5sSelectAll');
+  selectAll.checked = filtered.length>0 && filtered.every(i=>s5sSelectedIds.has(i.id));
+  selectAll.addEventListener('change', ()=>{
+    if(selectAll.checked) filtered.forEach(i=>s5sSelectedIds.add(i.id));
+    else filtered.forEach(i=>s5sSelectedIds.delete(i.id));
+    grid.querySelectorAll('.s5s-row-chk').forEach(chk=> chk.checked = selectAll.checked);
+    updateSelCount();
+  });
+
   if(filtered.length===0){
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;"><span class="big">${icon('grid',22)}</span>등록된 항목이 없습니다</div>`;
     return;
   }
   grid.innerHTML = filtered.map(it=>{
     const overdue = s5sIsOverdue(it);
-    return `<div class="gallery-card" data-s5s-id="${it.id}">
+    const notDone = it.status!=='완료';
+    return `<div class="gallery-card" data-s5s-id="${it.id}" style="position:relative;">
+      <label style="position:absolute;top:8px;left:8px;z-index:2;background:rgba(255,255,255,.9);border-radius:6px;padding:3px;">
+        <input type="checkbox" class="s5s-row-chk" data-id="${it.id}" ${s5sSelectedIds.has(it.id)?'checked':''}>
+      </label>
       <div class="gc-photos">
         <div class="gc-photo">${it.photoBefore?`<img src="${it.photoBefore}" class="risk-photo-lg">`:`<div class="gc-noimg">사진 없음</div>`}<span class="gc-tag">현재</span></div>
-        <div class="gc-photo">${it.photoAfter?`<img src="${it.photoAfter}" class="risk-photo-lg">`:`<div class="gc-noimg">사진 없음</div>`}<span class="gc-tag">개선후</span></div>
+        <div class="gc-photo">${it.photoAfter?`<img src="${it.photoAfter}" class="risk-photo-lg">`:`<div class="gc-noimg">개선 전</div>`}<span class="gc-tag">개선후</span></div>
       </div>
       <div class="gc-body">
         <div class="gc-head">${s5sGradeBadge(it.grade)} ${s5sStatusBadge(it.status)} ${overdue?'<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;">기한초과</span>':''}</div>
         <div style="font-weight:700;margin-top:4px;">${esc(it.location||'-')}</div>
         <div class="gc-hazard">${esc(it.problem||'-')}</div>
         <div class="hint" style="margin-top:4px;">담당 ${esc(it.manager||'-')} · 목표일 ${it.targetDate?fmtDate(it.targetDate):'-'}</div>
+        ${canEdit && notDone ? `<button class="btn btn-sm" data-s5s-complete="${it.id}" style="margin-top:8px;width:100%;">✅ 완료 처리</button>` : ''}
       </div>
     </div>`;
   }).join('');
   bindImageZoom(grid);
+  grid.querySelectorAll('.s5s-row-chk').forEach(chk=>{
+    chk.addEventListener('click', e=> e.stopPropagation());
+    chk.addEventListener('change', ()=>{
+      if(chk.checked) s5sSelectedIds.add(chk.dataset.id);
+      else s5sSelectedIds.delete(chk.dataset.id);
+      updateSelCount();
+      selectAll.checked = filtered.length>0 && filtered.every(i=>s5sSelectedIds.has(i.id));
+    });
+  });
+  grid.querySelectorAll('[data-s5s-complete]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      openS5SCompleteModal(tab, btn.dataset.s5sComplete);
+    });
+  });
   grid.querySelectorAll('[data-s5s-id]').forEach(card=>{
     card.style.cursor = 'pointer';
     card.addEventListener('click', e=>{
-      if(e.target.closest('img')) return; // 사진 클릭은 확대(bindImageZoom)에 맡김
+      if(e.target.closest('img') || e.target.closest('input') || e.target.closest('button')) return;
       openS5SDetail(tab, card.dataset.s5sId);
     });
+  });
+}
+
+// 문제점만 먼저 등록해둔 항목을 나중에 완료 처리 — 이 시점에 개선후모습 사진과 완료일을 받는다
+function openS5SCompleteModal(tab, id){
+  const raw = DataStore.get(s5sPathForTab(tab))[id];
+  if(!raw) return;
+  const it = Object.assign({id}, raw);
+  showModal(`
+    <div class="modal-head"><h3>완료 처리 — ${esc(it.location||'')}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>개선후모습 사진 *</label>${photoFieldHtml('s5s_complete_photoAfter', it.photoAfter, '')}</div>
+      <div class="field"><label>완료일 *</label><input type="date" id="s5s_complete_date" value="${todayStr()}"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="s5sCompleteSaveBtn">완료 처리</button>
+    </div>
+  `);
+  bindPhotoField('s5s_complete_photoAfter', 's5s-photos');
+  document.getElementById('s5sCompleteSaveBtn').addEventListener('click', async ()=>{
+    const photoInput = document.getElementById('s5s_complete_photoAfter');
+    const photoAfter = photoInput.dataset.uploadedUrl || it.photoAfter;
+    const completedDate = document.getElementById('s5s_complete_date').value;
+    if(!photoAfter){ toast('개선후모습 사진은 필수입니다'); return; }
+    if(!completedDate){ toast('완료일을 입력해주세요'); return; }
+    await DataStore.update(s5sPathForTab(tab), id, { photoAfter, completedDate, status:'완료' });
+    toast('완료 처리되었습니다');
+    closeModal();
+    renderS5S();
   });
 }
 
@@ -8395,15 +8469,16 @@ function openS5SModal(tab, existing){
         <div class="field"><label>등급</label>
           <select id="s5s_grade">
             <option value="">미지정</option>
-            <option value="A" ${v.grade==='A'?'selected':''}>A등급 — 안전·환경·법정 시급</option>
-            <option value="B" ${v.grade==='B'?'selected':''}>B등급 — 시급하나 안전사고성 아님</option>
-            <option value="C" ${v.grade==='C'?'selected':''}>C등급 — 중장기 개선</option>
+            <option value="A" ${v.grade==='A'?'selected':''}>A등급 — 법적 문제요소(최우선)</option>
+            <option value="B" ${v.grade==='B'?'selected':''}>B등급 — 시급</option>
+            <option value="C" ${v.grade==='C'?'selected':''}>C등급 — 중장기</option>
           </select>
+          <p class="hint" style="margin:4px 0 0;">A=법적 문제요소(최우선) · B=시급 · C=중장기</p>
         </div>
       </div>
-      <div class="field"><label>담당자</label><input type="text" id="s5s_manager" value="${esc(v.manager||'')}" placeholder="담당자 이름"></div>
+      <div class="field"><label>담당자 *</label><input type="text" id="s5s_manager" value="${esc(v.manager||'')}" placeholder="담당자 이름"></div>
       <div class="field"><label>문제점 *</label><textarea id="s5s_problem">${esc(v.problem||'')}</textarea></div>
-      <div class="field"><label>개선계획(사항) *</label><textarea id="s5s_plan">${esc(v.plan||'')}</textarea></div>
+      <div class="field"><label>개선방법 *</label><textarea id="s5s_method">${esc(v.method||'')}</textarea></div>
       <div class="row2">
         <div class="field"><label>목표일</label><input type="date" id="s5s_targetDate" value="${v.targetDate||''}"></div>
         <div class="field"><label style="display:flex;align-items:center;gap:6px;margin-top:22px;">
@@ -8411,12 +8486,15 @@ function openS5SModal(tab, existing){
         </label></div>
       </div>
       <div class="field" id="s5s_completedDateField" style="display:${v.status==='완료'?'block':'none'};">
-        <label>완료일</label><input type="date" id="s5s_completedDate" value="${v.completedDate||''}">
+        <label>완료일 *</label><input type="date" id="s5s_completedDate" value="${v.completedDate||''}">
       </div>
       <div class="row2">
         <div class="field"><label>현재모습 사진 *</label>${photoFieldHtml('s5s_photoBefore', v.photoBefore, '')}</div>
-        <div class="field"><label>개선후모습 사진 *</label>${photoFieldHtml('s5s_photoAfter', v.photoAfter, '')}</div>
+        <div class="field" id="s5s_photoAfterField" style="display:${v.status==='완료'?'block':'none'};">
+          <label>개선후모습 사진 *</label>${photoFieldHtml('s5s_photoAfter', v.photoAfter, '')}
+        </div>
       </div>
+      ${v.status!=='완료' ? `<p class="hint" id="s5s_completeLaterHint">아직 개선 전이면 지금은 현재모습 사진만 등록하고, 나중에 목록 카드의 "완료 처리" 버튼으로 개선후모습 사진·완료일을 등록하시면 됩니다.</p>` : ''}
       <div class="field"><label>비고</label><input type="text" id="s5s_note" value="${esc(v.note||'')}"></div>
     </div>
     <div class="modal-foot">
@@ -8429,27 +8507,36 @@ function openS5SModal(tab, existing){
   bindPhotoField('s5s_photoAfter', 's5s-photos');
   document.getElementById('s5s_alreadyDone').addEventListener('change', e=>{
     document.getElementById('s5s_completedDateField').style.display = e.target.checked ? 'block' : 'none';
+    document.getElementById('s5s_photoAfterField').style.display = e.target.checked ? 'block' : 'none';
+    const hint = document.getElementById('s5s_completeLaterHint');
+    if(hint) hint.style.display = e.target.checked ? 'none' : '';
   });
   document.getElementById('s5sSaveBtn').addEventListener('click', async ()=>{
     const location = document.getElementById('s5s_location').value.trim();
+    const manager = document.getElementById('s5s_manager').value.trim();
     const problem = document.getElementById('s5s_problem').value.trim();
-    const plan = document.getElementById('s5s_plan').value.trim();
-    if(!location || !problem || !plan){ toast('장소·문제점·개선계획은 필수입니다'); return; }
+    const method = document.getElementById('s5s_method').value.trim();
+    if(!location || !manager || !problem || !method){ toast('장소·담당자·문제점·개선방법은 필수입니다'); return; }
     const photoBeforeInput = document.getElementById('s5s_photoBefore');
-    const photoAfterInput = document.getElementById('s5s_photoAfter');
     const photoBefore = photoBeforeInput.dataset.uploadedUrl || v.photoBefore;
-    const photoAfter = photoAfterInput.dataset.uploadedUrl || v.photoAfter;
-    if(!photoBefore || !photoAfter){ toast('현재모습·개선후모습 사진은 둘 다 필수입니다'); return; }
+    if(!photoBefore){ toast('현재모습 사진은 필수입니다'); return; }
     const alreadyDone = document.getElementById('s5s_alreadyDone').checked;
+    let photoAfter = v.photoAfter, completedDate = v.completedDate||'';
+    if(alreadyDone){
+      const photoAfterInput = document.getElementById('s5s_photoAfter');
+      photoAfter = photoAfterInput.dataset.uploadedUrl || v.photoAfter;
+      completedDate = document.getElementById('s5s_completedDate').value;
+      if(!photoAfter){ toast('완료 상태로 등록하려면 개선후모습 사진이 필요합니다'); return; }
+      if(!completedDate){ toast('완료일을 입력해주세요'); return; }
+    }
     const data = {
-      location, problem, plan,
+      location, manager, problem, method,
       grade: document.getElementById('s5s_grade').value,
-      manager: document.getElementById('s5s_manager').value.trim(),
       targetDate: document.getElementById('s5s_targetDate').value,
       note: document.getElementById('s5s_note').value.trim(),
-      photoBefore, photoAfter,
-      status: alreadyDone ? '완료' : (v.status==='완료' ? '완료' : (v.status||'등록')),
-      completedDate: alreadyDone ? document.getElementById('s5s_completedDate').value : (v.completedDate||''),
+      photoBefore, photoAfter: photoAfter||'',
+      status: alreadyDone ? '완료' : (v.status||'등록'),
+      completedDate,
     };
     const saveBtn = document.getElementById('s5sSaveBtn');
     saveBtn.disabled = true; saveBtn.textContent = '저장 중...';
@@ -8500,7 +8587,7 @@ function openS5SDetail(tab, id){
         <dt>상태</dt><dd>${s5sStatusBadge(it.status)} ${overdue?'<span class="badge" style="background:#E5484D;color:#fff;font-weight:700;">기한초과</span>':''}</dd>
         <dt>담당자</dt><dd>${esc(it.manager||'-')}</dd>
         <dt>문제점</dt><dd>${esc(it.problem||'-')}</dd>
-        <dt>개선계획</dt><dd>${esc(it.plan||'-')}</dd>
+        <dt>개선방법</dt><dd>${esc(it.method||'-')}</dd>
         <dt>목표일</dt><dd>${it.targetDate?fmtDate(it.targetDate):'-'}</dd>
         <dt>완료일</dt><dd>${it.completedDate?fmtDate(it.completedDate):'-'}</dd>
         <dt>비고</dt><dd>${esc(it.note||'-')}</dd>
@@ -8552,7 +8639,7 @@ function s5sRowXml(rowNum, item, tabLabel){
     F: { s:2, t:'' }, // 공정: 이 시스템 화면에서는 따로 안 받아서 비워둠
     G: { s:2, t:esc1(item.manager) },
     H: { s:2, t:esc1(item.problem) },
-    I: { s:2, t:esc1(item.plan) },
+    I: { s:2, t:esc1(item.method) },
     J: { s:1, t: item.targetDate ? fmtDate(item.targetDate) : '' },
     K: { s:1, t: item.completedDate ? fmtDate(item.completedDate) : '' },
     L: { s:1, t:'' }, // 현재모습 — 사진은 셀이 아니라 별도 앵커로 들어감
