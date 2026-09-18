@@ -8344,12 +8344,12 @@ function renderS5STabBody(body){
         ${canEdit ? `<button class="btn btn-primary" id="s5sAddBtn">${icon('plus',15)} 새 항목 등록</button>` : ''}
       </div>
     </div>
-    <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;">
+    <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;justify-content:flex-start;">
       <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink-soft);">
         <input type="checkbox" id="s5sSelectAll"> 전체선택
       </label>
       <button class="btn btn-sm" id="s5sDownloadSelBtn">📥 선택 다운로드 (<span id="s5sSelCount">0</span>)</button>
-      <button class="btn btn-sm" id="s5sDownloadAllBtn">📥 전체 다운로드 (5개 탭 전부)</button>
+      <button class="btn btn-sm" id="s5sDownloadAllBtn" style="margin-left:auto;">📥 전체 다운로드 (5개 탭 전부)</button>
     </div>
     ${!canEdit ? `<p class="hint" style="margin:-2px 0 10px;">${tab} 탭은 열람만 가능합니다 (등록·수정은 ${tab==='공통'?'전체관리자':tab+' 계정'}만 가능).</p>` : ''}
     <div id="s5sCardGrid" class="gallery-grid"></div>
