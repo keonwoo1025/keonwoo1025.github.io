@@ -8263,16 +8263,16 @@ const S5S_DEPT_PATH = {
 const S5S_TABS = ['공통', ...S5S_DEPTS]; // 화면 탭 순서
 function s5sPathForTab(tab){ return tab==='공통' ? PATHS.s5sCommon : S5S_DEPT_PATH[tab]; }
 const S5S_GRADE_INFO = {
-  '1': { label:'1등급', color:'#E5484D', desc:'법적 문제요소(최우선)' },
-  '2': { label:'2등급', color:'#F5A524', desc:'시급' },
-  '3': { label:'3등급', color:'#F5D90A', desc:'보통' },
-  '4': { label:'4등급', color:'#4472C4', desc:'경미' },
-  '5': { label:'5등급', color:'#70AD47', desc:'중장기' },
+  '1': { label:'1등급', color:'#E5484D', importance:'최우선', criteria:'중대 안전사고 위험', example:'추락·끼임·감전·화재 위험' },
+  '2': { label:'2등급', color:'#F5A524', importance:'매우 높음', criteria:'법적 기준/안전 기준 위반 우려', example:'안전시설 미비, 법정 점검사항' },
+  '3': { label:'3등급', color:'#F5D90A', importance:'높음', criteria:'품질·생산에 영향', example:'제품 혼입, 설비 주변 관리, 통로 방해' },
+  '4': { label:'4등급', color:'#4472C4', importance:'보통', criteria:'작업성·환경에 영향', example:'불필요품 적치, 정리정돈 미흡' },
+  '5': { label:'5등급', color:'#70AD47', importance:'낮음', criteria:'미관·청결 개선', example:'먼지, 오염, 표시선·게시물 정비' },
 };
 function s5sGradeBadge(grade){
   if(!grade || !S5S_GRADE_INFO[grade]) return '<span class="badge b-gray" title="등급 미지정">미지정</span>';
   const info = S5S_GRADE_INFO[grade];
-  return `<span class="badge" style="background:${info.color};color:#fff;font-weight:700;" title="${info.label}: ${info.desc}">${info.label}</span>`;
+  return `<span class="badge" style="background:${info.color};color:#fff;font-weight:700;" title="${info.label}(${info.importance}): ${info.criteria} — 예: ${info.example}">${info.label}</span>`;
 }
 const S5S_STATUS_COLOR = { '등록':'#667085', '진행중':'#3B82F6', '완료':'#1DA46F' };
 function s5sStatusBadge(status){
@@ -8321,7 +8321,7 @@ function renderS5S(){
 
     <div class="dash-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;">
       <div class="card kpi"><div class="k-label">전체 등록</div><div class="k-num">${totalCount}</div><div class="k-sub">완료 ${doneCount}건 (${totalCount?Math.round(doneCount/totalCount*100):0}%)</div></div>
-      <div class="card kpi"><div class="k-label">1등급 미완료</div><div class="k-num" style="color:#E5484D;">${aOpenCount}</div><div class="k-sub">법적 문제요소(최우선) 미완료 건</div></div>
+      <div class="card kpi"><div class="k-label">1등급 미완료</div><div class="k-num" style="color:#E5484D;">${aOpenCount}</div><div class="k-sub">중대 안전사고 위험(최우선) 미완료 건</div></div>
       <div class="card kpi"><div class="k-label">기한 초과</div><div class="k-num" style="color:#E5484D;">${overdueCount}</div><div class="k-sub">목표일이 지났는데 미완료</div></div>
     </div>
 
@@ -8561,13 +8561,13 @@ function openS5SModal(tab, existing){
         <div class="field"><label>등급</label>
           <select id="s5s_grade">
             <option value="">미지정</option>
-            <option value="1" ${v.grade==='1'?'selected':''}>1등급 — 법적 문제요소(최우선)</option>
-            <option value="2" ${v.grade==='2'?'selected':''}>2등급 — 시급</option>
-            <option value="3" ${v.grade==='3'?'selected':''}>3등급 — 보통</option>
-            <option value="4" ${v.grade==='4'?'selected':''}>4등급 — 경미</option>
-            <option value="5" ${v.grade==='5'?'selected':''}>5등급 — 중장기</option>
+            <option value="1" ${v.grade==='1'?'selected':''}>1등급 — 최우선: 중대 안전사고 위험</option>
+            <option value="2" ${v.grade==='2'?'selected':''}>2등급 — 매우 높음: 법적/안전 기준 위반 우려</option>
+            <option value="3" ${v.grade==='3'?'selected':''}>3등급 — 높음: 품질·생산에 영향</option>
+            <option value="4" ${v.grade==='4'?'selected':''}>4등급 — 보통: 작업성·환경에 영향</option>
+            <option value="5" ${v.grade==='5'?'selected':''}>5등급 — 낮음: 미관·청결 개선</option>
           </select>
-          <p class="hint" style="margin:4px 0 0;">1=법적 문제요소(최우선) · 2=시급 · 3=보통 · 4=경미 · 5=중장기</p>
+          <p class="hint" style="margin:4px 0 0;">1=중대 안전사고(추락·끼임·감전·화재) · 2=법적/안전기준 위반 우려 · 3=품질·생산 영향 · 4=작업성·환경 영향 · 5=미관·청결</p>
         </div>
       </div>
       <div class="field"><label>담당자 *</label><input type="text" id="s5s_manager" value="${esc(v.manager||'')}" placeholder="담당자 이름"></div>
