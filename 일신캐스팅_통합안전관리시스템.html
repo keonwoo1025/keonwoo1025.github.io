@@ -603,6 +603,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
         <option value="관리부">관리부 관리자</option>
         <option value="생산부">생산부 관리자</option>
         <option value="품질관리부">품질관리부 관리자</option>
+        <option value="안전환경부">안전환경부 관리자</option>
       </select>
       <label data-i18n="gate_pw_label">비밀번호</label>
       <input type="password" id="gatePw" placeholder="비밀번호 입력" data-i18n-placeholder="gate_pw_placeholder">
@@ -709,12 +710,13 @@ const CONFIG_IS_PLACEHOLDER = FIREBASE_CONFIG.apiKey === "YOUR_API_KEY";
 const CLOUDINARY_CLOUD_NAME = 'mv6gjqjn';
 const CLOUDINARY_UPLOAD_PRESET = 'ilshin-safety';
 
-const DEPTS = ['관리부','생산부','품질관리부'];
+const DEPTS = ['관리부','생산부','품질관리부','안전환경부'];
 const ROLE_EMAIL_MAP = {
   admin: 'admin@ilshin-safety-internal.com',
   '관리부': 'dept-관리부@ilshin-safety-internal.com',
   '생산부': 'dept-생산부@ilshin-safety-internal.com',
   '품질관리부': 'dept-품질관리부@ilshin-safety-internal.com',
+  '안전환경부': 'dept-안전환경부@ilshin-safety-internal.com',
 };
 
 let db = null;
@@ -865,7 +867,7 @@ const DataStore = {
 ============================================================= */
 const State = {
   mode: 'user', // 'user' | 'dept' | 'admin'
-  dept: null,   // '관리부' | '생산부' | '품질관리부' — mode==='dept'일 때만 사용
+  dept: null,   // '관리부' | '생산부' | '품질관리부' | '안전환경부' — mode==='dept'일 때만 사용
   view: 'dashboard',
   filters: {},
   lang: localStorage.getItem('isc_lang') || 'ko' // 'ko'|'en'|'th'|'id'|'mn'
