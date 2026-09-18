@@ -878,13 +878,17 @@ const isMobileDevice = /android|iphone|ipad|ipod|windows phone/i.test(navigator.
 function photoFieldHtml(id, existingSrc, hintHtml){
   return `
     <input type="file" accept="image/*" id="${id}" style="display:none">
-    <div id="${id}_dropzone" tabindex="0" style="display:flex;flex-direction:column;gap:8px;${isMobileDevice?'':'border:1px dashed var(--line);border-radius:10px;padding:10px;outline:none;'}">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" class="btn btn-sm" id="${id}_pick">📁 ${t('photo_pick_btn')}</button>
-        ${isMobileDevice ? `<button type="button" class="btn btn-sm" id="${id}_cam">📷 ${t('photo_camera_btn')}</button>` : ''}
+    <div id="${id}_dropzone" tabindex="0" style="position:relative;width:100%;max-width:240px;min-height:150px;border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;outline:none;overflow:hidden;background:#FAFBFC;">
+      <div id="${id}_empty" style="display:${existingSrc?'none':'flex'};flex-direction:column;align-items:center;gap:8px;padding:16px;text-align:center;">
+        <button type="button" id="${id}_pick" style="width:44px;height:44px;border-radius:50%;border:none;background:var(--safety);color:#fff;font-size:24px;cursor:pointer;line-height:1;">+</button>
+        ${isMobileDevice
+          ? `<span class="hint" style="margin:0;">눌러서 사진 선택</span><button type="button" class="btn btn-sm" id="${id}_cam">📷 ${t('photo_camera_btn')}</button>`
+          : `<span class="hint" style="margin:0;">클릭해서 첨부하거나<br>드래그, 또는 빈 곳을 누르고 Ctrl+V</span>`}
       </div>
-      ${!isMobileDevice ? `<span class="hint" style="margin:0;">여기로 파일을 끌어다 놓거나, 클릭한 뒤 Ctrl+V로 붙여넣기 할 수 있어요</span>` : ''}
-      <div id="${id}_preview">${existingSrc?`<img src="${existingSrc}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`:''}</div>
+      <div id="${id}_preview" style="display:${existingSrc?'block':'none'};width:100%;height:100%;position:relative;">
+        ${existingSrc?`<img id="${id}_img" src="${existingSrc}" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;" title="클릭하면 다른 사진으로 교체">`:''}
+        <button type="button" id="${id}_remove" title="삭제" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(20,25,43,.72);color:#fff;cursor:pointer;font-size:14px;line-height:1;">✕</button>
+      </div>
     </div>
     ${hintHtml||''}
   `;
@@ -923,49 +927,87 @@ function bindPhotoField(id, folder){
   const input = document.getElementById(id);
   const pickBtn = document.getElementById(id+'_pick');
   const camBtn = document.getElementById(id+'_cam');
-  const preview = document.getElementById(id+'_preview');
   const dropzone = document.getElementById(id+'_dropzone');
-  pickBtn.addEventListener('click', ()=>{ input.removeAttribute('capture'); input.click(); });
+  const emptyEl = document.getElementById(id+'_empty');
+  const previewEl = document.getElementById(id+'_preview');
+
+  function openPicker(){ input.removeAttribute('capture'); input.click(); }
+
+  // "+" 버튼만 파일선택창을 엶 — 드롭존 자체에는 클릭 핸들러를 안 걸어서(포커스만 받게) 이중으로 창이 뜨는 문제를 없앰
+  pickBtn.addEventListener('click', e=>{ e.stopPropagation(); openPicker(); });
   if(camBtn){
-    camBtn.addEventListener('click', ()=>{ input.setAttribute('capture','environment'); input.click(); });
+    camBtn.addEventListener('click', e=>{ e.stopPropagation(); input.setAttribute('capture','environment'); input.click(); });
   }
+  // 드롭존의 빈 여백을 누르면(버튼·이미지 제외) 포커스만 줘서 바로 이어서 Ctrl+V 할 수 있게 함 — 파일창은 안 뜸
+  dropzone.addEventListener('click', ()=> dropzone.focus());
+
+  function showEmpty(){
+    emptyEl.style.display = 'flex';
+    previewEl.style.display = 'none';
+    previewEl.innerHTML = `<button type="button" id="${id}_remove" title="삭제" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(20,25,43,.72);color:#fff;cursor:pointer;font-size:14px;line-height:1;">✕</button>`;
+  }
+  function showPreview(src, uploading){
+    emptyEl.style.display = 'none';
+    previewEl.style.display = 'block';
+    previewEl.innerHTML = `
+      <img id="${id}_img" src="${src}" style="width:100%;height:100%;object-fit:cover;display:block;${uploading?'opacity:.55;':'cursor:pointer;'}" title="클릭하면 다른 사진으로 교체">
+      ${uploading ? `<span class="hint" style="position:absolute;bottom:6px;left:6px;background:rgba(255,255,255,.9);padding:2px 8px;border-radius:6px;">업로드 중…</span>`
+                  : `<button type="button" id="${id}_remove" title="삭제" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(20,25,43,.72);color:#fff;cursor:pointer;font-size:14px;line-height:1;">✕</button>`}
+    `;
+    if(!uploading){
+      document.getElementById(id+'_img').addEventListener('click', e=>{ e.stopPropagation(); openPicker(); });
+    }
+    const removeBtn = document.getElementById(id+'_remove');
+    if(removeBtn){
+      removeBtn.addEventListener('click', e=>{
+        e.stopPropagation();
+        delete input.dataset.uploadedUrl;
+        input.value = '';
+        showEmpty();
+      });
+    }
+  }
+  // 처음 렌더링 시 이미 사진이 있으면(수정 화면) 삭제 버튼도 바로 걸어줌
+  if(previewEl.style.display !== 'none' && previewEl.querySelector('img')){
+    const existingSrc = previewEl.querySelector('img').src;
+    showPreview(existingSrc, false);
+  }
+
   async function handleFile(raw){
     if(!raw) return;
     const localUrl = URL.createObjectURL(raw);
-    preview.innerHTML = `<img src="${localUrl}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);opacity:.6;"><span class="hint">업로드 중…</span>`;
+    showPreview(localUrl, true);
     try{
       const f = await compressImageFile(raw);
       const uploadedUrl = await uploadFileToStorage(f, folder||'uploads');
       input.dataset.uploadedUrl = uploadedUrl;
-      preview.innerHTML = `<img src="${uploadedUrl}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`;
+      showPreview(uploadedUrl, false);
     }catch(err){
       console.error('사진 업로드 실패:', err);
       toast('사진 업로드에 실패했습니다');
-      preview.innerHTML = '';
+      showEmpty();
     }
   }
   input.addEventListener('change', ()=> handleFile(input.files[0]));
   // PC 전용: 드래그 앤 드롭 / Ctrl+V 붙여넣기로도 업로드 — 압축 로직(handleFile)을 그대로 타므로 용량 절감 동일 적용
-  if(dropzone){
-    dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.style.background='#F1F5F9'; });
-    dropzone.addEventListener('dragleave', ()=>{ dropzone.style.background=''; });
-    dropzone.addEventListener('drop', e=>{
-      e.preventDefault(); dropzone.style.background='';
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if(f && f.type && f.type.startsWith('image/')) handleFile(f);
-    });
-    dropzone.addEventListener('paste', e=>{
-      const items = e.clipboardData && e.clipboardData.items;
-      if(!items) return;
-      for(const item of items){
-        if(item.type && item.type.startsWith('image/')){
-          const f = item.getAsFile();
-          if(f) handleFile(f);
-          break;
-        }
+  dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.style.background='#F1F5F9'; });
+  dropzone.addEventListener('dragleave', ()=>{ dropzone.style.background=''; });
+  dropzone.addEventListener('drop', e=>{
+    e.preventDefault(); dropzone.style.background='';
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f && f.type && f.type.startsWith('image/')) handleFile(f);
+  });
+  dropzone.addEventListener('paste', e=>{
+    const items = e.clipboardData && e.clipboardData.items;
+    if(!items) return;
+    for(const item of items){
+      if(item.type && item.type.startsWith('image/')){
+        const f = item.getAsFile();
+        if(f) handleFile(f);
+        break;
       }
-    });
-  }
+    }
+  });
 }
 
 /* ============================================================
