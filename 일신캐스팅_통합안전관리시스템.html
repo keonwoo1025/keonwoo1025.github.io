@@ -1630,6 +1630,7 @@ const PATHS = {
   s5sManagement:'s5s_management',   // 관리부
   s5sSafety:'s5s_safety',           // 안전환경부 (전체관리자 전용)
   s5sCommon:'s5s_common',           // 공통 (전체관리자 전용)
+  s5sMonthlyTarget:'s5s_monthly_target', // 월별(YYYY-MM) 부서별 목표건수 — 전체관리자만 입력, 조회는 전 관리자 공통
   // 신청자 실명은 본문과 분리해서 별도 경로에 저장 — Firebase 보안규칙에서 이 경로만
   // 전체관리자로 읽기를 제한하면, 뒷문(직접 DB 접근)으로도 이름이 노출되지 않는다.
   privateSuggestionNames:'private_names/safety_suggestions',
@@ -1651,7 +1652,7 @@ const VIEW_PATHS = {
   suggestions: [PATHS.suggestions],
   bugs: [PATHS.bugReports],
   stats: [PATHS.statsWorkforce, PATHS.statsHolidayWork, PATHS.incidents],
-  s5s: [PATHS.s5sProduction, PATHS.s5sQuality, PATHS.s5sManagement, PATHS.s5sSafety, PATHS.s5sCommon],
+  s5s: [PATHS.s5sProduction, PATHS.s5sQuality, PATHS.s5sManagement, PATHS.s5sSafety, PATHS.s5sCommon, PATHS.s5sMonthlyTarget],
 };
 const subscribedPaths = new Set();
 /* ============================================================
@@ -3386,7 +3387,10 @@ function renderRisks(){
     State.filters.risksProcess = e.target.value; renderRisks();
   });
   document.getElementById('riskSearchBox').addEventListener('input', e=>{
+    const pos = e.target.selectionStart;
     State.filters.risksSearch = e.target.value; renderRisks();
+    const el = document.getElementById('riskSearchBox');
+    el.focus(); el.setSelectionRange(pos, pos);
   });
   document.getElementById('galleryToggleBtn').addEventListener('click', ()=>{
     State.filters.risksView = viewMode==='table' ? 'gallery' : 'table';
@@ -4127,7 +4131,10 @@ function renderIncidentTab(){
     State.filters.incidentsProcess = e.target.value; renderIncidents();
   });
   document.getElementById('incSearchBox').addEventListener('input', e=>{
+    const pos = e.target.selectionStart;
     State.filters.incidentsSearch = e.target.value; renderIncidents();
+    const el2 = document.getElementById('incSearchBox');
+    el2.focus(); el2.setSelectionRange(pos, pos);
   });
   el.querySelector('#addIncBtn').addEventListener('click', ()=> openIncidentModal());
 
@@ -4283,7 +4290,10 @@ function renderNearMissTab(){
     State.filters.nearMissProcess = e.target.value; renderNearMissTab();
   });
   document.getElementById('nmSearchBox').addEventListener('input', e=>{
+    const pos = e.target.selectionStart;
     State.filters.nearMissSearch = e.target.value; renderNearMissTab();
+    const el2 = document.getElementById('nmSearchBox');
+    el2.focus(); el2.setSelectionRange(pos, pos);
   });
   el.querySelector('#addNmBtn').addEventListener('click', ()=> openNearMissModal());
 
@@ -8299,20 +8309,75 @@ function s5sIsOverdue(item){
   if(item.status==='완료' || !item.targetDate) return false;
   return new Date(item.targetDate) < new Date(new Date().toDateString());
 }
+function s5sYmKey(year, month){ return `${year}-${String(month).padStart(2,'0')}`; }
+function s5sSameYearMonth(ts, year, month){
+  if(!ts) return false;
+  const d = new Date(ts);
+  return d.getFullYear()===year && (d.getMonth()+1)===month;
+}
+function s5sAvailableYears(){
+  const items = s5sAllItems();
+  const years = new Set(items.filter(i=>i.createdAt).map(i=> new Date(i.createdAt).getFullYear()));
+  years.add(new Date().getFullYear());
+  return Array.from(years).sort((a,b)=>b-a);
+}
+// 특정 탭(부서/공통)의 특정 연-월 실적: 그 달 등록건수·완료건수·목표건수·진행률
+function s5sMonthlyStatsForTab(tab, year, month){
+  const items = objToArr(DataStore.get(s5sPathForTab(tab)));
+  const registered = items.filter(i=> s5sSameYearMonth(i.createdAt, year, month)).length;
+  const completed = items.filter(i=> s5sSameYearMonth(i.completedDate, year, month)).length;
+  const target = ((DataStore.get(PATHS.s5sMonthlyTarget)[s5sYmKey(year,month)] || {})[tab]) || 0;
+  return { registered, completed, target, rate: target>0 ? Math.round(completed/target*100) : null };
+}
+// 연간 트렌드(전체 탭 합산): 월별 등록 vs 완료 건수
+function s5sYearTrend(year){
+  const months = [];
+  for(let m=1;m<=12;m++){
+    let registered=0, completed=0, target=0;
+    S5S_TABS.forEach(tab=>{
+      const s = s5sMonthlyStatsForTab(tab, year, m);
+      registered += s.registered; completed += s.completed; target += s.target;
+    });
+    months.push({ month:m, registered, completed, target });
+  }
+  return months;
+}
 
 /* ---- 메인 렌더 ---- */
-const S5SState = { tab:'공통', search:'', grade:'전체', status:'전체' };
-let s5sDeptChart = null;
+const S5SState = { tab:'대시보드', search:'', grade:'전체', status:'전체', year: new Date().getFullYear(), dashMonth: new Date().getMonth()+1 };
+let s5sDeptChart = null, s5sYearTrendChart = null;
+const S5S_UI_TABS = ['대시보드', ...S5S_TABS];
 
 function renderS5S(){
   const el = document.getElementById('view-s5s');
+  el.innerHTML = `
+    <div class="tabs" style="margin-bottom:14px;">
+      ${S5S_UI_TABS.map(tab=>`<button class="tab ${S5SState.tab===tab?'active':''}" data-s5s-tab="${tab}">${tab}</button>`).join('')}
+    </div>
+    <div id="s5sTabBody"></div>
+  `;
+  el.querySelectorAll('[data-s5s-tab]').forEach(b=> b.addEventListener('click', ()=>{
+    S5SState.tab = b.dataset.s5sTab; renderS5S();
+  }));
+  const body = document.getElementById('s5sTabBody');
+  if(S5SState.tab==='대시보드') renderS5SDashboardTab(body);
+  else renderS5STabBody(body);
+}
+
+/* ---- 대시보드 탭: 정의·KPI·누적진행율·연도트렌드·월별 목표/실적 ---- */
+function renderS5SDashboardTab(body){
+  const isAdmin = State.mode==='admin';
   const allItems = s5sAllItems();
   const totalCount = allItems.length;
   const doneCount = allItems.filter(i=>i.status==='완료').length;
   const overdueCount = allItems.filter(s5sIsOverdue).length;
   const aOpenCount = allItems.filter(i=>i.grade==='1' && i.status!=='완료').length;
+  const years = s5sAvailableYears();
+  if(!years.includes(S5SState.year)) S5SState.year = years[0];
+  const trend = s5sYearTrend(S5SState.year);
+  const monthOptions = Array.from({length:12}, (_,i)=>i+1);
 
-  el.innerHTML = `
+  body.innerHTML = `
     <div class="card" style="padding:16px 18px;margin-bottom:14px;background:#F8FAFC;">
       <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">🧹 3정5S란?</div>
       <p style="margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.7;">
@@ -8328,25 +8393,79 @@ function renderS5S(){
     </div>
 
     <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">📊 부서별 진행율</div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;">📊 부서별 누적 진행율</div>
       <div style="height:200px;"><canvas id="s5sDeptChart"></canvas></div>
     </div>
 
-    <div class="tabs" style="margin-bottom:14px;">
-      ${S5S_TABS.map(tab=>`<button class="tab ${S5SState.tab===tab?'active':''}" data-s5s-tab="${tab}">${tab}</button>`).join('')}
+    <div class="card" style="padding:18px;margin-bottom:14px;">
+      <div class="toolbar" style="margin-bottom:10px;">
+        <div style="font-weight:700;font-size:14px;">📈 ${S5SState.year}년 월별 실적 (등록 vs 완료)</div>
+        <select id="s5sYearSel" class="btn btn-sm" style="font-weight:700;">
+          ${years.map(y=>`<option value="${y}" ${y===S5SState.year?'selected':''}>${y}년</option>`).join('')}
+        </select>
+      </div>
+      <div style="height:200px;"><canvas id="s5sYearTrendChart"></canvas></div>
     </div>
-    <div id="s5sTabBody"></div>
+
+    <div class="card" style="padding:18px;">
+      <div class="toolbar" style="margin-bottom:10px;">
+        <div style="font-weight:700;font-size:14px;">🎯 월별 부서 목표·실적</div>
+        <select id="s5sMonthSel" class="btn btn-sm" style="font-weight:700;">
+          ${monthOptions.map(m=>`<option value="${m}" ${m===S5SState.dashMonth?'selected':''}>${m}월</option>`).join('')}
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>부서</th><th class="tight">목표건수${isAdmin?'':''}</th><th class="tight">완료건수</th><th class="tight">진행률</th></tr></thead>
+          <tbody id="s5sMonthlyTable"></tbody>
+        </table>
+      </div>
+      ${isAdmin ? `<p class="hint" style="margin-top:8px;">목표건수는 전체관리자만 수정 가능 — 칸을 직접 눌러서 숫자를 바꾸면 자동 저장됩니다.</p>` : ''}
+    </div>
   `;
-  el.querySelectorAll('[data-s5s-tab]').forEach(b=> b.addEventListener('click', ()=>{
-    S5SState.tab = b.dataset.s5sTab; renderS5S();
-  }));
   bindS5SDeptChart(allItems);
-  renderS5STabBody(document.getElementById('s5sTabBody'));
+  bindS5SYearTrendChart(trend);
+  document.getElementById('s5sYearSel').addEventListener('change', e=>{
+    S5SState.year = Number(e.target.value); renderS5SDashboardTab(body);
+  });
+  document.getElementById('s5sMonthSel').addEventListener('change', e=>{
+    S5SState.dashMonth = Number(e.target.value); renderS5SMonthlyTable(isAdmin);
+  });
+  renderS5SMonthlyTable(isAdmin);
+}
+
+function renderS5SMonthlyTable(isAdmin){
+  const tbody = document.getElementById('s5sMonthlyTable');
+  if(!tbody) return;
+  const year = S5SState.year, month = S5SState.dashMonth;
+  tbody.innerHTML = S5S_TABS.map(tab=>{
+    const s = s5sMonthlyStatsForTab(tab, year, month);
+    return `<tr>
+      <td>${tab}</td>
+      <td class="tight">${isAdmin
+        ? `<input type="number" min="0" class="s5s-target-input" data-tab="${tab}" value="${s.target||''}" style="width:70px;">`
+        : `<span class="mono">${s.target||'-'}</span>`}</td>
+      <td class="tight mono">${s.completed}</td>
+      <td class="tight mono">${s.rate==null?'<span class="hint">목표 미설정</span>':s.rate+'%'}</td>
+    </tr>`;
+  }).join('');
+  if(isAdmin){
+    tbody.querySelectorAll('.s5s-target-input').forEach(inp=>{
+      inp.addEventListener('change', async ()=>{
+        const val = Math.max(0, Math.floor(Number(inp.value)||0));
+        inp.value = val || '';
+        await DataStore.update(PATHS.s5sMonthlyTarget, s5sYmKey(year, month), { [inp.dataset.tab]: val });
+        toast('저장되었습니다');
+        renderS5SMonthlyTable(isAdmin);
+      });
+    });
+  }
 }
 
 function bindS5SDeptChart(allItems){
   if(typeof Chart==='undefined') return;
   const canvas = document.getElementById('s5sDeptChart');
+  if(!canvas) return;
   const labels = S5S_TABS;
   const totals = labels.map(tab=> allItems.filter(i=>i._tab===tab).length);
   const dones = labels.map(tab=> allItems.filter(i=>i._tab===tab && i.status==='완료').length);
@@ -8363,6 +8482,26 @@ function bindS5SDeptChart(allItems){
                x:{ ticks:{color:'#667085', font:{size:10.5}}, grid:{display:false} } } }
   });
 }
+function bindS5SYearTrendChart(trend){
+  if(typeof Chart==='undefined') return;
+  const canvas = document.getElementById('s5sYearTrendChart');
+  if(!canvas) return;
+  const labels = trend.map(t=>`${t.month}월`);
+  if(s5sYearTrendChart) s5sYearTrendChart.destroy();
+  s5sYearTrendChart = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'등록', data: trend.map(t=>t.registered), backgroundColor:'#94A3B8', borderRadius:4 },
+      { label:'완료', data: trend.map(t=>t.completed), backgroundColor:'#1DA46F', borderRadius:4 },
+      { label:'목표(부서합계)', type:'line', data: trend.map(t=>t.target||null), spanGaps:false,
+        borderColor:'#E5484D', borderDash:[6,4], borderWidth:2, pointRadius:2, pointBackgroundColor:'#E5484D', fill:false },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom', labels:{color:'#667085', font:{size:11}}} },
+      scales:{ y:{ beginAtZero:true, ticks:{color:'#667085', font:{size:10.5}}, grid:{color:'#EEF1F5'} },
+               x:{ ticks:{color:'#667085', font:{size:10}}, grid:{display:false} } } }
+  });
+}
 
 /* ---- 탭 본문: 검색/필터 + 카드 목록 ---- */
 let s5sSelectedIds = new Set();
@@ -8376,8 +8515,11 @@ function renderS5STabBody(body){
     if(go!==0) return go;
     return (b.createdAt||0) - (a.createdAt||0);
   });
+  const listYears = Array.from(new Set(items.filter(i=>i.createdAt).map(i=> new Date(i.createdAt).getFullYear()))).sort((a,b)=>b-a);
+  if(S5SState.listYear===undefined) S5SState.listYear = '전체';
   const searchQ = S5SState.search.trim().toLowerCase();
   let filtered = items;
+  if(S5SState.listYear!=='전체') filtered = filtered.filter(i=> i.createdAt && new Date(i.createdAt).getFullYear()===Number(S5SState.listYear));
   if(S5SState.grade!=='전체') filtered = filtered.filter(i=> (i.grade||'미지정')===S5SState.grade);
   if(S5SState.status!=='전체') filtered = filtered.filter(i=> (i.status||'등록')===S5SState.status);
   if(searchQ){
@@ -8396,6 +8538,10 @@ function renderS5STabBody(body){
     <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;">
       <input type="text" id="s5sSearchBox" class="searchbox" placeholder="검색 (장소·담당자·문제점)" value="${esc(S5SState.search)}" style="max-width:260px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="s5sYearFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체">전체 연도</option>
+          ${listYears.map(y=>`<option value="${y}" ${String(S5SState.listYear)===String(y)?'selected':''}>${y}년</option>`).join('')}
+        </select>
         <select id="s5sGradeFilter" class="btn btn-sm" style="font-weight:700;">
           <option value="전체">전체 등급</option>
           <option value="1" ${S5SState.grade==='1'?'selected':''}>1등급</option>
@@ -8427,7 +8573,13 @@ function renderS5STabBody(body){
     ${!canEdit ? `<p class="hint" style="margin:-2px 0 10px;">${tab} 탭은 열람만 가능합니다 (등록·수정은 ${tab==='공통'?'전체관리자':tab+' 계정'}만 가능).</p>` : ''}
     <div id="s5sCardGrid" class="gallery-grid"></div>
   `;
-  document.getElementById('s5sSearchBox').addEventListener('input', e=>{ S5SState.search=e.target.value; renderS5STabBody(body); });
+  document.getElementById('s5sSearchBox').addEventListener('input', e=>{
+    const pos = e.target.selectionStart;
+    S5SState.search=e.target.value; renderS5STabBody(body);
+    const elx = document.getElementById('s5sSearchBox');
+    elx.focus(); elx.setSelectionRange(pos, pos);
+  });
+  document.getElementById('s5sYearFilter').addEventListener('change', e=>{ S5SState.listYear=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sGradeFilter').addEventListener('change', e=>{ S5SState.grade=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sStatusFilter').addEventListener('change', e=>{ S5SState.status=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sDownloadSelBtn').addEventListener('click', ()=>{
