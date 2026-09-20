@@ -8334,11 +8334,12 @@ function s5sMonthlyStatsForTab(tab, year, month){
   return { registered, completed, target, rate: target>0 ? Math.round(completed/target*100) : null };
 }
 // 연간 트렌드(전체 탭 합산): 월별 등록 vs 완료 건수
-function s5sYearTrend(year){
+function s5sYearTrend(year, tabFilter){
+  const tabsToSum = tabFilter && tabFilter!=='전체' ? [tabFilter] : S5S_TABS;
   const months = [];
   for(let m=1;m<=12;m++){
     let registered=0, completed=0, target=0;
-    S5S_TABS.forEach(tab=>{
+    tabsToSum.forEach(tab=>{
       const s = s5sMonthlyStatsForTab(tab, year, m);
       registered += s.registered; completed += s.completed; target += s.target;
     });
@@ -8348,9 +8349,9 @@ function s5sYearTrend(year){
 }
 
 /* ---- 메인 렌더 ---- */
-const S5SState = { tab:'대시보드', search:'', grade:'전체', status:'전체', year: new Date().getFullYear(), dashMonth: new Date().getMonth()+1 };
+const S5SState = { tab:'진행률', search:'', grade:'전체', status:'전체', year: new Date().getFullYear(), dashMonth: new Date().getMonth()+1 };
 let s5sDeptChart = null, s5sYearTrendChart = null;
-const S5S_UI_TABS = ['대시보드', ...S5S_TABS];
+const S5S_UI_TABS = ['진행률', ...S5S_TABS];
 
 function renderS5S(){
   const el = document.getElementById('view-s5s');
@@ -8364,7 +8365,7 @@ function renderS5S(){
     S5SState.tab = b.dataset.s5sTab; renderS5S();
   }));
   const body = document.getElementById('s5sTabBody');
-  if(S5SState.tab==='대시보드') renderS5SDashboardTab(body);
+  if(S5SState.tab==='진행률') renderS5SDashboardTab(body);
   else renderS5STabBody(body);
 }
 
@@ -8378,7 +8379,8 @@ function renderS5SDashboardTab(body){
   const aOpenCount = allItems.filter(i=>i.grade==='1' && i.status!=='완료').length;
   const years = s5sAvailableYears();
   if(!years.includes(S5SState.year)) S5SState.year = years[0];
-  const trend = s5sYearTrend(S5SState.year);
+  if(S5SState.trendTab===undefined) S5SState.trendTab = '전체';
+  const trend = s5sYearTrend(S5SState.year, S5SState.trendTab);
   const monthOptions = Array.from({length:12}, (_,i)=>i+1);
 
   body.innerHTML = `
@@ -8402,13 +8404,20 @@ function renderS5SDashboardTab(body){
     </div>
 
     <div class="card" style="padding:18px;margin-bottom:14px;">
-      <div class="toolbar" style="margin-bottom:10px;">
-        <div style="font-weight:700;font-size:14px;">📈 ${S5SState.year}년 월별 실적 (등록 vs 완료)</div>
-        <select id="s5sYearSel" class="btn btn-sm" style="font-weight:700;">
-          ${years.map(y=>`<option value="${y}" ${y===S5SState.year?'selected':''}>${y}년</option>`).join('')}
-        </select>
+      <div class="toolbar" style="margin-bottom:10px;flex-wrap:wrap;row-gap:8px;">
+        <div style="font-weight:700;font-size:14px;">📈 ${S5SState.year}년 월별 실적 (등록 vs 완료 vs 목표)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="s5sTrendTabSel" class="btn btn-sm" style="font-weight:700;">
+            <option value="전체" ${S5SState.trendTab==='전체'?'selected':''}>전체 합계</option>
+            ${S5S_TABS.map(t=>`<option value="${t}" ${S5SState.trendTab===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+          <select id="s5sYearSel" class="btn btn-sm" style="font-weight:700;">
+            ${years.map(y=>`<option value="${y}" ${y===S5SState.year?'selected':''}>${y}년</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div style="height:200px;"><canvas id="s5sYearTrendChart"></canvas></div>
+      <p class="hint" style="margin:8px 0 0;">빨간 점선 = 목표건수. "전체 합계"를 고르면 5개 부서 목표를 더한 값, 부서를 고르면 그 부서만의 목표가 표시됩니다.</p>
     </div>
 
     <div class="card" style="padding:18px;">
@@ -8431,6 +8440,9 @@ function renderS5SDashboardTab(body){
   bindS5SYearTrendChart(trend);
   document.getElementById('s5sYearSel').addEventListener('change', e=>{
     S5SState.year = Number(e.target.value); renderS5SDashboardTab(body);
+  });
+  document.getElementById('s5sTrendTabSel').addEventListener('change', e=>{
+    S5SState.trendTab = e.target.value; renderS5SDashboardTab(body);
   });
   document.getElementById('s5sMonthSel').addEventListener('change', e=>{
     S5SState.dashMonth = Number(e.target.value); renderS5SMonthlyTable(isAdmin);
@@ -8514,16 +8526,24 @@ function renderS5STabBody(body){
   const path = s5sPathForTab(tab);
   const canEdit = canEditS5S(tab);
   const items = objToArr(DataStore.get(path)).sort((a,b)=>{
-    const order = {'1':0,'2':1,'3':2,'4':3,'5':4,'':5};
-    const go = (order[a.grade]??3) - (order[b.grade]??3);
-    if(go!==0) return go;
-    return (b.createdAt||0) - (a.createdAt||0);
+    // B안: 미완료 항목을 먼저(등급순), 완료된 항목은 그 아래에 완료일 최신순으로
+    const aDone = a.status==='완료', bDone = b.status==='완료';
+    if(aDone !== bDone) return aDone ? 1 : -1; // 미완료가 위로
+    if(!aDone){
+      const order = {'1':0,'2':1,'3':2,'4':3,'5':4,'':5};
+      const go = (order[a.grade]??3) - (order[b.grade]??3);
+      if(go!==0) return go;
+      return (b.createdAt||0) - (a.createdAt||0);
+    }
+    return new Date(b.completedDate||0) - new Date(a.completedDate||0);
   });
   const listYears = Array.from(new Set(items.filter(i=>i.createdAt).map(i=> new Date(i.createdAt).getFullYear()))).sort((a,b)=>b-a);
   if(S5SState.listYear===undefined) S5SState.listYear = '전체';
+  if(S5SState.listMonth===undefined) S5SState.listMonth = '전체';
   const searchQ = S5SState.search.trim().toLowerCase();
   let filtered = items;
   if(S5SState.listYear!=='전체') filtered = filtered.filter(i=> i.createdAt && new Date(i.createdAt).getFullYear()===Number(S5SState.listYear));
+  if(S5SState.listMonth!=='전체') filtered = filtered.filter(i=> i.createdAt && (new Date(i.createdAt).getMonth()+1)===Number(S5SState.listMonth));
   if(S5SState.grade!=='전체') filtered = filtered.filter(i=> (i.grade||'미지정')===S5SState.grade);
   if(S5SState.status!=='전체') filtered = filtered.filter(i=> (i.status||'등록')===S5SState.status);
   if(searchQ){
@@ -8545,6 +8565,10 @@ function renderS5STabBody(body){
         <select id="s5sYearFilter" class="btn btn-sm" style="font-weight:700;">
           <option value="전체">전체 연도</option>
           ${listYears.map(y=>`<option value="${y}" ${String(S5SState.listYear)===String(y)?'selected':''}>${y}년</option>`).join('')}
+        </select>
+        <select id="s5sMonthFilter" class="btn btn-sm" style="font-weight:700;" ${S5SState.listYear==='전체'?'disabled title="연도를 먼저 선택하세요"':''}>
+          <option value="전체">전체 월</option>
+          ${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${String(S5SState.listMonth)===String(m)?'selected':''}>${m}월</option>`).join('')}
         </select>
         <select id="s5sGradeFilter" class="btn btn-sm" style="font-weight:700;">
           <option value="전체">전체 등급</option>
@@ -8583,7 +8607,8 @@ function renderS5STabBody(body){
     const elx = document.getElementById('s5sSearchBox');
     elx.focus(); elx.setSelectionRange(pos, pos);
   });
-  document.getElementById('s5sYearFilter').addEventListener('change', e=>{ S5SState.listYear=e.target.value; renderS5STabBody(body); });
+  document.getElementById('s5sYearFilter').addEventListener('change', e=>{ S5SState.listYear=e.target.value; S5SState.listMonth='전체'; renderS5STabBody(body); });
+  document.getElementById('s5sMonthFilter').addEventListener('change', e=>{ S5SState.listMonth=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sGradeFilter').addEventListener('change', e=>{ S5SState.grade=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sStatusFilter').addEventListener('change', e=>{ S5SState.status=e.target.value; renderS5STabBody(body); });
   document.getElementById('s5sDownloadSelBtn').addEventListener('click', ()=>{
