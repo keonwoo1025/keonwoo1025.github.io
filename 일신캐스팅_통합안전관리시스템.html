@@ -1895,7 +1895,7 @@ function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
     : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
-    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='s5s')
+    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
     : NAV_ITEMS; // "통계"는 대시보드 탭만 전체공개, 월별 인원수 입력은 전체관리자 전용(탭에서 갈림) / "3정5S"는 전체관리자·부서관리자 전용
   nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
@@ -1945,6 +1945,10 @@ function navBadgeCount(viewId){
     const n = arr.filter(r=>r.status!=='완료').length;
     return n>0 ? n : null;
   }
+  if(viewId==='s5s'){
+    const n = s5sAllItems().filter(i=>i.status!=='완료').length;
+    return n>0 ? n : null;
+  }
   return null;
 }
 
@@ -1953,7 +1957,7 @@ function switchView(id){
   if(State.mode==='dept' && id==='contractors') id = 'dashboard';
   if(State.mode==='user' && id==='contractors') id = 'dashboard';
   if(id==='stats' && State.mode==='partner') id = 'permits'; // 외주업체 계정은 통계 접근 불가(작업허가만)
-  if(id==='s5s' && (State.mode==='partner' || State.mode==='user')) id = State.mode==='partner' ? 'permits' : 'dashboard'; // 3정5S는 관리자·부서관리자 전용
+  if(id==='s5s' && State.mode==='partner') id = 'permits'; // 3정5S는 외주업체 계정은 접근 불가, 일반사용자는 열람만 가능
   State.view = id;
   const pathsForView = (id==='dashboard' && State.mode!=='admin')
     ? VIEW_PATHS[id].filter(p=>p!==PATHS.contractors)
