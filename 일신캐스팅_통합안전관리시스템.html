@@ -1298,6 +1298,7 @@ const TRANSLATIONS = {
   worktype_공사:{ko:'공사',en:'Construction',th:'งานก่อสร้าง',id:'Konstruksi',mn:'Барилга'},
   worktype_정비:{ko:'정비',en:'Maintenance',th:'งานซ่อมบำรุง',id:'Pemeliharaan',mn:'Засвар үйлчилгээ'},
   worktype_운송:{ko:'운송',en:'Transport',th:'งานขนส่ง',id:'Transportasi',mn:'Тээвэрлэлт'},
+  worktype_점검및검사:{ko:'점검 및 검사',en:'Inspection & Check',th:'การตรวจสอบ',id:'Inspeksi & Pemeriksaan',mn:'Үзлэг, шалгалт'},
   lbl_workname:{ko:'작업명(작업내용)',en:'Work Name (Description)',th:'ชื่องาน (รายละเอียด)',id:'Nama Pekerjaan (Deskripsi)',mn:'Ажлын нэр (Тайлбар)'},
   lbl_worklocation:{ko:'작업장소',en:'Work Location',th:'สถานที่ทำงาน',id:'Lokasi Kerja',mn:'Ажлын байршил'},
   lbl_startdate:{ko:'작업 시작일',en:'Start Date',th:'วันที่เริ่มงาน',id:'Tanggal Mulai',mn:'Эхлэх огноо'},
@@ -2707,7 +2708,7 @@ function openPermitModal(existing){
         </div>
         <div class="field"><label>${t('lbl_worktype')} *</label>
           <select id="f_workType">
-            ${['공사','정비','운송'].map(wt=>`<option value="${wt}" ${v.workType===wt?'selected':''}>${t('worktype_'+wt)}</option>`).join('')}
+            ${['공사','정비','운송','점검및검사'].map(wt=>`<option value="${wt}" ${v.workType===wt?'selected':''}>${t('worktype_'+wt)}</option>`).join('')}
           </select>
         </div>
       </div>
