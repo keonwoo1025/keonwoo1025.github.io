@@ -964,6 +964,7 @@ function bindPhotoField(id, folder){
       removeBtn.addEventListener('click', e=>{
         e.stopPropagation();
         delete input.dataset.uploadedUrl;
+        input.dataset.removed = '1'; // 이미 저장돼 있던 사진을 지운다는 표시 — 저장 시 이 값을 보고 실제로 지움
         input.value = '';
         showEmpty();
       });
@@ -983,6 +984,7 @@ function bindPhotoField(id, folder){
       const f = await compressImageFile(raw);
       const uploadedUrl = await uploadFileToStorage(f, folder||'uploads');
       input.dataset.uploadedUrl = uploadedUrl;
+      delete input.dataset.removed; // 새로 올렸으니 "삭제됨" 표시는 해제
       showPreview(uploadedUrl, false);
     }catch(err){
       console.error('사진 업로드 실패:', err);
@@ -2189,6 +2191,10 @@ function renderDashboard(){
   const thisMonthIncidents = incidents.filter(i=> (i.datetime||'').slice(0,7) === todayStr().slice(0,7)).length;
 
   const monthly = computeMonthlyIncidentCounts(incidents, 6);
+  // 최근 사고접수·작업허가는 오래된 게 계속 남아있지 않도록 이번 주(월요일부터) 등록분만 보여줌
+  const weekStart = tbmThisWeekStart();
+  const weeklyPermits = permits.filter(p=> (p.startDate||p.createdAt) && new Date(p.startDate||p.createdAt) >= weekStart);
+  const weeklyIncidents = incidents.filter(i=> i.datetime && new Date(i.datetime) >= weekStart);
 
   el.innerHTML = `
     <div class="dash-header">
@@ -2214,7 +2220,7 @@ function renderDashboard(){
       </div>
       <div class="list-card">
         <div class="lc-head"><h3>${icon('alert-triangle',14)} ${t('chart_type_title')}</h3></div>
-        <div style="padding:8px 14px 4px;height:130px;"><canvas id="accidentTypeChart"></canvas></div>
+        <div style="padding:8px 14px 4px;height:200px;"><canvas id="accidentTypeChart"></canvas></div>
       </div>
     </div>
 
@@ -2244,15 +2250,15 @@ function renderDashboard(){
 
     <div class="dash-lower">
       <div class="list-card">
-        <div class="lc-head"><h3>${t('recent_permits_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="permits">${t('view_all')}</button></div>
-        <div class="lc-body" id="dashMiniPermits">${renderMiniList(permits, p=>({
+        <div class="lc-head"><h3>${t('recent_permits_title')} <span style="font-weight:400;font-size:11.5px;color:var(--ink-faint);">(이번 주)</span></h3><button class="btn btn-sm btn-ghost" data-goto="permits">${t('view_all')}</button></div>
+        <div class="lc-body" id="dashMiniPermits">${renderMiniList(weeklyPermits, p=>({
           title:`${p.company||'미입력'} · ${p.workContent||'-'}`,
           meta: fmtDate(p.startDate), badge: statusBadge('permit', p.status)
         }), PATHS.permits)}</div>
       </div>
       <div class="list-card">
-        <div class="lc-head"><h3>${t('recent_incidents_title')}</h3><button class="btn btn-sm btn-ghost" data-goto="incidents">${t('view_all')}</button></div>
-        <div class="lc-body" id="dashMiniIncidents">${renderMiniList([...incidents].sort((a,b)=> new Date(b.datetime||b.createdAt||0) - new Date(a.datetime||a.createdAt||0)), i=>({
+        <div class="lc-head"><h3>${t('recent_incidents_title')} <span style="font-weight:400;font-size:11.5px;color:var(--ink-faint);">(이번 주)</span></h3><button class="btn btn-sm btn-ghost" data-goto="incidents">${t('view_all')}</button></div>
+        <div class="lc-body" id="dashMiniIncidents">${renderMiniList([...weeklyIncidents].sort((a,b)=> new Date(b.datetime||b.createdAt||0) - new Date(a.datetime||a.createdAt||0)), i=>({
           title: i.location||'-',
           meta: fmtDate(i.datetime),
           badge: State.mode==='admin' ? statusBadge('incident', i.status) : (i.injurySeverity ? `<span class="badge b-gray">${esc(i.injurySeverity)}</span>` : '')
@@ -2298,8 +2304,10 @@ function renderAccidentTypeChart(incidents){
     const label = i.accidentType==='기타(직접입력)' ? '기타' : (i.accidentType||'미분류'); // 기타는 자유입력 텍스트별로 쪼개지 않고 하나로 묶어 그래프가 지저분해지지 않게 함
     counts[label] = (counts[label]||0) + 1;
   });
-  const labels = Object.keys(counts);
-  const data = Object.values(counts);
+  // 값이 큰 것부터 위로 오도록 정렬 — 막대그래프는 순서가 있어야 "뭐가 제일 많은지" 한눈에 보임
+  const sorted = Object.entries(counts).sort((a,b)=> b[1]-a[1]);
+  const labels = sorted.map(e=>e[0]);
+  const data = sorted.map(e=>e[1]);
   if(accidentTypeChartInstance){ accidentTypeChartInstance.destroy(); }
   if(labels.length===0){
     const ctx = canvas.getContext('2d');
@@ -2307,26 +2315,30 @@ function renderAccidentTypeChart(incidents){
     return;
   }
   accidentTypeChartInstance = new Chart(canvas.getContext('2d'), {
-    type: 'doughnut',
+    type: 'bar',
     data: {
       labels,
-      datasets: [{ data, backgroundColor: labels.map((_,i)=>ACCIDENT_CHART_COLORS[i%ACCIDENT_CHART_COLORS.length]), borderWidth:2, borderColor:'#fff' }]
+      datasets: [{ data, backgroundColor: labels.map((_,i)=>ACCIDENT_CHART_COLORS[i%ACCIDENT_CHART_COLORS.length]), borderRadius:4, maxBarThickness:22 }]
     },
     options: {
+      indexAxis: 'y', // 가로 막대그래프 — 유형이 늘어나도 세로로만 길어져서 조각이 작아지는 원형차트보다 구분하기 쉬움
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position:'bottom', labels:{ boxWidth:10, font:{size:10.5}, color:'#4B5468', padding:8 } },
+        legend: { display:false },
         datalabels: {
-          color:'#fff', font:{ weight:'700', size:10 }, textAlign:'center',
+          color:'#4B5468', font:{ weight:'700', size:10.5 }, anchor:'end', align:'right',
           formatter: (value, ctx) => {
             const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
             const pct = total ? Math.round(value/total*100) : 0;
-            return value>0 ? [`${value}건`, `${pct}%`] : '';
+            return `${value}건 (${pct}%)`;
           }
         }
       },
-      cutout: '58%'
+      scales: {
+        x: { beginAtZero:true, ticks:{ color:'#667085', font:{size:10} }, grid:{ color:'#EEF1F5' } },
+        y: { ticks:{ color:'#4B5468', font:{size:11} }, grid:{ display:false } }
+      }
     }
   });
 }
@@ -3945,6 +3957,8 @@ function openRiskModal(existing){
         return;
       }
       if(photoBeforeFile) data.photoBeforeSize = photoBeforeFile.size;
+    } else if(photoBeforeInput.dataset.removed==='1'){
+      data.photoBefore = ''; data.photoBeforeSize = null; // 기존 사진을 지운 채로 저장
     }
     const photoAfterInput = document.getElementById('f_photoAfter');
     if(photoAfterInput){
@@ -3959,6 +3973,8 @@ function openRiskModal(existing){
           return;
         }
         if(photoAfterFile) data.photoAfterSize = photoAfterFile.size;
+      } else if(photoAfterInput.dataset.removed==='1'){
+        data.photoAfter = ''; data.photoAfterSize = null;
       }
     }
 
@@ -4488,6 +4504,8 @@ function openNearMissModal(existing){
         return;
       }
       if(photoFile) data.photoSize = photoFile.size;
+    } else if(photoInput.dataset.removed==='1'){
+      data.photo = ''; data.photoSize = null;
     }
     if(State.mode==='admin'){
       data.status = document.getElementById('f_nmStatus').value;
@@ -4717,6 +4735,8 @@ function openIncidentModal(existing){
         return;
       }
       if(photo1File) data.photo1Size = photo1File.size;
+    } else if(photo1Input.dataset.removed==='1'){
+      data.photo1 = ''; data.photo1Size = null;
     }
     const photo2Input = document.getElementById('f_incPhoto2');
     const photo2File = photo2Input.files[0];
@@ -4730,6 +4750,8 @@ function openIncidentModal(existing){
         return;
       }
       if(photo2File) data.photo2Size = photo2File.size;
+    } else if(photo2Input.dataset.removed==='1'){
+      data.photo2 = ''; data.photo2Size = null;
     }
     if(isManager){
       data.status = document.getElementById('f_status').value;
@@ -5379,22 +5401,37 @@ async function generateIncidentReportPptx(i){
         const rPr = extractRPr(xml.slice(rOpenIdx, tOpenIdx));
         const lines = String(text||'').split('\n').filter(l=>l.trim()!=='');
         const finalLines = lines.length ? lines : [''];
-        // 줄바꿈(<a:br/>)에도 본문과 똑같은 서식(rPr)을 넣어줘야, 줄 간격이 앞줄과 어긋나지 않음
-        // (자리표시자 문구 기준으로 굳어있던 자동맞춤 축소값도 같이 지워서 PowerPoint가 실제 글자 수에 맞게 다시 계산하게 함)
-        const runs = finalLines.map((line,idx)=>{
-          const br = idx>0 ? `<a:br>${rPr}</a:br>` : '';
-          const prefixed = bullet ? ('▪ ' + line) : line;
-          return br + `<a:r>${rPr}<a:t>${escXml(prefixed)}</a:t></a:r>`;
-        }).join('');
-        let out = xml.slice(0, rOpenIdx) + runs + xml.slice(rCloseIdx);
+        let out, resetAutofitFrom;
+        if(bullet){
+          // 글머리 기호(▪)는 항목마다 별도 문단으로 만들고, 매달림 들여쓰기(marL/indent)를 줘서
+          // 한 항목의 글이 길어 줄바꿈돼도 다음 줄이 ▪ 자리가 아니라 글자 시작 위치에 맞춰지게 함
+          const pPr = '<a:pPr marL="182880" indent="-182880"/>';
+          const paras = finalLines.map(line=>
+            `<a:p>${pPr}<a:r>${rPr}<a:t>${escXml('▪ '+line)}</a:t></a:r></a:p>`
+          ).join('');
+          const pOpenIdx = xml.lastIndexOf('<a:p>', rOpenIdx);
+          const pCloseIdx = xml.indexOf('</a:p>', rCloseIdx) + '</a:p>'.length;
+          out = xml.slice(0, pOpenIdx) + paras + xml.slice(pCloseIdx);
+          resetAutofitFrom = pOpenIdx;
+        } else {
+          // 불릿이 아닌 일반 여러 줄: 한 문단 안에서 줄바꿈(<a:br/>)로 처리
+          // 줄바꿈에도 본문과 똑같은 서식(rPr)을 넣어줘야 줄 간격이 앞줄과 어긋나지 않음
+          const runs = finalLines.map((line,idx)=>{
+            const br = idx>0 ? `<a:br>${rPr}</a:br>` : '';
+            return br + `<a:r>${rPr}<a:t>${escXml(line)}</a:t></a:r>`;
+          }).join('');
+          out = xml.slice(0, rOpenIdx) + runs + xml.slice(rCloseIdx);
+          resetAutofitFrom = rOpenIdx;
+        }
         if(finalLines.length > 1){
-          const txBodyStart = out.lastIndexOf('<p:txBody>', rOpenIdx);
+          // 자리표시자 문구 기준으로 굳어있던 PowerPoint 자동맞춤 축소값을 지워서, 실제 글자 수에 맞게 다시 계산하게 함
+          const txBodyStart = out.lastIndexOf('<p:txBody>', resetAutofitFrom);
           if(txBodyStart!==-1){
             const bodyPrOpen = out.indexOf('<a:bodyPr', txBodyStart);
             const bodyPrClose = out.indexOf('</a:bodyPr>', bodyPrOpen);
             const bodyPrSelfClose = out.indexOf('/>', bodyPrOpen);
             const bodyPrEnd = (bodyPrClose!==-1 && (bodyPrSelfClose===-1 || bodyPrClose < bodyPrSelfClose)) ? bodyPrClose+'</a:bodyPr>'.length : bodyPrSelfClose+2;
-            if(bodyPrOpen!==-1 && bodyPrOpen < rOpenIdx){
+            if(bodyPrOpen!==-1 && bodyPrOpen < resetAutofitFrom){
               let bodyPrSeg = out.slice(bodyPrOpen, bodyPrEnd);
               const cleaned = bodyPrSeg.replace(/<a:normAutofit[^/]*\/>/, '<a:normAutofit/>');
               if(cleaned !== bodyPrSeg){
@@ -6849,6 +6886,8 @@ function tbmAdminTabHtml(isAdmin){
         </select>
       </div>
       <button class="btn btn-sm btn-primary" id="tbmPrintBtn">📥 ${t('tbm_print_btn')}</button>
+      <button class="btn btn-sm" id="tbmPrintAllBtn" style="margin-left:6px;">📥 선택한 날짜 전체 공정·교대 한 번에 다운로드</button>
+      <p class="hint" id="tbmPrintAllStatus" style="margin:8px 0 0;"></p>
     </div>
     ` : ''}
   `;
@@ -6977,6 +7016,39 @@ function bindTbmAdminTabEvents(isAdmin){
     if(!dateStr || !process || !shift){ toast(t('toast_fill_required')); return; }
     generateTbmXlsx(dateStr, process, shift);
   });
+
+  const printAllBtn = document.getElementById('tbmPrintAllBtn');
+  if(printAllBtn){
+    printAllBtn.addEventListener('click', ()=>{
+      const dateStr = document.getElementById('tbmPrintDate').value;
+      if(!dateStr){ toast(t('toast_fill_required')); return; }
+      const statusEl = document.getElementById('tbmPrintAllStatus');
+      const testMode = isAdmin && State.tbmTestMode;
+      // 그날 실제로 기록이 있는 공정×교대 조합만 추려서, 빈 파일까지 만들지 않게 함
+      const combos = [];
+      PROCESS_OPTIONS.forEach(process=>{
+        TBM_SHIFT_OPTIONS.forEach(shift=>{
+          if(tbmRecordsOn(dateStr, process, shift, testMode).length > 0) combos.push({process, shift});
+        });
+      });
+      if(combos.length===0){ toast('선택한 날짜에 기록이 있는 공정·교대가 없습니다'); return; }
+      printAllBtn.disabled = true;
+      let i = 0;
+      function next(){
+        if(i >= combos.length){
+          printAllBtn.disabled = false;
+          statusEl.textContent = `${combos.length}건 다운로드 완료`;
+          return;
+        }
+        const {process, shift} = combos[i];
+        statusEl.textContent = `다운로드 중... (${i+1}/${combos.length}) ${process} · ${t('tbm_shift_'+(shift==='주간'?'day':'night'))}`;
+        generateTbmXlsx(dateStr, process, shift);
+        i++;
+        setTimeout(next, 400); // 브라우저가 한꺼번에 여러 파일 다운로드를 막지 않도록 살짝 간격을 둠
+      }
+      next();
+    });
+  }
 }
 
 /* ============================================================
@@ -7440,6 +7512,8 @@ function openSuggestionModal(existing){
         return;
       }
       if(file) data.photoSize = file.size;
+    } else if(sugPhotoInput.dataset.removed==='1'){
+      data.photo = ''; data.photoSize = null;
     }
     if(isEdit){
       await DataStore.update(PATHS.suggestions, existing.id, data);
@@ -7624,6 +7698,8 @@ function openBugModal(existing){
         return;
       }
       if(file) data.screenshotSize = file.size;
+    } else if(bugScreenshotInput.dataset.removed==='1'){
+      data.screenshot = ''; data.screenshotSize = null;
     }
     if(isEdit){
       await DataStore.update(PATHS.bugReports, existing.id, data);
