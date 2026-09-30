@@ -3475,12 +3475,12 @@ function renderRisksResults(){
     <tr>
       ${isManager?`<td class="tight"><input type="checkbox" class="risk-row-check" data-risk-id="${r.id}"></td>`:''}
       <td class="cell-strong">${newBadge(r, PATHS.risks)}${esc(r.process||'-')}<div class="cell-sub">${esc(r.task||'')}</div></td>
-      <td>${esc(r.hazard||'-')}</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.hazard||'-')}">${esc(r.hazard||'-')}</td>
       <td class="tight mono">${r.frequency||0}</td>
       <td class="tight mono">${r.severity||0}</td>
       <td class="tight">${riskLevelBadge(r)}</td>
       <td class="tight">${(r.afterFrequency && r.afterSeverity) ? riskLevelBadge({frequency:r.afterFrequency, severity:r.afterSeverity}) : '<span style="color:var(--ink-faint);font-size:11.5px;">-</span>'}</td>
-      <td>${esc(r.measures||'-')}</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.measures||'-')}">${esc(r.measures||'-')}</td>
       <td>${riskThumb(r.photoBefore)}</td>
       <td>${riskThumb(r.photoAfter)}</td>
       ${isManager?`<td>${esc(r.reporter||'-')}</td>`:''}
@@ -3935,8 +3935,8 @@ function openRiskModal(existing){
 
     const photoBeforeInput = document.getElementById('f_photoBefore');
     const photoBeforeFile = photoBeforeInput.files[0];
-    if(photoBeforeFile){
-      if(photoBeforeFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+    if(photoBeforeInput.dataset.uploadedUrl || photoBeforeFile){
+      if(photoBeforeFile && photoBeforeFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       try{
         data.photoBefore = photoBeforeInput.dataset.uploadedUrl || await uploadFileToStorage(await compressImageFile(photoBeforeFile), 'risk-photos');
       }catch(err){
@@ -3944,13 +3944,13 @@ function openRiskModal(existing){
         toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
         return;
       }
-      data.photoBeforeSize = photoBeforeFile.size;
+      if(photoBeforeFile) data.photoBeforeSize = photoBeforeFile.size;
     }
     const photoAfterInput = document.getElementById('f_photoAfter');
     if(photoAfterInput){
       const photoAfterFile = photoAfterInput.files[0];
-      if(photoAfterFile){
-        if(photoAfterFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+      if(photoAfterInput.dataset.uploadedUrl || photoAfterFile){
+        if(photoAfterFile && photoAfterFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
         try{
           data.photoAfter = photoAfterInput.dataset.uploadedUrl || await uploadFileToStorage(await compressImageFile(photoAfterFile), 'risk-photos');
         }catch(err){
@@ -3958,7 +3958,7 @@ function openRiskModal(existing){
           toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
           return;
         }
-        data.photoAfterSize = photoAfterFile.size;
+        if(photoAfterFile) data.photoAfterSize = photoAfterFile.size;
       }
     }
 
@@ -4478,8 +4478,8 @@ function openNearMissModal(existing){
     };
     const photoInput = document.getElementById('f_nmPhoto');
     const photoFile = photoInput.files[0];
-    if(photoFile){
-      if(photoFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+    if(photoInput.dataset.uploadedUrl || photoFile){
+      if(photoFile && photoFile.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       try{
         data.photo = photoInput.dataset.uploadedUrl || await uploadFileToStorage(await compressImageFile(photoFile), 'nearmiss-photos');
       }catch(err){
@@ -4487,7 +4487,7 @@ function openNearMissModal(existing){
         toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
         return;
       }
-      data.photoSize = photoFile.size;
+      if(photoFile) data.photoSize = photoFile.size;
     }
     if(State.mode==='admin'){
       data.status = document.getElementById('f_nmStatus').value;
@@ -4707,8 +4707,8 @@ function openIncidentModal(existing){
     };
     const photo1Input = document.getElementById('f_incPhoto1');
     const photo1File = photo1Input.files[0];
-    if(photo1File){
-      if(photo1File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+    if(photo1Input.dataset.uploadedUrl || photo1File){
+      if(photo1File && photo1File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       try{
         data.photo1 = photo1Input.dataset.uploadedUrl || await uploadFileToStorage(await compressImageFile(photo1File), 'incident-photos');
       }catch(err){
@@ -4716,12 +4716,12 @@ function openIncidentModal(existing){
         toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
         return;
       }
-      data.photo1Size = photo1File.size;
+      if(photo1File) data.photo1Size = photo1File.size;
     }
     const photo2Input = document.getElementById('f_incPhoto2');
     const photo2File = photo2Input.files[0];
-    if(photo2File){
-      if(photo2File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+    if(photo2Input.dataset.uploadedUrl || photo2File){
+      if(photo2File && photo2File.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       try{
         data.photo2 = photo2Input.dataset.uploadedUrl || await uploadFileToStorage(await compressImageFile(photo2File), 'incident-photos');
       }catch(err){
@@ -4729,7 +4729,7 @@ function openIncidentModal(existing){
         toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
         return;
       }
-      data.photo2Size = photo2File.size;
+      if(photo2File) data.photo2Size = photo2File.size;
     }
     if(isManager){
       data.status = document.getElementById('f_status').value;
@@ -5379,12 +5379,31 @@ async function generateIncidentReportPptx(i){
         const rPr = extractRPr(xml.slice(rOpenIdx, tOpenIdx));
         const lines = String(text||'').split('\n').filter(l=>l.trim()!=='');
         const finalLines = lines.length ? lines : [''];
+        // 줄바꿈(<a:br/>)에도 본문과 똑같은 서식(rPr)을 넣어줘야, 줄 간격이 앞줄과 어긋나지 않음
+        // (자리표시자 문구 기준으로 굳어있던 자동맞춤 축소값도 같이 지워서 PowerPoint가 실제 글자 수에 맞게 다시 계산하게 함)
         const runs = finalLines.map((line,idx)=>{
-          const br = idx>0 ? '<a:br/>' : '';
+          const br = idx>0 ? `<a:br>${rPr}</a:br>` : '';
           const prefixed = bullet ? ('▪ ' + line) : line;
           return br + `<a:r>${rPr}<a:t>${escXml(prefixed)}</a:t></a:r>`;
         }).join('');
-        return xml.slice(0, rOpenIdx) + runs + xml.slice(rCloseIdx);
+        let out = xml.slice(0, rOpenIdx) + runs + xml.slice(rCloseIdx);
+        if(finalLines.length > 1){
+          const txBodyStart = out.lastIndexOf('<p:txBody>', rOpenIdx);
+          if(txBodyStart!==-1){
+            const bodyPrOpen = out.indexOf('<a:bodyPr', txBodyStart);
+            const bodyPrClose = out.indexOf('</a:bodyPr>', bodyPrOpen);
+            const bodyPrSelfClose = out.indexOf('/>', bodyPrOpen);
+            const bodyPrEnd = (bodyPrClose!==-1 && (bodyPrSelfClose===-1 || bodyPrClose < bodyPrSelfClose)) ? bodyPrClose+'</a:bodyPr>'.length : bodyPrSelfClose+2;
+            if(bodyPrOpen!==-1 && bodyPrOpen < rOpenIdx){
+              let bodyPrSeg = out.slice(bodyPrOpen, bodyPrEnd);
+              const cleaned = bodyPrSeg.replace(/<a:normAutofit[^/]*\/>/, '<a:normAutofit/>');
+              if(cleaned !== bodyPrSeg){
+                out = out.slice(0, bodyPrOpen) + cleaned + out.slice(bodyPrEnd);
+              }
+            }
+          }
+        }
+        return out;
       }
       const localIdx = tContent.indexOf(marker);
       const before = tContent.slice(0, localIdx);
@@ -5534,7 +5553,7 @@ async function generateIncidentReportPptx(i){
       const ids = CHECKLIST_ID_MAP[cat];
       RPT_CHECKLIST[cat].forEach((item, idx)=>{
         const val = checklist[cat+'_'+idx] || '-';
-        const isBad = val==='X';
+        const isBad = val==='X' || val==='△'; // 미흡(△)도 불량(X)처럼 빨간색으로 표시
         s3 = injectChecklistValue(s3, ids.checkbox[idx], val, isBad);
         s3 = injectLabelColor(s3, ids.label[idx], isBad);
       });
@@ -6062,6 +6081,10 @@ function tbmDeadline(shift){
 function tbmIsPastDeadline(shift){
   return currentTimeStr() > tbmDeadline(shift);
 }
+// 야간 TBM은 20시부터 시작 — 그 전에는 서명 자체를 막음(주간은 시작 전 제한이 딱히 필요 없어서 안 건드림)
+function tbmBeforeStart(shift){
+  return shift==='야간' && currentTimeStr() < '20:00';
+}
 function tbmRecordsOn(dateStr, process, shift, includeTest){
   return objToArr(DataStore.get(PATHS.tbm)).filter(r=>
     r.date===dateStr && (!process || r.process===process) && (!shift || r.shift===shift) && (includeTest || !r.isTest)
@@ -6221,6 +6244,7 @@ function tbmMainTabHtml({ preview }){
   const selectedShift = State.tbmShift || '';
   const deadline = tbmDeadline(selectedShift);
   const pastDeadline = tbmIsPastDeadline(selectedShift);
+  const beforeStart = tbmBeforeStart(selectedShift);
   const content = tbmTodayContent();
   const testMode = isAdmin && State.tbmTestMode;
 
@@ -6310,6 +6334,11 @@ function tbmMainTabHtml({ preview }){
           <div class="empty" style="padding:14px 0;">
             <span class="big">${icon('siren',20)}</span>
             ${t('tbm_deadline_passed').replace('{time}', esc(deadline))}
+          </div>
+        ` : beforeStart ? `
+          <div class="empty" style="padding:14px 0;">
+            <span class="big">${icon('siren',20)}</span>
+            야간 TBM은 20:00부터 서명할 수 있습니다.
           </div>
         ` : `
           <div class="field"><label>${t('lbl_name')} *</label><input type="text" id="tbmNameInput" placeholder="${t('tbm_name_placeholder')}"></div>
@@ -7401,8 +7430,8 @@ function openSuggestionModal(existing){
     if(!data.title || !data.content || !reporterName){ toast(t('toast_fill_required')); return; }
     const sugPhotoInput = document.getElementById('f_sugPhoto');
     const file = sugPhotoInput.files[0];
-    if(file){
-      if(file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+    if(sugPhotoInput.dataset.uploadedUrl || file){
+      if(file && file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       try{
         data.photo = sugPhotoInput.dataset.uploadedUrl || await uploadFileToStorage(await compressImageFile(file), 'suggestion-photos');
       }catch(err){
@@ -7410,7 +7439,7 @@ function openSuggestionModal(existing){
         toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
         return;
       }
-      data.photoSize = file.size;
+      if(file) data.photoSize = file.size;
     }
     if(isEdit){
       await DataStore.update(PATHS.suggestions, existing.id, data);
@@ -7585,8 +7614,8 @@ function openBugModal(existing){
     const data = { title, content, process: document.getElementById('f_bugProcess').value };
     const bugScreenshotInput = document.getElementById('f_bugScreenshot');
     const file = bugScreenshotInput.files[0];
-    if(file){
-      if(file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
+    if(bugScreenshotInput.dataset.uploadedUrl || file){
+      if(file && file.size > 5*1024*1024){ toast(t('toast_photo_toobig')); return; }
       try{
         data.screenshot = bugScreenshotInput.dataset.uploadedUrl || await uploadFileToStorage(file, 'bug-screenshots');
       }catch(err){
@@ -7594,7 +7623,7 @@ function openBugModal(existing){
         toast('사진 업로드에 실패해 저장이 중단되었습니다. 사진을 jpg·png 파일로 바꾸거나 사진 없이 다시 저장해보세요.');
         return;
       }
-      data.screenshotSize = file.size;
+      if(file) data.screenshotSize = file.size;
     }
     if(isEdit){
       await DataStore.update(PATHS.bugReports, existing.id, data);
