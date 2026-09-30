@@ -4856,7 +4856,8 @@ function openIncidentDetail(id){
     </div>
     <div class="modal-foot">
       ${linkedRisk ? `<button class="btn" id="viewLinkedRiskBtn">${t('btn_view_linked_risk')}</button>` : ''}
-      ${isAdmin ? `<button class="btn btn-primary" id="reportBtn">📋 정식 보고서 작성</button>` : ''}
+      ${isAdmin ? `<button class="btn btn-primary" id="reportBtn">📋 정식 보고서 ${i.reportNarrative?'수정':'작성'}</button>` : ''}
+      ${(isAdmin && i.reportNarrative) ? `<button class="btn" id="reportDownloadBtn">📥 PPT 다운로드</button>` : ''}
       ${isAdmin ? `<button class="btn" id="delBtn">${t('btn_delete')}</button>` : ''}
       ${canEdit ? `<button class="btn" id="editBtn">${t('btn_process_edit')}</button>` : ''}
       ${(State.mode==='user' && i.status==='접수' && getMyOwnedIds('isc_my_incidents').includes(id)) ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
@@ -4888,6 +4889,20 @@ function openIncidentDetail(id){
   }
   if(document.getElementById('reportBtn')){
     document.getElementById('reportBtn').addEventListener('click', ()=>{ closeModal(); openIncidentReportModal(i); });
+  }
+  const reportDownloadBtn = document.getElementById('reportDownloadBtn');
+  if(reportDownloadBtn){
+    reportDownloadBtn.addEventListener('click', async ()=>{
+      reportDownloadBtn.disabled = true;
+      try{
+        await generateIncidentReportPptx(i);
+        toast('PPT 파일이 다운로드되었습니다');
+      }catch(err){
+        console.error('보고서 다운로드 오류:', err);
+        alert('다운로드 중 오류가 발생했습니다.\n\n[오류 내용]\n' + (err&&err.message?err.message:String(err)));
+      }
+      reportDownloadBtn.disabled = false;
+    });
   }
   if(linkedRisk){
     document.getElementById('viewLinkedRiskBtn').addEventListener('click', ()=>{ closeModal(); openRiskDetail(linkedRisk.id); });
@@ -5197,8 +5212,7 @@ function openIncidentReportModal(incident){
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>${t('btn_cancel')}</button>
-      <button class="btn" id="rptSaveBtn">저장</button>
-      <button class="btn btn-primary" id="rptDownloadBtn">📥 PPT 다운로드</button>
+      <button class="btn btn-primary" id="rptSaveBtn">저장</button>
     </div>
   `);
 
@@ -5344,21 +5358,6 @@ function openIncidentReportModal(incident){
       alert('저장 중 오류가 발생했습니다.\n\n[오류 내용]\n' + (err&&err.message?err.message:String(err)));
     }
   });
-
-  document.getElementById('rptDownloadBtn').addEventListener('click', async ()=>{
-    try{
-      const data = collectReportData();
-      if(!data.reportTitle || !data.reportNarrative){
-        toast('보고서 부제와 사고내용은 입력해주세요'); return;
-      }
-      await DataStore.update(PATHS.incidents, i.id, data);
-      await generateIncidentReportPptx(Object.assign({}, i, data));
-      toast('PPT 파일이 다운로드되었습니다');
-    }catch(err){
-      console.error('보고서 다운로드 오류:', err);
-      alert('다운로드 중 오류가 발생했습니다.\n\n[오류 내용]\n' + (err&&err.message?err.message:String(err)));
-    }
-  });
 }
 
 async function generateIncidentReportPptx(i){
@@ -5405,7 +5404,7 @@ async function generateIncidentReportPptx(i){
         if(bullet){
           // 글머리 기호(▪)는 항목마다 별도 문단으로 만들고, 매달림 들여쓰기(marL/indent)를 줘서
           // 한 항목의 글이 길어 줄바꿈돼도 다음 줄이 ▪ 자리가 아니라 글자 시작 위치에 맞춰지게 함
-          const pPr = '<a:pPr marL="182880" indent="-182880"/>';
+          const pPr = '<a:pPr marL="182880" indent="-182880"><a:spcBef><a:spcPts val="300"/></a:spcBef><a:buNone/></a:pPr>';
           const paras = finalLines.map(line=>
             `<a:p>${pPr}<a:r>${rPr}<a:t>${escXml('▪ '+line)}</a:t></a:r></a:p>`
           ).join('');
