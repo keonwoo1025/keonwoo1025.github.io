@@ -9110,8 +9110,16 @@ function openS5SBulkImportModal(){
           }
         }
         if(headerRowIdx===-1) return; // 이 시트엔 표가 없음 — 건너뜀
+        // sheet_to_json의 배열 순서(A열이 비어있으면 B열부터 0번)와, 사진이 박혀있는 실제 엑셀 절대 열 번호(A=0)가
+        // 서로 달라서 그대로 비교하면 한 칸씩 밀려 "개선 전/후"가 뒤바뀌는 문제가 있었음 — 실제 시작 열만큼 보정해줌
+        const usedRange = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+        const colOffset = usedRange ? usedRange.s.c : 0;
         const validRows = new Set();
-        sheetColInfo[sheetName] = { photoBeforeCol: colIdx.photoBefore, photoAfterCol: colIdx.photoAfter, validRows };
+        sheetColInfo[sheetName] = {
+          photoBeforeCol: colIdx.photoBefore!=null ? colIdx.photoBefore+colOffset : null,
+          photoAfterCol: colIdx.photoAfter!=null ? colIdx.photoAfter+colOffset : null,
+          validRows,
+        };
         for(let r=headerRowIdx+1;r<aoa.length;r++){
           const row = aoa[r]||[];
           const location = (row[colIdx.location]||'').toString().trim();
