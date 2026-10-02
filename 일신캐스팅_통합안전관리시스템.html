@@ -8985,8 +8985,14 @@ function extractS5SExcelImages(buf, sheetColInfo){
       const drawingDoc = readXml(drawingPath);
       const drawingRelsDoc = readXml(relsPathFor(drawingPath));
       if(!drawingDoc || !drawingRelsDoc) continue;
-      const { photoBeforeCol, photoAfterCol } = sheetColInfo[name];
-      const anchors = drawingDoc.getElementsByTagNameNS(XDR_NS,'twoCellAnchor');
+      const { photoBeforeCol, photoAfterCol, validRows } = sheetColInfo[name];
+      // 사진을 셀 두 개에 걸쳐 고정(twoCellAnchor)해뒀든, 한 셀 기준으로만 고정(oneCellAnchor)해뒀든 둘 다 처리
+      const anchors = [
+        ...Array.from(drawingDoc.getElementsByTagNameNS(XDR_NS,'twoCellAnchor')),
+        ...Array.from(drawingDoc.getElementsByTagNameNS(XDR_NS,'oneCellAnchor')),
+      ];
+      // 1단계: 사진 후보를 전부 모으기만 함 (정확한 줄 배정은 2단계에서)
+      const candidates = [];
       for(let k=0;k<anchors.length;k++){
         const anchor = anchors[k];
         const pics = anchor.getElementsByTagNameNS(XDR_NS,'pic');
@@ -8998,7 +9004,11 @@ function extractS5SExcelImages(buf, sheetColInfo){
         if(!colEl || !rowEl) continue;
         const col = parseInt(colEl.textContent, 10);
         const excelRow = parseInt(rowEl.textContent, 10) + 1; // 0-indexed -> 1-indexed
-        if(col!==photoBeforeCol && col!==photoAfterCol) continue;
+        const distBefore = photoBeforeCol!=null ? Math.abs(col-photoBeforeCol) : Infinity;
+        const distAfter = photoAfterCol!=null ? Math.abs(col-photoAfterCol) : Infinity;
+        const minDist = Math.min(distBefore, distAfter);
+        if(minDist > 3) continue; // 로고 등 전혀 엉뚱한 칸은 사진이 아니라고 보고 건너뜀
+        const isBefore = distBefore <= distAfter;
         const blip = anchor.getElementsByTagNameNS(A_NS,'blip')[0];
         if(!blip) continue;
         const embedId = blip.getAttributeNS(R_NS,'embed') || blip.getAttribute('r:embed');
@@ -9009,11 +9019,34 @@ function extractS5SExcelImages(buf, sheetColInfo){
         const ext = mediaPath.split('.').pop().toLowerCase();
         const mime = ext==='png' ? 'image/png' : ext==='svg' ? 'image/svg+xml' : 'image/jpeg';
         const blob = new Blob([mediaFile.asUint8Array()], { type: mime });
-        const key = `${name}:${excelRow}`;
-        if(!result[key]) result[key] = {};
-        if(col===photoBeforeCol) result[key].before = blob;
-        else result[key].after = blob;
+        // 회전(180도 등)된 사진은 Excel이 셀 위치를 살짝 다르게 기록해두는 경우가 있어서,
+        // 칸 거리 패널티를 약간 덜 주어 "가까운 빈 자리"를 더 적극적으로 찾게 함
+        const rotEl = anchor.getElementsByTagNameNS(A_NS,'xfrm')[0];
+        const rotated = rotEl && rotEl.getAttribute('rot') && rotEl.getAttribute('rot')!=='0';
+        candidates.push({ excelRow, isBefore, blob, minDist, rotated });
       }
+      // 2단계: 제자리부터 채우고, 이미 차있으면 바로 위/아래 줄의 같은 빈 자리를 찾아 배정
+      // (사진이 회전돼 있으면 셀 위치가 한 줄 정도 어긋나 기록되는 경우가 있어서, 이 보정이 필요함)
+      candidates.sort((a,b)=> (a.minDist-b.minDist) || (a.rotated?1:0)-(b.rotated?1:0));
+      candidates.forEach(c=>{
+        const mySlot = c.isBefore ? 'before' : 'after';
+        const otherSlot = c.isBefore ? 'after' : 'before';
+        // 순서대로 시도: ①제자리 ②같은 줄의 반대 칸(같은 자리에 2장 겹쳐있던 경우) ③아래·위 줄의 같은 칸(회전된 사진이 한 줄 어긋나 기록된 경우) ④아래·위 줄의 반대 칸(최후)
+        // — 실제로 데이터가 있는 줄(validRows)에만 배정하고, 없는 줄을 새로 만들어내지는 않음
+        const tries = [
+          [0, mySlot], [0, otherSlot],
+          [1, mySlot], [-1, mySlot],
+          [1, otherSlot], [-1, otherSlot],
+        ];
+        for(const [off, slot] of tries){
+          const targetRow = c.excelRow+off;
+          if(!validRows.has(targetRow)) continue;
+          const key = `${name}:${targetRow}`;
+          if(!result[key]) result[key] = {};
+          if(!result[key][slot]){ result[key][slot] = c.blob; return; }
+        }
+        // 전부 차있으면(흔치 않음) 포기 — 기존 것을 덮어쓰지 않음
+      });
     }
   }catch(err){ console.error('이미지 추출 중 오류:', err); }
   return result;
@@ -9077,12 +9110,14 @@ function openS5SBulkImportModal(){
           }
         }
         if(headerRowIdx===-1) return; // 이 시트엔 표가 없음 — 건너뜀
-        sheetColInfo[sheetName] = { photoBeforeCol: colIdx.photoBefore, photoAfterCol: colIdx.photoAfter };
+        const validRows = new Set();
+        sheetColInfo[sheetName] = { photoBeforeCol: colIdx.photoBefore, photoAfterCol: colIdx.photoAfter, validRows };
         for(let r=headerRowIdx+1;r<aoa.length;r++){
           const row = aoa[r]||[];
           const location = (row[colIdx.location]||'').toString().trim();
           if(!location) continue; // 빈 줄은 건너뜀
           const completedDate = colIdx.completedDate!=null ? (row[colIdx.completedDate]||'').toString().trim() : '';
+          validRows.add(r+1);
           parsedRows.push({
             sheet: sheetName,
             excelRow: r+1, // 1-indexed 엑셀 행번호 (이미지 위치와 맞추기 위함)
