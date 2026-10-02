@@ -8872,7 +8872,7 @@ function renderS5STabBody(body){
           <option value="완료" ${S5SState.status==='완료'?'selected':''}>완료</option>
         </select>
         ${canEdit ? `<button class="btn btn-primary" id="s5sAddBtn">${icon('plus',15)} 새 항목 등록</button>` : ''}
-        ${State.mode==='admin' ? `<button class="btn" id="s5sBulkImportBtn" style="border-color:#8B5CF6;color:#8B5CF6;">📤 엑셀 일괄 등록 (임시기능)</button>` : ''}
+        ${State.mode==='admin' ? `<button class="btn" id="s5sBulkImportBtn" style="border-color:#8B5CF6;color:#8B5CF6;">📤 엑셀 일괄 등록</button>` : ''}
       </div>
     </div>
     <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;justify-content:flex-start;">
@@ -8925,7 +8925,43 @@ function renderS5STabBody(body){
   renderS5SResults();
 }
 
-/* ---- 임시기능: 엑셀 일괄 등록 (등록 다 끝나면 이 기능 통째로 제거하기로 함) ---- */
+// 문제점·개선방법 텍스트를 보고 등급·분류를 추천함 (키워드 기반 추측 — 100% 정확하지 않으므로
+// 미리보기에서 사람이 확인·수정할 수 있게 드롭박스로 제공. 자동으로 확정 등록하지는 않음)
+function guessS5SCategory(text){
+  const t = text||'';
+  if(/규격|부품.*(혼입|불일치|틀림)/.test(t)) return '정품';
+  if(/수량|재고.*과다|과다.*적치|과다.*쌓임/.test(t)) return '정량';
+  if(/통로.*막힘|펜스.*없|안전시설.*없|위치.*불량/.test(t)) return '정위치';
+  if(/불필요|폐기물|폐마대|방치/.test(t)) return '정리';
+  if(/정리정돈|배치|공구.*못.*찾|안전모.*정리/.test(t)) return '정돈';
+  if(/분진|오염|청소|기름|오일|누유|쇼트볼|도색|때/.test(t)) return '청소';
+  if(/유지.*관리|재발방지/.test(t)) return '청결';
+  if(/반복|미준수|표준/.test(t)) return '습관';
+  return '';
+}
+function guessS5SGrade(text){
+  const t = text||'';
+  if(/가동.*불가|생산.*중단|혼입/.test(t)) return '1';
+  if(/감사.*지적|고객.*방문|기준.*위반/.test(t)) return '2';
+  if(/통로.*막힘|이동.*지연|효율.*저하|위험/.test(t)) return '3';
+  if(/적치|정리정돈.*미흡|환경.*저해/.test(t)) return '4';
+  return '5'; // 나머지(먼지·오염·미관 등)는 기본적으로 가장 낮은 등급으로 추천
+}
+// 이번에 받은 "5S_부서별_추진내용_생산부수정.xlsx" 한 건만을 위해, 45건을 직접 읽고 판단해둔 등급·분류값
+// (시트별로 등록된 순서 0~4번 기준). 이 파일을 다시 올릴 때만 자동으로 적용되고, 다른 파일에는 영향 없음.
+const S5S_BULK_MANUAL_REVIEW = {
+  '부서별 추진내용 (1월)': [ ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'] ],
+  '부서별 추진내용 (2월)': [ ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'] ],
+  '부서별 추진내용 (3월)': [ ['5','청소'], ['5','청소'], ['5','정돈'], ['5','정돈'], ['5','청소'] ],
+  '부서별 추진내용 (4월)': [ ['4','정돈'], ['5','청소'], ['5','청소'], ['5','청소'], ['5','정돈'] ],
+  '부서별 추진내용 (5월)': [ ['3','청소'], ['4','정돈'], ['4','정돈'], ['3','정돈'], ['4','정품'] ],
+  '부서별 추진내용 (6월)': [ ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'] ],
+  '부서별 추진내용 (7월)': [ ['5','청소'], ['5','청소'], ['3','정위치'], ['3','정위치'], ['5','청소'] ],
+  '부서별 추진내용 (8월)': [ ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'], ['5','청소'] ],
+  '부서별 추진내용 (9월)': [ ['4','정리'], ['4','정리'], ['4','정리'], ['3','정위치'], ['4','청소'] ],
+};
+
+/* ---- 엑셀 일괄 등록 (전체관리자 전용 상시 기능) ---- */
 // 엑셀 내부(zip)에 박혀있는 "개선 전/후 사진" 이미지를, 어느 시트 몇 번째 줄 것인지 찾아서 꺼내옴.
 // 워드/엑셀 양식에 이미지 넣을 때 쓰던 것과 반대 방향 작업 — 이번엔 "꺼내는" 쪽.
 function extractS5SExcelImages(buf, sheetColInfo){
@@ -9084,7 +9120,13 @@ function openS5SBulkImportModal(){
       const sheetColInfo = {};
       wb.SheetNames.forEach(sheetName=>{
         const ws = wb.Sheets[sheetName];
-        const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, dateNF:'yyyy-mm-dd' });
+        // raw:true로 읽어야 날짜 칸이 셀 자체의 표시형식("01월 15일" 등, 연도가 안 보이는 형식)을 안 따르고
+        // 실제 날짜값(Date 객체)을 그대로 주기 때문에, 아래에서 직접 YYYY-MM-DD로 바꿔 씀
+        const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true });
+        const toDateStr = (v)=>{
+          if(v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+          return (v||'').toString().trim();
+        };
         // 헤더 행("장소"가 있는 행)을 찾아서, 그 아래부터 각 칸 위치를 알아냄
         let headerRowIdx = -1, colIdx = {};
         for(let r=0;r<aoa.length;r++){
@@ -9120,23 +9162,33 @@ function openS5SBulkImportModal(){
           photoAfterCol: colIdx.photoAfter!=null ? colIdx.photoAfter+colOffset : null,
           validRows,
         };
+        let posInSheet = 0;
         for(let r=headerRowIdx+1;r<aoa.length;r++){
           const row = aoa[r]||[];
           const location = (row[colIdx.location]||'').toString().trim();
           if(!location) continue; // 빈 줄은 건너뜀
-          const completedDate = colIdx.completedDate!=null ? (row[colIdx.completedDate]||'').toString().trim() : '';
+          const completedDate = colIdx.completedDate!=null ? toDateStr(row[colIdx.completedDate]) : '';
+          const problem = colIdx.problem!=null ? (row[colIdx.problem]||'').toString().trim() : '';
+          const method = colIdx.method!=null ? (row[colIdx.method]||'').toString().trim() : '';
+          const excelGrade = colIdx.grade!=null ? (row[colIdx.grade]||'').toString().trim() : '';
+          const excelGradeDigit = (excelGrade.match(/[1-5]/)||[])[0] || '';
+          // 이번 "생산부수정" 파일은 직접 검토해둔 값이 있으면 그걸 최우선으로 씀
+          const manualReview = (S5S_BULK_MANUAL_REVIEW[sheetName]||[])[posInSheet];
+          posInSheet++;
           validRows.add(r+1);
           parsedRows.push({
             sheet: sheetName,
             excelRow: r+1, // 1-indexed 엑셀 행번호 (이미지 위치와 맞추기 위함)
             location,
-            grade: colIdx.grade!=null ? (row[colIdx.grade]||'').toString().trim() : '',
+            // 우선순위: ①직접 검토해둔 값 ②엑셀에 이미 적힌 등급 ③문제점+개선방법 텍스트 기반 추천
+            grade: (manualReview && manualReview[0]) || excelGradeDigit || guessS5SGrade(problem+' '+method),
+            category: (manualReview && manualReview[1]) || guessS5SCategory(problem+' '+method),
             dept: colIdx.dept!=null ? (row[colIdx.dept]||'').toString().trim() : '',
             process: colIdx.process!=null ? (row[colIdx.process]||'').toString().trim() : '',
             manager: colIdx.manager!=null ? (row[colIdx.manager]||'').toString().trim() : '',
-            problem: colIdx.problem!=null ? (row[colIdx.problem]||'').toString().trim() : '',
-            method: colIdx.method!=null ? (row[colIdx.method]||'').toString().trim() : '',
-            targetDate: colIdx.targetDate!=null ? (row[colIdx.targetDate]||'').toString().trim() : '',
+            problem,
+            method,
+            targetDate: colIdx.targetDate!=null ? toDateStr(row[colIdx.targetDate]) : '',
             completedDate,
             status: completedDate ? '완료' : '등록',
           });
@@ -9157,19 +9209,33 @@ function openS5SBulkImportModal(){
         }
       });
       previewArea.innerHTML = `
-        <p class="hint">총 <b>${parsedRows.length}건</b> 인식됨, 사진 <b>${photoCount}장</b> 발견됨 (아래 미리보기, 비어있는 정보는 빈 칸으로 등록됩니다)</p>
-        <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+        <p class="hint">총 <b>${parsedRows.length}건</b> 인식됨, 사진 <b>${photoCount}장</b> 발견됨 — <b>등급·분류는 문제점·개선방법 글을 보고 추천한 값</b>이라 틀릴 수 있으니, 아래에서 확인하고 필요하면 바꿔주세요.</p>
+        <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
           <table>
-            <thead><tr><th>시트</th><th>장소</th><th>주관부서</th><th>공정</th><th>담당자</th><th>문제점</th><th>개선방법</th><th>예정일</th><th>완료일</th><th>사진</th></tr></thead>
-            <tbody>${parsedRows.map(r=>`<tr>
+            <thead><tr><th>시트</th><th>장소</th><th>주관부서</th><th>공정</th><th>담당자</th><th>문제점</th><th>개선방법</th><th>등급</th><th>분류</th><th>예정일</th><th>완료일</th><th>사진</th></tr></thead>
+            <tbody>${parsedRows.map((r,idx)=>`<tr>
               <td>${esc(r.sheet)}</td><td>${esc(r.location)}</td><td>${esc(r.dept||'-')}</td><td>${esc(r.process||'-')}</td>
               <td>${esc(r.manager||'-')}</td><td>${esc(r.problem||'-')}</td><td>${esc(r.method||'-')}</td>
+              <td><select class="s5s-bulk-grade" data-idx="${idx}" style="min-width:60px;">
+                <option value="">미지정</option>
+                ${['1','2','3','4','5'].map(g=>`<option value="${g}" ${r.grade===g?'selected':''}>${g}등급</option>`).join('')}
+              </select></td>
+              <td><select class="s5s-bulk-category" data-idx="${idx}" style="min-width:70px;">
+                <option value="">미지정</option>
+                ${S5S_CATEGORY_LIST.map(c=>`<option value="${c}" ${r.category===c?'selected':''}>${c}</option>`).join('')}
+              </select></td>
               <td>${esc(r.targetDate||'-')}</td><td>${esc(r.completedDate||'-')}</td>
               <td style="white-space:nowrap;">${r.beforeUrl?`<img src="${r.beforeUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;margin-right:2px;" title="개선 전">`:''}${r.afterUrl?`<img src="${r.afterUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" title="개선 후">`:''}</td>
             </tr>`).join('')}</tbody>
           </table>
         </div>
       `;
+      previewArea.querySelectorAll('.s5s-bulk-grade').forEach(sel=>{
+        sel.addEventListener('change', ()=>{ parsedRows[Number(sel.dataset.idx)].grade = sel.value; });
+      });
+      previewArea.querySelectorAll('.s5s-bulk-category').forEach(sel=>{
+        sel.addEventListener('change', ()=>{ parsedRows[Number(sel.dataset.idx)].category = sel.value; });
+      });
       document.getElementById('s5sBulkConfirmBtn').style.display = 'inline-flex';
     }catch(err){
       console.error(err);
@@ -9184,15 +9250,14 @@ function openS5SBulkImportModal(){
     let done = 0, failed = 0;
     for(const r of parsedRows){
       const tab = targetTabSel==='auto' ? (S5S_TABS.includes(r.dept) ? r.dept : '공통') : targetTabSel;
-      const gradeDigit = (r.grade.match(/[1-5]/)||[])[0] || '';
       const data = {
         location: r.location,
         manager: r.manager || '',
         process: r.process || '',
         problem: r.problem || '(엑셀 일괄등록 — 미기재)',
         method: r.method || '(엑셀 일괄등록 — 미기재)',
-        grade: gradeDigit,
-        category: '',
+        grade: r.grade || '',
+        category: r.category || '',
         targetDate: r.targetDate || '',
         completedDate: r.status==='완료' ? r.completedDate : '',
         status: r.status,
