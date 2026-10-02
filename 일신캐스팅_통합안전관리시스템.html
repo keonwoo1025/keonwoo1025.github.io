@@ -8872,6 +8872,7 @@ function renderS5STabBody(body){
           <option value="완료" ${S5SState.status==='완료'?'selected':''}>완료</option>
         </select>
         ${canEdit ? `<button class="btn btn-primary" id="s5sAddBtn">${icon('plus',15)} 새 항목 등록</button>` : ''}
+        ${State.mode==='admin' ? `<button class="btn" id="s5sBulkImportBtn" style="border-color:#8B5CF6;color:#8B5CF6;">📤 엑셀 일괄 등록 (임시기능)</button>` : ''}
       </div>
     </div>
     <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;justify-content:flex-start;">
@@ -8918,8 +8919,260 @@ function renderS5STabBody(body){
   }
   const addBtn = document.getElementById('s5sAddBtn');
   if(addBtn) addBtn.addEventListener('click', ()=> openS5SModal(tab));
+  const bulkImportBtn = document.getElementById('s5sBulkImportBtn');
+  if(bulkImportBtn) bulkImportBtn.addEventListener('click', ()=> openS5SBulkImportModal());
 
   renderS5SResults();
+}
+
+/* ---- 임시기능: 엑셀 일괄 등록 (등록 다 끝나면 이 기능 통째로 제거하기로 함) ---- */
+// 엑셀 내부(zip)에 박혀있는 "개선 전/후 사진" 이미지를, 어느 시트 몇 번째 줄 것인지 찾아서 꺼내옴.
+// 워드/엑셀 양식에 이미지 넣을 때 쓰던 것과 반대 방향 작업 — 이번엔 "꺼내는" 쪽.
+function extractS5SExcelImages(buf, sheetColInfo){
+  // sheetColInfo: { [시트명]: { photoBeforeCol, photoAfterCol } } — 시트별 사진 칸 위치(0-indexed)
+  const XDR_NS = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+  const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
+  const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const zip = new PizZip(buf);
+  const parser = new DOMParser();
+  function readXml(path){
+    const f = zip.file(path);
+    if(!f) return null;
+    try{ return parser.parseFromString(f.asText(), 'application/xml'); }catch(e){ return null; }
+  }
+  function relsPathFor(path){
+    const parts = path.split('/');
+    const file = parts.pop();
+    return parts.join('/') + '/_rels/' + file + '.rels';
+  }
+  function resolveTarget(basePath, relsDoc, rId){
+    if(!relsDoc) return null;
+    const rels = relsDoc.getElementsByTagNameNS(REL_NS, 'Relationship');
+    for(let i=0;i<rels.length;i++){
+      if(rels[i].getAttribute('Id')===rId){
+        const target = rels[i].getAttribute('Target');
+        const stack = basePath.split('/').slice(0,-1);
+        target.split('/').forEach(p=>{
+          if(p==='..') stack.pop(); else if(p!=='.') stack.push(p);
+        });
+        return stack.join('/');
+      }
+    }
+    return null;
+  }
+  // 결과: { "시트명:엑셀행번호(1부터)": { before: Blob|null, after: Blob|null } }
+  const result = {};
+  try{
+    const wbDoc = readXml('xl/workbook.xml');
+    const wbRelsDoc = readXml(relsPathFor('xl/workbook.xml'));
+    if(!wbDoc) return result;
+    const sheetEls = wbDoc.getElementsByTagName('sheet');
+    for(let i=0;i<sheetEls.length;i++){
+      const name = sheetEls[i].getAttribute('name');
+      if(!sheetColInfo[name]) continue; // 우리가 데이터를 읽은 시트만 처리
+      const rId = sheetEls[i].getAttributeNS(R_NS,'id') || sheetEls[i].getAttribute('r:id');
+      const sheetPath = resolveTarget('xl/workbook.xml', wbRelsDoc, rId);
+      if(!sheetPath) continue;
+      const sheetRelsDoc = readXml(relsPathFor(sheetPath));
+      if(!sheetRelsDoc) continue;
+      const rels = sheetRelsDoc.getElementsByTagNameNS(REL_NS,'Relationship');
+      let drawingPath = null;
+      for(let j=0;j<rels.length;j++){
+        if((rels[j].getAttribute('Type')||'').indexOf('/drawing')!==-1){ drawingPath = resolveTarget(sheetPath, sheetRelsDoc, rels[j].getAttribute('Id')); }
+      }
+      if(!drawingPath) continue;
+      const drawingDoc = readXml(drawingPath);
+      const drawingRelsDoc = readXml(relsPathFor(drawingPath));
+      if(!drawingDoc || !drawingRelsDoc) continue;
+      const { photoBeforeCol, photoAfterCol } = sheetColInfo[name];
+      const anchors = drawingDoc.getElementsByTagNameNS(XDR_NS,'twoCellAnchor');
+      for(let k=0;k<anchors.length;k++){
+        const anchor = anchors[k];
+        const pics = anchor.getElementsByTagNameNS(XDR_NS,'pic');
+        if(pics.length===0) continue; // 화살표 등 도형은 건너뜀
+        const fromEl = anchor.getElementsByTagNameNS(XDR_NS,'from')[0];
+        if(!fromEl) continue;
+        const colEl = fromEl.getElementsByTagNameNS(XDR_NS,'col')[0];
+        const rowEl = fromEl.getElementsByTagNameNS(XDR_NS,'row')[0];
+        if(!colEl || !rowEl) continue;
+        const col = parseInt(colEl.textContent, 10);
+        const excelRow = parseInt(rowEl.textContent, 10) + 1; // 0-indexed -> 1-indexed
+        if(col!==photoBeforeCol && col!==photoAfterCol) continue;
+        const blip = anchor.getElementsByTagNameNS(A_NS,'blip')[0];
+        if(!blip) continue;
+        const embedId = blip.getAttributeNS(R_NS,'embed') || blip.getAttribute('r:embed');
+        const mediaPath = resolveTarget(drawingPath, drawingRelsDoc, embedId);
+        if(!mediaPath) continue;
+        const mediaFile = zip.file(mediaPath);
+        if(!mediaFile) continue;
+        const ext = mediaPath.split('.').pop().toLowerCase();
+        const mime = ext==='png' ? 'image/png' : ext==='svg' ? 'image/svg+xml' : 'image/jpeg';
+        const blob = new Blob([mediaFile.asUint8Array()], { type: mime });
+        const key = `${name}:${excelRow}`;
+        if(!result[key]) result[key] = {};
+        if(col===photoBeforeCol) result[key].before = blob;
+        else result[key].after = blob;
+      }
+    }
+  }catch(err){ console.error('이미지 추출 중 오류:', err); }
+  return result;
+}
+
+function openS5SBulkImportModal(){
+  showModal(`
+    <div class="modal-head"><h3>📤 3정5S 엑셀 일괄 등록</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <p class="hint" style="margin-top:0;">월별로 시트가 나뉜 "부서별 추진내용" 형식 엑셀 파일을 올려주세요. 장소·등급·주관부서·공정·담당자·문제점·개선방법·개선예정일·완료일과, 엑셀 안에 박혀있는 개선 전/후 사진까지 자동으로 읽어옵니다.</p>
+      <div class="field"><label>엑셀 파일</label><input type="file" id="s5sBulkFile" accept=".xlsx,.xls"></div>
+      <div class="field"><label>등록할 탭</label>
+        <select id="s5sBulkTargetTab">
+          <option value="auto">자동 (엑셀의 "주관부서" 칸 값으로 판단)</option>
+          ${S5S_TABS.map(t=>`<option value="${t}">${t} (전부 이 탭으로)</option>`).join('')}
+        </select>
+      </div>
+      <div id="s5sBulkPreviewArea"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>닫기</button>
+      <button class="btn btn-primary" id="s5sBulkConfirmBtn" style="display:none;">선택한 항목 등록하기</button>
+    </div>
+  `);
+  let parsedRows = [];
+  document.getElementById('s5sBulkFile').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const previewArea = document.getElementById('s5sBulkPreviewArea');
+    previewArea.innerHTML = `<p class="hint">읽는 중... (사진이 많으면 시간이 조금 걸립니다)</p>`;
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array', cellDates:true });
+      parsedRows = [];
+      const sheetColInfo = {};
+      wb.SheetNames.forEach(sheetName=>{
+        const ws = wb.Sheets[sheetName];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, dateNF:'yyyy-mm-dd' });
+        // 헤더 행("장소"가 있는 행)을 찾아서, 그 아래부터 각 칸 위치를 알아냄
+        let headerRowIdx = -1, colIdx = {};
+        for(let r=0;r<aoa.length;r++){
+          const row = aoa[r]||[];
+          const idx = row.findIndex(v=>String(v||'').trim()==='장소');
+          if(idx!==-1){
+            headerRowIdx = r;
+            row.forEach((v,c)=>{
+              const label = String(v||'').trim().replace(/\s+/g,'');
+              if(label==='장소') colIdx.location=c;
+              else if(label==='등급') colIdx.grade=c;
+              else if(label==='주관부서') colIdx.dept=c;
+              else if(label==='공정') colIdx.process=c;
+              else if(label==='담당자') colIdx.manager=c;
+              else if(label==='문제점') colIdx.problem=c;
+              else if(label==='개선방법') colIdx.method=c;
+              else if(label==='개선예정일') colIdx.targetDate=c;
+              else if(label==='완료일') colIdx.completedDate=c;
+              else if(label==='개선전사진') colIdx.photoBefore=c;
+              else if(label==='개선후사진') colIdx.photoAfter=c;
+            });
+            break;
+          }
+        }
+        if(headerRowIdx===-1) return; // 이 시트엔 표가 없음 — 건너뜀
+        sheetColInfo[sheetName] = { photoBeforeCol: colIdx.photoBefore, photoAfterCol: colIdx.photoAfter };
+        for(let r=headerRowIdx+1;r<aoa.length;r++){
+          const row = aoa[r]||[];
+          const location = (row[colIdx.location]||'').toString().trim();
+          if(!location) continue; // 빈 줄은 건너뜀
+          const completedDate = colIdx.completedDate!=null ? (row[colIdx.completedDate]||'').toString().trim() : '';
+          parsedRows.push({
+            sheet: sheetName,
+            excelRow: r+1, // 1-indexed 엑셀 행번호 (이미지 위치와 맞추기 위함)
+            location,
+            grade: colIdx.grade!=null ? (row[colIdx.grade]||'').toString().trim() : '',
+            dept: colIdx.dept!=null ? (row[colIdx.dept]||'').toString().trim() : '',
+            process: colIdx.process!=null ? (row[colIdx.process]||'').toString().trim() : '',
+            manager: colIdx.manager!=null ? (row[colIdx.manager]||'').toString().trim() : '',
+            problem: colIdx.problem!=null ? (row[colIdx.problem]||'').toString().trim() : '',
+            method: colIdx.method!=null ? (row[colIdx.method]||'').toString().trim() : '',
+            targetDate: colIdx.targetDate!=null ? (row[colIdx.targetDate]||'').toString().trim() : '',
+            completedDate,
+            status: completedDate ? '완료' : '등록',
+          });
+        }
+      });
+      if(parsedRows.length===0){
+        previewArea.innerHTML = `<p class="hint" style="color:#E5484D;">인식된 항목이 없습니다. 파일 형식을 확인해주세요.</p>`;
+        return;
+      }
+      // 엑셀 내부에 박혀있는 사진들을 시트:행 기준으로 추출해서 각 행에 매칭
+      const images = extractS5SExcelImages(buf, sheetColInfo);
+      let photoCount = 0;
+      parsedRows.forEach(r=>{
+        const found = images[`${r.sheet}:${r.excelRow}`];
+        if(found){
+          if(found.before){ r.beforeBlob = found.before; r.beforeUrl = URL.createObjectURL(found.before); photoCount++; }
+          if(found.after){ r.afterBlob = found.after; r.afterUrl = URL.createObjectURL(found.after); photoCount++; }
+        }
+      });
+      previewArea.innerHTML = `
+        <p class="hint">총 <b>${parsedRows.length}건</b> 인식됨, 사진 <b>${photoCount}장</b> 발견됨 (아래 미리보기, 비어있는 정보는 빈 칸으로 등록됩니다)</p>
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>시트</th><th>장소</th><th>주관부서</th><th>공정</th><th>담당자</th><th>문제점</th><th>개선방법</th><th>예정일</th><th>완료일</th><th>사진</th></tr></thead>
+            <tbody>${parsedRows.map(r=>`<tr>
+              <td>${esc(r.sheet)}</td><td>${esc(r.location)}</td><td>${esc(r.dept||'-')}</td><td>${esc(r.process||'-')}</td>
+              <td>${esc(r.manager||'-')}</td><td>${esc(r.problem||'-')}</td><td>${esc(r.method||'-')}</td>
+              <td>${esc(r.targetDate||'-')}</td><td>${esc(r.completedDate||'-')}</td>
+              <td style="white-space:nowrap;">${r.beforeUrl?`<img src="${r.beforeUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;margin-right:2px;" title="개선 전">`:''}${r.afterUrl?`<img src="${r.afterUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" title="개선 후">`:''}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('s5sBulkConfirmBtn').style.display = 'inline-flex';
+    }catch(err){
+      console.error(err);
+      previewArea.innerHTML = `<p class="hint" style="color:#E5484D;">파일을 읽는 중 오류가 발생했습니다: ${esc(err.message||String(err))}</p>`;
+    }
+  });
+
+  document.getElementById('s5sBulkConfirmBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('s5sBulkConfirmBtn');
+    const targetTabSel = document.getElementById('s5sBulkTargetTab').value;
+    btn.disabled = true;
+    let done = 0, failed = 0;
+    for(const r of parsedRows){
+      const tab = targetTabSel==='auto' ? (S5S_TABS.includes(r.dept) ? r.dept : '공통') : targetTabSel;
+      const gradeDigit = (r.grade.match(/[1-5]/)||[])[0] || '';
+      const data = {
+        location: r.location,
+        manager: r.manager || '',
+        process: r.process || '',
+        problem: r.problem || '(엑셀 일괄등록 — 미기재)',
+        method: r.method || '(엑셀 일괄등록 — 미기재)',
+        grade: gradeDigit,
+        category: '',
+        targetDate: r.targetDate || '',
+        completedDate: r.status==='완료' ? r.completedDate : '',
+        status: r.status,
+        createdAt: Date.now(),
+      };
+      try{
+        if(r.beforeBlob){
+          const compressed = await compressImageFile(r.beforeBlob);
+          data.photoBefore = await uploadFileToStorage(compressed, 's5s-photos');
+        }
+        if(r.afterBlob){
+          const compressed = await compressImageFile(r.afterBlob);
+          data.photoAfter = await uploadFileToStorage(compressed, 's5s-photos');
+        }
+        await DataStore.push(s5sPathForTab(tab), data);
+        done++;
+      }catch(err){ console.error('등록 실패:', r, err); failed++; }
+      btn.textContent = `등록 중... (${done+failed}/${parsedRows.length})`;
+    }
+    toast(`${done}건 등록 완료${failed?`, ${failed}건 실패`:''}`);
+    closeModal();
+    renderS5S();
+  });
 }
 
 function renderS5SResults(){
