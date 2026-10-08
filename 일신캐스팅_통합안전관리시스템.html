@@ -599,7 +599,7 @@ td.tight,th.tight{width:1%;white-space:nowrap;}
     <div class="field" id="gatePwWrap" hidden>
       <label data-i18n="gate_role_label">역할 선택</label>
       <select id="gateRole" style="margin-bottom:10px;">
-        <option value="admin" data-i18n="mode_label_admin">전체관리자</option>
+        <option value="admin" data-i18n="mode_label_admin">마스터</option>
         <option value="관리부">관리부 관리자</option>
         <option value="생산부">생산부 관리자</option>
         <option value="품질관리부">품질관리부 관리자</option>
@@ -874,6 +874,39 @@ const State = {
 };
 // 작업허가 "작업종료 확인 입력"은 부서관리자·전체관리자 모두 가능
 function canTerminate(){ return State.mode==='admin' || State.mode==='dept'; }
+// 작업허가: 마스터(admin)는 검토·승인·종료 전부, 안전환경부 계정은 검토+승인(안전환경부장이 승인 주체), 그 외 부서는 검토만
+function isSafetyDept(){ return State.mode==='dept' && State.dept==='안전환경부'; }
+function canApprovePermit(){ return State.mode==='admin' || isSafetyDept(); }
+// 생산부·품질관리부·관리부 계정이 외주업체 대신 신청서를 직접 입력하려 할 때 경고 (안전환경부·마스터는 해당 없음)
+function needsDirectPermitWarning(){ return State.mode==='dept' && ['생산부','품질관리부','관리부'].includes(State.dept); }
+function showDirectPermitWarning(onInHouse){
+  showModal(`
+    <div class="modal-head"><h3>작업허가 신청 구분 확인</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <p style="margin:0 0 6px;font-size:14px;line-height:1.7;">신청하려는 작업의 구분을 선택해주세요.</p>
+      <p class="hint" style="margin:0 0 16px;">외주업체 작업은 해당 업체가 직접 신청하고, 사내 자체 작업(자체 정비 등)은 부서에서 직접 신청합니다.</p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" id="dpwInHouse" style="flex:1;padding:14px 8px;">사내 자체 작업</button>
+        <button class="btn" id="dpwOutsource" style="flex:1;padding:14px 8px;">외주업체 작업</button>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>취소</button></div>
+  `);
+  document.getElementById('dpwInHouse').addEventListener('click', ()=>{ closeModal(); onInHouse('사내'); });
+  document.getElementById('dpwOutsource').addEventListener('click', ()=>{
+    showModal(`
+      <div class="modal-head"><h3>외주업체 작업 신청 안내</h3><button class="x-btn" data-close>✕</button></div>
+      <div class="modal-body"><p style="margin:0;font-size:14px;line-height:1.8;">외주업체 작업의 허가 신청은 해당 업체가 직접 등록해야 합니다.<br>업체에 신청 방법을 안내해주세요.</p></div>
+      <div class="modal-foot"><button class="btn btn-primary" data-close>확인</button></div>
+    `);
+  });
+}
+// 허가서의 "작업 구분" 표시 (외주업체 작업 / 사내 자체 작업) — 관리자 화면에서 목록·상세에 표시
+function permitOriginBadge(p){
+  if(p && p.workOrigin==='사내') return '<span class="badge" style="background:#8B5CF6;color:#fff;font-weight:700;">사내</span>';
+  if(p && p.workOrigin==='외주') return '<span class="badge" style="background:#3B82F6;color:#fff;font-weight:700;">외주</span>';
+  return '';
+}
 const isMobileDevice = /android|iphone|ipad|ipod|windows phone/i.test(navigator.userAgent);
 
 // 사진 등록 필드 — 모바일에서는 "사진 선택"/"카메라로 촬영" 두 버튼, 데스크탑에서는 일반 파일 선택
@@ -1126,7 +1159,7 @@ const TRANSLATIONS = {
   bug_registered_msg:{ko:'버그신고가 접수되었습니다',en:'Your bug report has been submitted',th:'ส่งรายงานปัญหาแล้ว',id:'Laporan bug Anda telah dikirim',mn:'Таны алдааны мэдээлэл илгээгдлээ'},
 
   mode_label_user:{ko:'일반 열람 모드',en:'General View Mode',th:'โหมดผู้ใช้ทั่วไป',id:'Mode Pengguna Umum',mn:'Энгийн үзэх горим'},
-  mode_label_admin:{ko:'전체관리자 모드',en:'Full Administrator Mode',th:'โหมดผู้ดูแลระบบทั้งหมด',id:'Mode Administrator Utama',mn:'Бүх эрхтэй админ горим'},
+  mode_label_admin:{ko:'마스터 모드',en:'Master Mode',th:'โหมดมาสเตอร์',id:'Mode Master',mn:'Мастер горим'},
   mode_label_dept:{ko:'부서관리자 모드',en:'Department Admin Mode',th:'โหมดผู้ดูแลแผนก',id:'Mode Admin Departemen',mn:'Хэлтсийн админ горим'},
   mode_switch:{ko:'전환',en:'Switch',th:'สลับ',id:'Ganti',mn:'Сэлгэх'},
   mode_release:{ko:'해제',en:'Exit',th:'ออก',id:'Keluar',mn:'Гарах'},
@@ -1152,7 +1185,7 @@ const TRANSLATIONS = {
   dash_notices_title:{ko:'공지사항',en:'Notices',th:'ประกาศ',id:'Pengumuman',mn:'Мэдэгдэл'},
   view_all:{ko:'전체보기 →',en:'View all →',th:'ดูทั้งหมด →',id:'Lihat semua →',mn:'Бүгдийг үзэх →'},
   config_banner:{ko:'Firebase가 아직 연결되지 않아 이 브라우저에만 데이터가 저장됩니다 (데모 모드). 코드 상단 FIREBASE_CONFIG 값을 교체하면 전사 공유 데이터로 전환됩니다.',en:'Firebase is not connected yet, so data is saved only in this browser (demo mode). Replace the FIREBASE_CONFIG values at the top of the code to switch to company-wide shared data.',th:'ยังไม่ได้เชื่อมต่อ Firebase ข้อมูลจะถูกบันทึกเฉพาะในเบราว์เซอร์นี้ (โหมดสาธิต) แก้ไขค่า FIREBASE_CONFIG ด้านบนของโค้ดเพื่อเปลี่ยนเป็นข้อมูลที่ใช้ร่วมกันทั้งบริษัท',id:'Firebase belum terhubung, jadi data hanya disimpan di browser ini (mode demo). Ganti nilai FIREBASE_CONFIG di bagian atas kode untuk beralih ke data bersama seluruh perusahaan.',mn:'Firebase холбогдоогүй тул өгөгдөл зөвхөн энэ хөтчид хадгалагдана (демо горим). Компанийн хэмжээнд хуваалцах өгөгдөл рүү шилжихийн тулд кодын дээд хэсэгт байрлах FIREBASE_CONFIG утгыг солино уу.'},
-  toast_admin_pw_set:{ko:'전체관리자 비밀번호가 설정되었습니다. 부서 비밀번호는 관리자 메뉴에서 등록해주세요.',en:'The full administrator password has been set. Please register department passwords from the admin menu.',th:'ตั้งรหัสผ่านผู้ดูแลระบบทั้งหมดแล้ว กรุณาลงทะเบียนรหัสผ่านแผนกในเมนูผู้ดูแลระบบ',id:'Kata sandi administrator utama telah diatur. Silakan daftarkan kata sandi departemen dari menu admin.',mn:'Бүх эрхтэй админы нууц үг тохируулагдлаа. Хэлтсийн нууц үгийг админы цэснээс бүртгэнэ үү.'},
+  toast_admin_pw_set:{ko:'마스터 비밀번호가 설정되었습니다. 부서 비밀번호는 관리자 메뉴에서 등록해주세요.',en:'The master password has been set. Please register department passwords from the admin menu.',th:'ตั้งรหัสผ่านมาสเตอร์แล้ว กรุณาลงทะเบียนรหัสผ่านแผนกในเมนูผู้ดูแลระบบ',id:'Kata sandi master telah diatur. Silakan daftarkan kata sandi departemen dari menu admin.',mn:'Мастерын нууц үг тохируулагдлаа. Хэлтсийн нууц үгийг админы цэснээс бүртгэнэ үү.'},
   toast_pw_required:{ko:'비밀번호를 입력해주세요',en:'Please enter a password',th:'กรุณากรอกรหัสผ่าน',id:'Silakan masukkan kata sandi',mn:'Нууц үгээ оруулна уу'},
   toast_pw_mismatch:{ko:'비밀번호가 일치하지 않습니다',en:'The password does not match',th:'รหัสผ่านไม่ถูกต้อง',id:'Kata sandi tidak cocok',mn:'Нууц үг таарахгүй байна'},
   toast_switched_user:{ko:'일반 열람 모드로 전환되었습니다',en:'Switched to general view mode',th:'เปลี่ยนเป็นโหมดผู้ใช้ทั่วไปแล้ว',id:'Beralih ke mode pengguna umum',mn:'Энгийн үзэх горимд шилжлээ'},
@@ -1359,7 +1392,7 @@ const TRANSLATIONS = {
   opt_site_notok:{ko:'이상있음',en:'Issues Found',th:'พบปัญหา',id:'Ada Masalah',mn:'Асуудал байна'},
   lbl_residualcheck_input:{ko:'잔불확인 결과 (화기작업 시)',en:'Residual Fire Check Result (for Hot Work)',th:'ผลตรวจสอบไฟตกค้าง (สำหรับงานเปลวไฟ)',id:'Hasil Pemeriksaan Sisa Api (untuk Pekerjaan Panas)',mn:'Үлдэгдэл галын шалгалтын үр дүн (Галын ажилд)'},
   lbl_endconfirmer_input:{ko:'확인자(공정담당자)',en:'Confirmed By (Process Manager)',th:'ผู้ตรวจสอบ (ผู้รับผิดชอบกระบวนการ)',id:'Diperiksa Oleh (Penanggung Jawab Proses)',mn:'Баталгаажуулагч (Процессын хариуцагч)'},
-  role_full_admin:{ko:'전체관리자',en:'Full Administrator',th:'ผู้ดูแลระบบทั้งหมด',id:'Administrator Utama',mn:'Бүх эрхтэй админ'},
+  role_full_admin:{ko:'마스터',en:'Master',th:'มาสเตอร์',id:'Master',mn:'Мастер'},
   role_dept_admin:{ko:'부서관리자',en:'Department Admin',th:'ผู้ดูแลแผนก',id:'Admin Departemen',mn:'Хэлтсийн админ'},
 
   /* ===== 3단계: 위험성평가 모달 ===== */
@@ -1480,7 +1513,7 @@ const TRANSLATIONS = {
   attach_file:{ko:'첨부파일',en:'Attachment',th:'ไฟล์แนบ',id:'Lampiran',mn:'Хавсралт'},
   attach_download:{ko:'다운로드',en:'Download',th:'ดาวน์โหลด',id:'Unduh',mn:'Татах'},
   toast_contact_registered:{ko:'비상연락처가 등록되었습니다',en:'Emergency contact has been registered',th:'ลงทะเบียนผู้ติดต่อฉุกเฉินแล้ว',id:'Kontak darurat telah didaftarkan',mn:'Онцгой байдлын холбоо барих хаяг бүртгэгдлээ'},
-  toast_admin_only:{ko:'전체관리자만 설정할 수 있습니다',en:'Only the full administrator can configure this',th:'เฉพาะผู้ดูแลระบบทั้งหมดเท่านั้นที่ตั้งค่าได้',id:'Hanya administrator utama yang dapat mengatur ini',mn:'Зөвхөн бүх эрхтэй админ тохируулах боломжтой'},
+  toast_admin_only:{ko:'마스터만 설정할 수 있습니다',en:'Only the master can configure this',th:'เฉพาะมาสเตอร์เท่านั้นที่ตั้งค่าได้',id:'Hanya master yang dapat mengatur ini',mn:'Зөвхөн мастер тохируулах боломжтой'},
 
   /* ===== 4단계: 위험도 등급 기준 ===== */
   risklevel_label_1:{ko:'매우낮음',en:'Very Low',th:'ต่ำมาก',id:'Sangat Rendah',mn:'Маш бага'},
@@ -2432,7 +2465,7 @@ function isItemNew(item, path){
   if(!item) return false;
   if(path===PATHS.permits){
     // 부서관리자가 "검토완료"로 넘기면 전체관리자에게 NEW (createdAt과 무관하게)
-    if(State.mode==='admin' && item.status==='검토완료' && item.reviewCompletedAt){
+    if(canApprovePermit() && item.status==='검토완료' && item.reviewCompletedAt){
       if(Date.now() - item.reviewCompletedAt < NEW_THRESHOLD_MS && !isRead(path, item.id+'_review_'+item.reviewCompletedAt)){
         return true;
       }
@@ -2599,7 +2632,8 @@ function renderPermits(){
     State.filters.permits = t.dataset.s; renderPermits();
   }));
   el.querySelector('#addPermitBtn').addEventListener('click', ()=>{
-    openPermitModal();
+    if(needsDirectPermitWarning()) showDirectPermitWarning((origin)=> openPermitModal(undefined, origin));
+    else openPermitModal();
   });
 
   let arr = objToArr(DataStore.get(PATHS.permits)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
@@ -2611,7 +2645,7 @@ function renderPermits(){
   }else{
     body.innerHTML = filtered.map(p=>`
       <tr>
-        <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}</td>
+        <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}${(State.mode==='admin'||State.mode==='dept') ? ' '+permitOriginBadge(p) : ''}</td>
         <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
         <td>${esc(p.workType||'-')}</td>
         <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
@@ -2701,7 +2735,7 @@ function openPartnerModal(existing){
   });
 }
 
-function openPermitModal(existing){
+function openPermitModal(existing, presetOrigin){
   const isEdit = !!existing;
   const v = existing || {};
   const eqSelected = v.equipment || [];
@@ -2709,9 +2743,19 @@ function openPermitModal(existing){
   const isAdmin = State.mode==='admin';
   const isDept = State.mode==='dept';
   const canProcess = isAdmin || isDept;
+  const canApprove = isAdmin || isSafetyDept();
+  const showOriginField = !isPartner && State.mode!=='user';   // 마스터·부서 계정만 작업 구분을 직접 다룸
+  const originLocked = isDept && !isSafetyDept();              // 생산부·품질관리부·관리부는 구분을 바꿀 수 없음(팝업에서 정한 값)
+  const originVal = v.workOrigin || presetOrigin || '';
   showModal(`
     <div class="modal-head"><h3>${isEdit?t('permit_edit_title'):t('permit_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
+      ${showOriginField ? `<div class="field"><label>작업 구분 *</label>
+        <select id="f_workOrigin" ${originLocked?'disabled':''}>
+          <option value="">선택해주세요</option>
+          <option value="외주" ${originVal==='외주'?'selected':''}>외주업체 작업</option>
+          <option value="사내" ${originVal==='사내'?'selected':''}>사내 자체 작업</option>
+        </select></div>` : ''}
       <div class="row2">
         <div class="field"><label>${t('lbl_company')} *</label>
           ${isPartner
@@ -2775,12 +2819,17 @@ function openPermitModal(existing){
       <div class="divider"></div>
       <div class="field"><label>${t('lbl_progress_admin')}</label>
         <select id="f_status">
-          ${(isDept ? ['검토완료','반려'] : ['승인','반려','종료']).map(s=>`<option value="${s}" ${v.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
+          ${(isAdmin ? ['검토완료','승인','반려','종료'] : (isSafetyDept() ? ['검토완료','승인','반려'] : ['검토완료','반려'])).map(s=>{
+            const lockApprove = s==='승인' && v.status!=='검토완료' && v.status!=='승인';
+            const lockClose = s==='종료' && v.status!=='승인' && v.status!=='종료';
+            return `<option value="${s}" ${v.status===s?'selected':''} ${(lockApprove||lockClose)?'disabled':''}>${statusLabel(s)}${lockApprove?' (검토 서명 후 가능)':''}${lockClose?' (승인 후 가능)':''}</option>`;
+          }).join('')}
         </select>
-        ${isDept ? `<p class="hint">최종 승인·반려는 전체관리자가 처리합니다. 검토가 끝나면 "검토완료"로 넘겨주세요.</p>` : ''}
+        ${(isDept && !canApprove) ? `<p class="hint">최종 승인·반려는 안전환경부 또는 마스터 계정이 처리합니다. 검토가 끝나면 "검토완료"로 넘겨주세요.</p>` : ''}
+        <p class="hint">진행 순서: 신청 → 검토완료(검토자 서명) → 승인(승인자 서명) → 종료. 서명 없이, 또는 순서를 건너뛰고는 진행할 수 없습니다.</p>
       </div>
       <div class="field"><label>${t('lbl_review_comment')}</label><textarea id="f_reviewComment" placeholder="${t('lbl_review_comment_placeholder')}">${esc(v.reviewComment||'')}</textarea></div>
-      ${isDept ? `
+      ${canProcess ? `
       <div id="deptSigFields" style="${v.status==='검토완료'?'':'display:none'};background:#F7F8FA;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:6px;">
         <p class="hint" style="margin-bottom:8px;font-weight:700;">검토완료 처리 — 성명과 서명을 입력해주세요</p>
         <div class="row2">
@@ -2792,7 +2841,7 @@ function openPermitModal(existing){
         </div>
       </div>
       ` : ''}
-      ${isAdmin ? `
+      ${canApprove ? `
       <div id="approverFields" style="${v.status==='승인'?'':'display:none'};background:#F7F8FA;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:6px;">
         <p class="hint" style="margin-bottom:8px;font-weight:700;">승인 처리 — 성명과 서명을 입력해주세요</p>
         <div class="row2">
@@ -2820,6 +2869,7 @@ function openPermitModal(existing){
   });
   let approverSigData = v.approverSignature || '';
   let deptSigData = v.deptSignature || '';
+  let approverSigTouched = false, deptSigTouched = false; // 이번 처리에서 직접 서명했는지 (이전 서명 재사용 방지)
   let contractorSigData = v.contractorSignature || '';
   if(isPartner){
     document.getElementById('contractorSigBtn').addEventListener('click', ()=>{
@@ -2830,7 +2880,7 @@ function openPermitModal(existing){
       });
     });
   }
-  if(isDept){
+  if(canProcess){
     const statusSel = document.getElementById('f_status');
     const deptSigFields = document.getElementById('deptSigFields');
     const syncDeptFields = ()=>{ deptSigFields.style.display = statusSel.value==='검토완료' ? '' : 'none'; };
@@ -2838,13 +2888,13 @@ function openPermitModal(existing){
     syncDeptFields();
     document.getElementById('deptSigBtn').addEventListener('click', ()=>{
       openSignaturePad('공정 담당자 서명', (dataUrl)=>{
-        deptSigData = dataUrl;
+        deptSigData = dataUrl; deptSigTouched = true;
         document.getElementById('deptSigPreview').innerHTML = sigPreviewHtml(dataUrl);
         document.getElementById('deptSigBtn').textContent = '서명 다시하기';
       });
     });
   }
-  if(isAdmin){
+  if(canApprove){
     const statusSel = document.getElementById('f_status');
     const approverFields = document.getElementById('approverFields');
     const syncApproverFields = ()=>{ approverFields.style.display = statusSel.value==='승인' ? '' : 'none'; };
@@ -2852,7 +2902,7 @@ function openPermitModal(existing){
     syncApproverFields();
     document.getElementById('approverSigBtn').addEventListener('click', ()=>{
       openSignaturePad('승인자 서명', (dataUrl)=>{
-        approverSigData = dataUrl;
+        approverSigData = dataUrl; approverSigTouched = true;
         document.getElementById('approverSigPreview').innerHTML = sigPreviewHtml(dataUrl);
         document.getElementById('approverSigBtn').textContent = '서명 다시하기';
       });
@@ -2880,6 +2930,13 @@ function openPermitModal(existing){
       combustibleRemoval: document.getElementById('f_combustibleRemoval').value.trim(),
       note: document.getElementById('f_note').value.trim(),
     };
+    // 작업 구분(외주/사내) 저장 — 외주업체 계정은 자동으로 '외주'
+    const originEl = document.getElementById('f_workOrigin');
+    if(isPartner){ if(!isEdit) data.workOrigin = '외주'; }
+    else if(originEl){
+      if(!originEl.value && !isEdit){ toast('작업 구분(외주/사내)을 선택해주세요'); return; }
+      if(originEl.value && (!originEl.disabled || !isEdit)) data.workOrigin = originEl.value;
+    }
     if(isPartner){
       if(!data.contractorLead || !contractorSigData){ toast('현장감독자 성명과 서명을 모두 입력해주세요'); return; }
       data.contractorSignature = contractorSigData;
@@ -2888,10 +2945,13 @@ function openPermitModal(existing){
       const newStatus = document.getElementById('f_status').value;
       data.status = newStatus;
       data.reviewComment = document.getElementById('f_reviewComment').value.trim();
+      // 정해진 순서(신청 → 검토완료 → 승인 → 종료)를 건너뛰는 처리는 막음
+      if(newStatus==='종료' && v.status!=='승인' && v.status!=='종료'){ toast('승인이 끝난 허가서만 종료 처리할 수 있습니다'); return; }
       // 부서관리자가 "검토완료"로 넘기면 전체관리자에게 NEW로 표시되도록 시점 기록
       if(newStatus==='검토완료'){
         const deptName = document.getElementById('f_deptName').value.trim();
         if(!deptName || !deptSigData){ toast('검토자 성명과 서명을 모두 입력해주세요'); return; }
+        if(v.status!=='검토완료' && !deptSigTouched){ toast('이번 검토 처리에서 직접 서명해주세요 (이전 서명은 재사용되지 않습니다)'); return; }
         data.deptName = deptName;
         data.deptSignature = deptSigData;
         if(v.status!=='검토완료'){ data.reviewCompletedAt = Date.now(); }
@@ -2900,9 +2960,18 @@ function openPermitModal(existing){
       if(newStatus==='승인'){
         const approverName = document.getElementById('f_approverName').value.trim();
         if(!approverName || !approverSigData){ toast('승인자 성명과 서명을 모두 입력해주세요'); return; }
+        // 검토 서명과 승인 서명이 둘 다 남아야 하는 2단계라, 검토완료(검토자 서명)를 거치지 않은 승인은 막음
+        if(v.status!=='승인'){
+          if(v.status!=='검토완료' || !v.deptSignature){ toast('검토완료(검토자 서명) 처리가 먼저 되어야 승인할 수 있습니다'); return; }
+          if(!approverSigTouched){ toast('이번 승인 처리에서 직접 서명해주세요 (이전 서명은 재사용되지 않습니다)'); return; }
+        }
         data.approverName = approverName;
         data.approverSignature = approverSigData;
-        if(v.status!=='승인'){ data.approvedAt = Date.now(); }
+        if(v.status!=='승인'){
+          data.approvedAt = Date.now();
+          // 안전환경부 계정이 직접 승인한 건은 본인에게 "작업종료 확인 필요" NEW가 뜨지 않게 미리 읽음 처리
+          if(State.mode==='dept' && existing && existing.id) markRead(PATHS.permits, existing.id+'_approved_'+data.approvedAt);
+        }
       }
     }else if(!isEdit){
       data.status = '신청';
@@ -2945,7 +3014,7 @@ function openPermitDetail(id){
   if(!raw) return;
   markRead(PATHS.permits, id);
   const p = Object.assign({id}, raw);
-  if(State.mode==='admin' && p.reviewCompletedAt){
+  if(canApprovePermit() && p.reviewCompletedAt){
     markRead(PATHS.permits, id+'_review_'+p.reviewCompletedAt);
   }
   if(State.mode==='dept' && p.approvedAt){
@@ -2970,6 +3039,7 @@ function openPermitDetail(id){
       </div>` : ''}
       <dl class="detail-grid">
         <dt>${t('th_company')}</dt><dd>${esc(p.company)}</dd>
+        ${(canProcess && p.workOrigin) ? `<dt>작업 구분</dt><dd>${permitOriginBadge(p)} ${p.workOrigin==='사내'?'사내 자체 작업':'외주업체 작업'}</dd>` : ''}
         <dt>${t('dt_type')}</dt><dd>${esc(t('worktype_'+p.workType))} ${p.fireWork?'· 🔥'+t('firework_tag'):''}</dd>
         <dt>${t('lbl_workname')}</dt><dd>${esc(p.workContent)}</dd>
         <dt>${t('lbl_worklocation')}</dt><dd>${esc(p.location)}</dd>
@@ -3814,7 +3884,7 @@ function openRiskModal(existing){
       <p class="hint" style="margin-bottom:8px;font-weight:700;color:var(--ink-soft);">관리자 전용 항목 (서류용 상세분류)</p>
       <div class="field"><label>${t('lbl_progress_admin')}</label>
         <select id="f_status">${(isAdmin ? ['접수완료','조치중','완료'] : ['접수완료','조치중']).map(s=>`<option value="${s}" ${(v.status===s || (s==='완료' && v.status==='일부개선완료'))?'selected':''}>${statusLabel(s)}</option>`).join('')}</select>
-        ${!isAdmin ? `<p class="hint">"완료" 최종 처리는 전체관리자만 할 수 있습니다.</p>` : ''}
+        ${!isAdmin ? `<p class="hint">"완료" 최종 처리는 마스터만 할 수 있습니다.</p>` : ''}
       </div>
       <div class="row2">
         <div class="field"><label>위험분류</label>
@@ -8885,7 +8955,7 @@ function renderS5STabBody(body){
         <button class="btn btn-sm" id="s5sDownloadAllBtn">📥 전체 다운로드 (5개 탭 전부)</button>
       </div>
     </div>
-    ${!canEdit ? `<p class="hint" style="margin:-2px 0 10px;">${tab} 탭은 열람만 가능합니다 (등록·수정은 ${tab==='공통'?'전체관리자':tab+' 계정'}만 가능).</p>` : ''}
+    ${!canEdit ? `<p class="hint" style="margin:-2px 0 10px;">${tab} 탭은 열람만 가능합니다 (등록·수정은 ${tab==='공통'?'마스터':tab+' 계정'}만 가능).</p>` : ''}
     <div id="s5sCardGrid" class="gallery-grid"></div>
   `;
   // 검색창은 절대 다시 그리지 않음 — 카드 목록(#s5sCardGrid)만 다시 그려서 한글 조합 중 끊기지 않게 함
@@ -9495,7 +9565,7 @@ function openS5SModal(tab, existing){
         await DataStore.update(path, existing.id, data);
       }else{
         data.createdAt = Date.now();
-        data.reporter = State.mode==='admin' ? '전체관리자' : (State.dept||'');
+        data.reporter = State.mode==='admin' ? '마스터' : (State.dept||'');
         await DataStore.push(path, data);
       }
       toast('저장되었습니다');
