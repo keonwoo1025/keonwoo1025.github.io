@@ -886,8 +886,8 @@ function showDirectPermitWarning(onInHouse){
       <p style="margin:0 0 6px;font-size:14px;line-height:1.7;">신청하려는 작업의 구분을 선택해주세요.</p>
       <p class="hint" style="margin:0 0 16px;">외주업체 작업은 해당 업체가 직접 신청하고, 사내 자체 작업(자체 정비 등)은 부서에서 직접 신청합니다.</p>
       <div style="display:flex;gap:10px;">
-        <button class="btn btn-primary" id="dpwInHouse" style="flex:1;padding:14px 8px;">사내 자체 작업</button>
-        <button class="btn" id="dpwOutsource" style="flex:1;padding:14px 8px;">외주업체 작업</button>
+        <button class="btn btn-primary" id="dpwInHouse" style="flex:1;padding:14px 8px;justify-content:center;text-align:center;">사내 자체 작업</button>
+        <button class="btn" id="dpwOutsource" style="flex:1;padding:14px 8px;justify-content:center;text-align:center;">외주업체 작업</button>
       </div>
     </div>
     <div class="modal-foot"><button class="btn" data-close>취소</button></div>
@@ -897,7 +897,7 @@ function showDirectPermitWarning(onInHouse){
     showModal(`
       <div class="modal-head"><h3>외주업체 작업 신청 안내</h3><button class="x-btn" data-close>✕</button></div>
       <div class="modal-body"><p style="margin:0;font-size:14px;line-height:1.8;">외주업체 작업의 허가 신청은 해당 업체가 직접 등록해야 합니다.<br>업체에 신청 방법을 안내해주세요.</p></div>
-      <div class="modal-foot"><button class="btn btn-primary" data-close>확인</button></div>
+      <div class="modal-foot"><button class="btn btn-primary" data-close style="min-width:90px;justify-content:center;text-align:center;">확인</button></div>
     `);
   });
 }
@@ -1250,6 +1250,8 @@ const TRANSLATIONS = {
   th_measures:{ko:'개선대책',en:'Improvement Measures',th:'มาตรการปรับปรุง',id:'Tindakan Perbaikan',mn:'Сайжруулах арга хэмжээ'},
   th_photo:{ko:'사진',en:'Photo',th:'รูปภาพ',id:'Foto',mn:'Зураг'},
   th_reporter_applicant:{ko:'신청자',en:'Applicant',th:'ผู้ยื่นคำขอ',id:'Pemohon',mn:'Хүсэлт гаргагч'},
+  lbl_received_date:{ko:'접수일',en:'Received',th:'วันที่รับเรื่อง',id:'Tgl Diterima',mn:'Хүлээн авсан'},
+  lbl_completed_date:{ko:'완료일',en:'Completed',th:'วันที่เสร็จสิ้น',id:'Tgl Selesai',mn:'Дууссан'},
 
   /* ===== 2단계: 사고접수 목록 화면 ===== */
   incidents_add_btn:{ko:'사고 접수',en:'Report Incident',th:'แจ้งอุบัติเหตุ',id:'Laporkan Insiden',mn:'Осол мэдээлэх'},
@@ -2542,6 +2544,13 @@ function riskSortDate(r){
   }
   return r.createdAt || 0;
 }
+// 위험성평가 접수일 — 엑셀 접수일과 같은 기준(사고연계 건은 사고 발생일, 직접 등록 건은 등록시점)
+function riskReceivedDate(r){ const d = riskSortDate(r); return d ? fmtDate(d) : ''; }
+function riskDatesHtml(r){
+  const rec = riskReceivedDate(r);
+  const done = r.completedDate ? fmtDate(r.completedDate) : '';
+  return `<div style="font-size:11.5px;line-height:1.7;white-space:nowrap;"><span style="color:var(--ink-faint);">${t('lbl_received_date')}</span> ${rec||'-'}<br><span style="color:var(--ink-faint);">${t('lbl_completed_date')}</span> ${done||'-'}</div>`;
+}
 
 // 위험도 등급 — 회사 「위험성평가 실시규정」의 빈도강도법(6단계, Ⅰ~Ⅵ) 기준
 function riskLevel(r){
@@ -2933,6 +2942,7 @@ function openPermitModal(existing, presetOrigin){
     // 작업 구분(외주/사내) 저장 — 외주업체 계정은 자동으로 '외주'
     const originEl = document.getElementById('f_workOrigin');
     if(isPartner){ if(!isEdit) data.workOrigin = '외주'; }
+    else if(State.mode==='user'){ if(!isEdit) data.workOrigin = '사내'; } // 일반사용자는 외주업체를 부를 수 없으므로 사내 작업으로 기록
     else if(originEl){
       if(!originEl.value && !isEdit){ toast('작업 구분(외주/사내)을 선택해주세요'); return; }
       if(originEl.value && (!originEl.disabled || !isEdit)) data.workOrigin = originEl.value;
@@ -3543,14 +3553,14 @@ function renderRisksResults(){
     <div class="table-wrap"><table>
       <thead><tr>
         ${isManager?`<th class="tight"><input type="checkbox" id="riskCheckAll"></th>`:''}
-        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel_before')}</th><th class="tight">${t('th_risklevel_after')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th>${isManager?`<th>${t('th_reporter_applicant')}</th>`:''}<th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
+        <th>${t('th_process_task')}</th><th>${t('th_hazard')}</th><th class="tight">${t('th_frequency')}</th><th class="tight">${t('th_severity')}</th><th class="tight">${t('th_risklevel_before')}</th><th class="tight">${t('th_risklevel_after')}</th><th>${t('th_measures')}</th><th>${t('dt_photo_site')}</th><th>${t('dt_photo_after')}</th>${isManager?`<th>${t('th_reporter_applicant')}</th>`:''}<th class="tight">${t('lbl_received_date')}<br>${t('lbl_completed_date')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
       </tr></thead>
       <tbody id="riskBody"></tbody>
     </table></div>
   `;
   const body = document.getElementById('riskBody');
   if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="${isManager?13:11}"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="${isManager?14:12}"><div class="empty"><span class="big">${icon('alert-triangle',22)}</span>${t('risks_empty')}</div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(r=>`
@@ -3566,6 +3576,7 @@ function renderRisksResults(){
       <td>${riskThumb(r.photoBefore)}</td>
       <td>${riskThumb(r.photoAfter)}</td>
       ${isManager?`<td>${esc(r.reporter||'-')}</td>`:''}
+      <td class="tight">${riskDatesHtml(r)}</td>
       <td>${statusBadge('risk', r.status)}</td>
       <td class="tight row-btns"><button class="btn btn-sm" data-view-id="${r.id}">${t('btn_view')}</button></td>
     </tr>
@@ -3775,7 +3786,7 @@ function generateRiskExcel(list){
         M: r.measures||'',
         N: afterScore,
         O: receivedDate ? fmtDate(receivedDate) : '',
-        P: '',
+        P: r.completedDate ? fmtDate(r.completedDate) : '',
         Q: r.reporter||'',
       });
     }).join('');
@@ -3905,6 +3916,9 @@ function openRiskModal(existing){
       <div class="field"><label>${t('lbl_photo_after')}</label>
         ${photoFieldHtml('f_photoAfter', v.photoAfter, v.photoAfter?`<p class="hint">${t('hint_photo_replace')}</p>`:'')}
       </div>
+      <div class="field"><label>완료일 <span class="hint" style="font-weight:400;">— 완료 처리 시 필수 (엑셀 완료일에 들어갑니다)</span></label>
+        <input type="date" id="f_completedDate" value="${v.completedDate||''}">
+      </div>
       <div id="afterEvalFields" style="${v.status==='완료'||v.status==='일부개선완료'?'':'display:none'};background:#F7F8FA;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:6px;">
         <p class="hint" style="margin-bottom:8px;font-weight:700;">개선후 재평가 — 완료 처리 시 반드시 입력해주세요</p>
         <div class="row2">
@@ -3951,6 +3965,9 @@ function openRiskModal(existing){
     if(afterFields){
       statusSel.addEventListener('change', e=>{
         afterFields.style.display = (isAdmin && e.target.value==='완료') ? '' : 'none';
+        // 완료로 바꾸는 순간 완료일이 비어있으면 오늘 날짜를 기본으로 채워줌 (바꿀 수 있음)
+        const cd = document.getElementById('f_completedDate');
+        if(cd && e.target.value==='완료' && !cd.value) cd.value = todayStr();
       });
     }
     const catSel = document.getElementById('f_hazardCategory');
@@ -3999,6 +4016,15 @@ function openRiskModal(existing){
 
     // 완료 처리 시 개선후 재평가 필수. 점수가 7점 이상이면 바로 저장하지 않고 확인 팝업을 먼저 띄움
     let pendingPartial = false, afterScore = null;
+    const completedDateEl = document.getElementById('f_completedDate');
+    if(isAdmin && completedDateEl){
+      if(chosenStatus==='완료'){
+        if(!completedDateEl.value){ toast('완료 처리하려면 완료일을 입력해주세요'); return; }
+        data.completedDate = completedDateEl.value;
+      }else{
+        data.completedDate = ''; // 완료 상태가 아니면 완료일은 비움
+      }
+    }
     if(isAdmin && chosenStatus==='완료'){
       const af = document.getElementById('f_afterFrequency').value;
       const as = document.getElementById('f_afterSeverity').value;
@@ -4116,6 +4142,8 @@ function openRiskDetail(id){
         <dt>${t('lbl_measures_only')}</dt><dd>${esc(r.measures)}</dd>
         ${isManager ? `<dt>${t('th_reporter_applicant')}</dt><dd>${esc(r.reporter||'-')}</dd>` : ''}
         <dt>${t('th_status')}</dt><dd>${statusBadge('risk', r.status)}</dd>
+        <dt>${t('lbl_received_date')}</dt><dd>${riskReceivedDate(r)||'-'}</dd>
+        ${r.completedDate ? `<dt>${t('lbl_completed_date')}</dt><dd>${fmtDate(r.completedDate)}</dd>` : ''}
         ${isAdmin && (r.hazardCategory||r.hazardDetailType) ? `<dt>위험분류</dt><dd>${esc(r.hazardCategory||'-')} ${r.hazardDetailType?('· '+esc(r.hazardDetailType)):''}</dd>` : ''}
         ${afterScore!=null ? `<dt>${t('th_risklevel_after')}</dt><dd>${riskChip({frequency:r.afterFrequency,severity:r.afterSeverity})} &nbsp;(${t('th_frequency')} ${r.afterFrequency} × ${t('th_severity')} ${r.afterSeverity})</dd>` : ''}
       </dl>
