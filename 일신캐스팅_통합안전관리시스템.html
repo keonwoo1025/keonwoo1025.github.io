@@ -878,7 +878,7 @@ function canTerminate(){ return State.mode==='admin' || State.mode==='dept'; }
 function isSafetyDept(){ return State.mode==='dept' && State.dept==='안전환경부'; }
 function canApprovePermit(){ return State.mode==='admin' || isSafetyDept(); }
 // 생산부·품질관리부·관리부 계정이 외주업체 대신 신청서를 직접 입력하려 할 때 경고 (안전환경부·마스터는 해당 없음)
-function needsDirectPermitWarning(){ return State.mode==='dept' && ['생산부','품질관리부','관리부'].includes(State.dept); }
+function needsDirectPermitWarning(){ return State.mode==='dept'; } // 모든 부서 계정(안전환경부 포함)은 신청 전에 사내/외주 구분을 거침 — 마스터만 해당 없음
 function showDirectPermitWarning(onInHouse){
   showModal(`
     <div class="modal-head"><h3>작업허가 신청 구분 확인</h3><button class="x-btn" data-close>✕</button></div>
@@ -900,6 +900,14 @@ function showDirectPermitWarning(onInHouse){
       <div class="modal-foot"><button class="btn btn-primary" data-close style="min-width:90px;justify-content:center;text-align:center;">확인</button></div>
     `);
   });
+}
+// 작업허가 의뢰 부서 선택지
+const PERMIT_DEPTS = ['생산부','품질관리부','관리부','안전환경부'];
+// 업체명 비교·검색용 정규화 — 띄어쓰기, "(주)"/"㈜"/"주식회사" 등 표기 차이를 무시
+function normalizeCompanyName(str){
+  return String(str||'').toLowerCase()
+    .replace(/\(\s*주\s*\)|（\s*주\s*）|㈜|주식회사|\(\s*유\s*\)|（\s*유\s*）|유한회사|\(\s*합\s*\)|합자회사|합명회사/g,'')
+    .replace(/[\s\-_.,()（）]/g,'');
 }
 // 허가서의 "작업 구분" 표시 (외주업체 작업 / 사내 자체 작업) — 관리자 화면에서 목록·상세에 표시
 function permitOriginBadge(p){
@@ -2618,6 +2626,23 @@ function renderPermits(){
       </div>
       <button class="btn btn-primary" id="addPermitBtn">${icon('plus',15)} ${t('permits_add_btn')}</button>
     </div>
+    ${!isPartner ? `
+    <div class="toolbar" style="margin-top:-4px;flex-wrap:wrap;row-gap:8px;">
+      <input type="text" id="permitSearchBox" class="searchbox" placeholder="업체명·작업명·장소 검색" value="${esc(State.filters.permitSearch||'')}" style="max-width:260px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="permitDeptFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체">전체 부서</option>
+          ${PERMIT_DEPTS.map(d=>`<option value="${d}" ${State.filters.permitDept===d?'selected':''}>${d}</option>`).join('')}
+          <option value="미지정" ${State.filters.permitDept==='미지정'?'selected':''}>부서 미지정</option>
+        </select>
+        ${(isAdmin||isDept) ? `<select id="permitOriginFilter" class="btn btn-sm" style="font-weight:700;">
+          <option value="전체">전체 구분</option>
+          <option value="사내" ${State.filters.permitOrigin==='사내'?'selected':''}>사내 작업</option>
+          <option value="외주" ${State.filters.permitOrigin==='외주'?'selected':''}>외주 작업</option>
+          <option value="미지정" ${State.filters.permitOrigin==='미지정'?'selected':''}>구분 미지정</option>
+        </select>` : ''}
+      </div>
+    </div>` : ''}
     <div class="table-wrap"><table>
       <thead><tr>
         <th>${t('th_company')}</th><th>${t('th_workcontent')}</th><th>${t('th_worktype')}</th><th>${t('th_workperiod')}</th><th>${t('th_processmanager')}</th><th>${t('th_firework')}</th><th>${t('th_status')}</th><th class="tight">${t('btn_manage_col')}</th>
@@ -2628,7 +2653,7 @@ function renderPermits(){
     <div class="section-title" style="margin-top:26px;"><span class="n">🔗</span> 외주업체 조회링크 관리</div>
     <p class="hint" style="margin:-6px 0 12px;">여기서 업체를 등록하면 그 업체 전용 고유 링크가 생성됩니다. 업체는 그 링크로 접속해 <b>직접 작업허가를 신청</b>하고, 자기 업체가 신청한 것만 조회할 수 있습니다.</p>
     <div class="toolbar" style="margin-bottom:10px;">
-      <div></div>
+      <input type="text" id="partnerSearchBox" class="searchbox" placeholder="업체명 검색" value="${esc(State.filters.partnerSearch||'')}" style="max-width:240px;">
       <button class="btn btn-sm" id="addPartnerBtn">${icon('plus',14)} 업체 등록</button>
     </div>
     <div class="table-wrap"><table>
@@ -2645,34 +2670,57 @@ function renderPermits(){
     else openPermitModal();
   });
 
-  let arr = objToArr(DataStore.get(PATHS.permits)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  if(isPartner) arr = arr.filter(p=>p.company===State.partnerCompany);
-  const filtered = filter==='전체' ? arr : arr.filter(p=>p.status===filter);
-  const body = document.getElementById('permitBody');
-  if(filtered.length===0){
-    body.innerHTML = `<tr><td colspan="8"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('permits_empty')}</div></td></tr>`;
-  }else{
-    body.innerHTML = filtered.map(p=>`
-      <tr>
-        <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}${(State.mode==='admin'||State.mode==='dept') ? ' '+permitOriginBadge(p) : ''}</td>
-        <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
-        <td>${esc(p.workType||'-')}</td>
-        <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
-        <td>${esc(p.processManager||'-')}</td>
-        <td>${p.fireWork? '<span class="badge b-safety">🔥</span>' : '<span class="badge b-gray">-</span>'}</td>
-        <td>${statusBadge('permit', p.status)}</td>
-        <td class="tight row-btns">
-          <button class="btn btn-sm" data-view-id="${p.id}">${t('btn_view')}</button>
-        </td>
-      </tr>
-    `).join('');
-    body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openPermitDetail(b.dataset.viewId)));
-  }
+  const sb = document.getElementById('permitSearchBox');
+  if(sb) sb.addEventListener('input', e=>{ State.filters.permitSearch = e.target.value; renderPermitRows(); }); // 검색창은 다시 그리지 않고 목록만 갱신(한글 입력 끊김 방지)
+  const df = document.getElementById('permitDeptFilter');
+  if(df) df.addEventListener('change', e=>{ State.filters.permitDept = e.target.value; renderPermitRows(); });
+  const of = document.getElementById('permitOriginFilter');
+  if(of) of.addEventListener('change', e=>{ State.filters.permitOrigin = e.target.value; renderPermitRows(); });
+  renderPermitRows();
 
   if(canManagePartners){
     renderPartnerList();
     document.getElementById('addPartnerBtn').addEventListener('click', ()=> openPartnerModal());
+    document.getElementById('partnerSearchBox').addEventListener('input', e=>{ State.filters.partnerSearch = e.target.value; renderPartnerList(); });
   }
+}
+
+// 허가서 목록 본문만 다시 그림 (검색·필터가 바뀔 때)
+function renderPermitRows(){
+  const body = document.getElementById('permitBody');
+  if(!body) return;
+  const filter = State.filters.permits || '전체';
+  const isPartner = State.mode==='partner';
+  const q = normalizeCompanyName(State.filters.permitSearch||'');
+  const dF = State.filters.permitDept || '전체';
+  const oF = State.filters.permitOrigin || '전체';
+  let arr = objToArr(DataStore.get(PATHS.permits)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(isPartner) arr = arr.filter(p=>p.company===State.partnerCompany);
+  let filtered = filter==='전체' ? arr : arr.filter(p=>p.status===filter);
+  if(!isPartner){
+    if(dF!=='전체') filtered = filtered.filter(p=> dF==='미지정' ? !p.dept : p.dept===dF);
+    if(oF!=='전체') filtered = filtered.filter(p=> oF==='미지정' ? !p.workOrigin : p.workOrigin===oF);
+    if(q) filtered = filtered.filter(p=> normalizeCompanyName([p.company,p.workContent,p.location].join(' ')).includes(q));
+  }
+  if(filtered.length===0){
+    body.innerHTML = `<tr><td colspan="8"><div class="empty"><span class="big">${icon('file-check',22)}</span>${t('permits_empty')}</div></td></tr>`;
+    return;
+  }
+  body.innerHTML = filtered.map(p=>`
+    <tr>
+      <td class="cell-strong">${newBadge(p, PATHS.permits)}${esc(p.company||'-')}${(State.mode==='admin'||State.mode==='dept') ? ' '+permitOriginBadge(p) : ''}${(!isPartner && p.dept) ? ` <span class="badge b-gray">${esc(p.dept)}</span>` : ''}</td>
+      <td>${esc(p.workContent||'-')}<div class="cell-sub">${esc(p.location||'')}</div></td>
+      <td>${esc(p.workType||'-')}</td>
+      <td class="mono">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
+      <td>${esc(p.processManager||'-')}</td>
+      <td>${p.fireWork? '<span class="badge b-safety">🔥</span>' : '<span class="badge b-gray">-</span>'}</td>
+      <td>${statusBadge('permit', p.status)}</td>
+      <td class="tight row-btns">
+        <button class="btn btn-sm" data-view-id="${p.id}">${t('btn_view')}</button>
+      </td>
+    </tr>
+  `).join('');
+  body.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=> openPermitDetail(b.dataset.viewId)));
 }
 
 function genPartnerToken(){
@@ -2683,21 +2731,24 @@ function partnerLinkUrl(token){
   return `${location.origin}${location.pathname}?p=${token}`;
 }
 function renderPartnerList(){
-  const partners = objToArr(DataStore.get(PATHS.permitPartners)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const pq = normalizeCompanyName(State.filters.partnerSearch||'');
+  const partners = objToArr(DataStore.get(PATHS.permitPartners)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))
+    .filter(p=> !pq || normalizeCompanyName(p.name).includes(pq));
   const tbody = document.getElementById('partnerBody');
   if(!tbody) return;
+  const isMaster = State.mode==='admin'; // 링크 수정·재발급·삭제는 마스터만 (여러 부서가 같은 업체 링크를 같이 쓰므로)
   tbody.innerHTML = partners.length ? partners.map(p=>`
     <tr>
       <td class="cell-strong">${esc(p.name)}</td>
       <td class="mono" style="font-size:11px;word-break:break-all;">${partnerLinkUrl(p.token)}</td>
       <td class="tight row-btns">
         <button class="btn btn-sm" data-copy-p="${p.id}">복사</button>
-        <button class="btn btn-sm" data-edit-p="${p.id}">${t('btn_edit')}</button>
+        ${isMaster ? `<button class="btn btn-sm" data-edit-p="${p.id}">${t('btn_edit')}</button>
         <button class="btn btn-sm" data-reissue-p="${p.id}">재발급</button>
-        <button class="btn btn-sm" data-del-p="${p.id}">${t('btn_delete')}</button>
+        <button class="btn btn-sm" data-del-p="${p.id}">${t('btn_delete')}</button>` : ''}
       </td>
     </tr>
-  `).join('') : `<tr><td colspan="3"><div class="empty">등록된 업체가 없습니다</div></td></tr>`;
+  `).join('') : `<tr><td colspan="3"><div class="empty">${pq ? '검색 결과가 없습니다' : '등록된 업체가 없습니다'}</div></td></tr>`;
   tbody.querySelectorAll('[data-copy-p]').forEach(b=> b.addEventListener('click', async ()=>{
     const p = partners.find(x=>x.id===b.dataset.copyP);
     try{ await navigator.clipboard.writeText(partnerLinkUrl(p.token)); toast('링크가 복사되었습니다'); }
@@ -2733,6 +2784,18 @@ function openPartnerModal(existing){
   document.getElementById('savePartnerBtn').addEventListener('click', async ()=>{
     const name = document.getElementById('f_partnerName').value.trim();
     if(!name){ toast(t('toast_fill_required')); return; }
+    if(!isEdit){
+      // 띄어쓰기·(주) 표기만 다른 같은 업체를 중복 등록하지 않도록 확인
+      const key = normalizeCompanyName(name);
+      const dup = objToArr(DataStore.get(PATHS.permitPartners)).find(x=> normalizeCompanyName(x.name)===key);
+      if(dup){
+        if(State.mode==='admin'){
+          if(!confirm('이미 비슷한 업체가 등록되어 있습니다: "'+dup.name+'"\n그래도 새로 등록할까요?')) return;
+        }else{
+          toast('이미 등록된 업체입니다: '+dup.name+' (목록에서 링크를 복사해 사용해주세요)'); return;
+        }
+      }
+    }
     if(isEdit){
       await DataStore.update(PATHS.permitPartners, existing.id, { name });
       toast(t('toast_updated_generic'));
@@ -2754,17 +2817,26 @@ function openPermitModal(existing, presetOrigin){
   const canProcess = isAdmin || isDept;
   const canApprove = isAdmin || isSafetyDept();
   const showOriginField = !isPartner && State.mode!=='user';   // 마스터·부서 계정만 작업 구분을 직접 다룸
-  const originLocked = isDept && !isSafetyDept();              // 생산부·품질관리부·관리부는 구분을 바꿀 수 없음(팝업에서 정한 값)
+  const originLocked = isDept;                                 // 부서 계정(안전환경부 포함)은 구분을 바꿀 수 없음(팝업에서 정한 값) — 마스터만 직접 선택
+  const deptVal = v.dept || (isDept ? State.dept : '');       // 의뢰 부서: 부서 계정은 자기 부서로 자동 고정
+  const deptLocked = isDept;
   const originVal = v.workOrigin || presetOrigin || '';
   showModal(`
     <div class="modal-head"><h3>${isEdit?t('permit_edit_title'):t('permit_new_title')}</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      ${showOriginField ? `<div class="field"><label>작업 구분 *</label>
-        <select id="f_workOrigin" ${originLocked?'disabled':''}>
-          <option value="">선택해주세요</option>
-          <option value="외주" ${originVal==='외주'?'selected':''}>외주업체 작업</option>
-          <option value="사내" ${originVal==='사내'?'selected':''}>사내 자체 작업</option>
-        </select></div>` : ''}
+      <div class="row2">
+        ${showOriginField ? `<div class="field"><label>작업 구분 *</label>
+          <select id="f_workOrigin" ${originLocked?'disabled':''}>
+            <option value="">선택해주세요</option>
+            <option value="외주" ${originVal==='외주'?'selected':''}>외주업체 작업</option>
+            <option value="사내" ${originVal==='사내'?'selected':''}>사내 자체 작업</option>
+          </select></div>` : ''}
+        <div class="field"><label>의뢰 부서 *</label>
+          <select id="f_dept" ${deptLocked?'disabled':''}>
+            <option value="">선택해주세요</option>
+            ${PERMIT_DEPTS.map(d=>`<option value="${d}" ${deptVal===d?'selected':''}>${d}</option>`).join('')}
+          </select></div>
+      </div>
       <div class="row2">
         <div class="field"><label>${t('lbl_company')} *</label>
           ${isPartner
@@ -2941,6 +3013,12 @@ function openPermitModal(existing, presetOrigin){
     };
     // 작업 구분(외주/사내) 저장 — 외주업체 계정은 자동으로 '외주'
     const originEl = document.getElementById('f_workOrigin');
+    // 의뢰 부서 — 부서 계정은 자기 부서로 고정, 외주업체·일반사용자·마스터는 직접 선택(필수)
+    const deptEl = document.getElementById('f_dept');
+    if(deptEl){
+      if(!deptEl.value && (!isEdit || !deptEl.disabled)){ toast('의뢰 부서를 선택해주세요'); return; }
+      if(deptEl.value && (!deptEl.disabled || !isEdit)) data.dept = deptEl.value;
+    }
     if(isPartner){ if(!isEdit) data.workOrigin = '외주'; }
     else if(State.mode==='user'){ if(!isEdit) data.workOrigin = '사내'; } // 일반사용자는 외주업체를 부를 수 없으므로 사내 작업으로 기록
     else if(originEl){
@@ -3050,6 +3128,7 @@ function openPermitDetail(id){
       <dl class="detail-grid">
         <dt>${t('th_company')}</dt><dd>${esc(p.company)}</dd>
         ${(canProcess && p.workOrigin) ? `<dt>작업 구분</dt><dd>${permitOriginBadge(p)} ${p.workOrigin==='사내'?'사내 자체 작업':'외주업체 작업'}</dd>` : ''}
+        ${(State.mode!=='partner' && p.dept) ? `<dt>의뢰 부서</dt><dd>${esc(p.dept)}</dd>` : ''}
         <dt>${t('dt_type')}</dt><dd>${esc(t('worktype_'+p.workType))} ${p.fireWork?'· 🔥'+t('firework_tag'):''}</dd>
         <dt>${t('lbl_workname')}</dt><dd>${esc(p.workContent)}</dd>
         <dt>${t('lbl_worklocation')}</dt><dd>${esc(p.location)}</dd>
