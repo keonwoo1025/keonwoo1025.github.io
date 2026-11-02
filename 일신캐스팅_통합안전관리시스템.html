@@ -3222,7 +3222,13 @@ function openPermitTerminationModal(p){
   document.getElementById('saveTerminationBtn').addEventListener('click', async ()=>{
     const endConfirmer = document.getElementById('f_endConfirmer').value.trim();
     if(!endConfirmer || !confirmerSigData){ toast('확인자 성명과 서명을 모두 입력해주세요'); return; }
+    // 앞선 단계(검토완료 → 승인)가 서명까지 끝나 있어야만 저장·종료 가능
+    const cur = (DataStore.get(PATHS.permits) || {})[p.id] || p;
+    if(cur.status!=='승인' && cur.status!=='종료'){ toast('승인이 끝난 허가서만 작업종료 확인을 저장할 수 있습니다'); return; }
+    if(!cur.deptSignature){ toast('검토자 서명이 없어 저장할 수 없습니다'); return; }
+    if(!cur.approverSignature){ toast('승인자 서명이 없어 저장할 수 없습니다'); return; }
     const data = {
+      status: '종료',
       endDatetime: document.getElementById('f_endDatetime').value,
       siteCondition: document.getElementById('f_siteCondition').value,
       endConfirmer,
