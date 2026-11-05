@@ -1151,6 +1151,8 @@ const TRANSLATIONS = {
   // 다른 관리자 전용 화면들과 동일하게 다국어 번역 없이 한국어로만 작성함
   nav_s5s:{ko:'3정5S',en:'3Jeong 5S',th:'3Jeong 5S',id:'3Jeong 5S',mn:'3Jeong 5S'},
   nav_s5s_sub:{ko:'3정 정리·정돈 활동 관리',en:'3Jeong 5S activity management',th:'การจัดการกิจกรรม 3Jeong 5S',id:'Manajemen kegiatan 3Jeong 5S',mn:'3Жон 5S ажлын менежмент'},
+  nav_ppe:{ko:'보호구 지급'},
+  nav_ppe_sub:{ko:'보호구 지급 기록 · 집계 · 지급대장 (마스터 전용)'},
   bug_th_title:{ko:'제목',en:'Title',th:'หัวข้อ',id:'Judul',mn:'Гарчиг'},
   bug_th_reporter:{ko:'신고자',en:'Reported by',th:'ผู้แจ้ง',id:'Dilaporkan oleh',mn:'Мэдээлэгч'},
   bug_empty:{ko:'등록된 버그신고가 없습니다',en:'No bug reports yet',th:'ยังไม่มีการแจ้งปัญหา',id:'Belum ada laporan bug',mn:'Алдааны мэдээлэл алга байна'},
@@ -1681,6 +1683,10 @@ const PATHS = {
   // 전체관리자로 읽기를 제한하면, 뒷문(직접 DB 접근)으로도 이름이 노출되지 않는다.
   privateSuggestionNames:'private_names/safety_suggestions',
   privateBugNames:'private_names/bug_reports',
+  // 보호구 지급 (마스터 전용 — Firebase 규칙에서도 읽기·쓰기 모두 admin만 허용)
+  ppeItems:'ppe_items',     // 품목 마스터 (종류별 인증번호·단가 이력)
+  ppeIssues:'ppe_issues',   // 지급 기록 (월 일괄 지급 + 요청 시 지급)
+  ppeConfig:'ppe_config',   // 지급 단위(공정)·지급 기준표·월 생산량 (main 한 건)
 };
 
 // 각 메뉴(뷰)를 열 때 실제로 필요한 데이터 경로 매핑 — 방문한 메뉴의 경로만 그때 구독해서
@@ -1699,6 +1705,7 @@ const VIEW_PATHS = {
   bugs: [PATHS.bugReports],
   stats: [PATHS.statsWorkforce, PATHS.statsHolidayWork, PATHS.incidents],
   s5s: [PATHS.s5sProduction, PATHS.s5sQuality, PATHS.s5sManagement, PATHS.s5sSafety, PATHS.s5sCommon, PATHS.s5sMonthlyTarget],
+  ppe: [PATHS.ppeItems, PATHS.ppeIssues, PATHS.ppeConfig],
 };
 const subscribedPaths = new Set();
 /* ============================================================
@@ -1915,7 +1922,8 @@ const NAV_ITEMS = [
   {id:'suggestions', labelKey:'nav_suggestions', icon:'lightbulb', subKey:'nav_suggestions_sub'},
   {id:'bugs', labelKey:'nav_bugs', icon:'bug', subKey:'nav_bugs_sub'},
   {id:'stats', labelKey:'nav_stats', icon:'bar-chart', subKey:'nav_stats_sub'},
-  {id:'s5s', labelKey:'nav_s5s', icon:'grid', subKey:'nav_s5s_sub'}
+  {id:'s5s', labelKey:'nav_s5s', icon:'grid', subKey:'nav_s5s_sub'},
+  {id:'ppe', labelKey:'nav_ppe', icon:'hard-hat', subKey:'nav_ppe_sub'} // 마스터 전용(아래 renderNav·switchView에서 걸러냄)
 ];
 
 const ICONS = {
@@ -1940,8 +1948,8 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
-    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
-    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors')
+    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='ppe')
+    : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='ppe')
     : NAV_ITEMS; // "통계"는 대시보드 탭만 전체공개, 월별 인원수 입력은 전체관리자 전용(탭에서 갈림) / "3정5S"는 전체관리자·부서관리자 전용
   nav.innerHTML = items.map(item=>{
     const count = navBadgeCount(item.id);
@@ -2003,6 +2011,7 @@ function switchView(id){
   if(State.mode==='dept' && id==='contractors') id = 'dashboard';
   if(State.mode==='user' && id==='contractors') id = 'dashboard';
   if(id==='stats' && State.mode==='partner') id = 'permits'; // 외주업체 계정은 통계 접근 불가(작업허가만)
+  if(id==='ppe' && State.mode!=='admin') id = (State.mode==='partner' ? 'permits' : 'dashboard'); // 보호구 지급은 마스터 전용
   if(id==='s5s' && State.mode==='partner') id = 'permits'; // 3정5S는 외주업체 계정은 접근 불가, 일반사용자는 열람만 가능
   State.view = id;
   const pathsForView = (id==='dashboard' && State.mode!=='admin')
@@ -2031,7 +2040,8 @@ function renderCurrentView(){
     suggestions: renderSuggestions,
     bugs: renderBugs,
     stats: renderStats,
-    s5s: renderS5S
+    s5s: renderS5S,
+    ppe: renderPpe
   }[State.view]||function(){})();
 }
 
@@ -2050,6 +2060,7 @@ document.getElementById('views').innerHTML = `
   <section class="view" id="view-bugs" hidden></section>
   <section class="view" id="view-stats" hidden></section>
   <section class="view" id="view-s5s" hidden></section>
+  <section class="view" id="view-ppe" hidden></section>
 `;
 
 /* ============================================================
@@ -10033,6 +10044,740 @@ document.getElementById('sidebarLangBtn').addEventListener('click', ()=>{
     });
   });
 });
+
+/* ============================================================
+   보호구 지급 (마스터 전용)
+   - 품목 마스터(종류별 인증번호·단가 이력) / 월 일괄 지급(예정→확정) / 요청 시 지급 입력 / 집계(예산 근거) / 지급대장 엑셀 출력
+   - 법정 서류는 종이 서명본이 원본 — 앱은 그 기록과 집계를 맡고, 대장 양식(엑셀)은 미리 인쇄할 수 있게 만들어준다.
+   - 마스터 전용이라 한국어만 사용 (일반 사용자에게 보이지 않음)
+============================================================= */
+const PPE_TABS = ['월 일괄 지급','요청 시 지급','집계','설정'];
+const PPE_REASONS = ['일반','신규입사','교체(마모)','파손','분실'];
+const PPE_SIZES = (()=>{ const a=[]; for(let s=220;s<=310;s+=5) a.push(s); return a; })();
+const PPEState = {
+  tab:'월 일괄 지급',
+  month: todayStr().slice(0,7),     // 월 일괄 지급 탭의 대상 월
+  reqMonth: todayStr().slice(0,7),  // 요청 시 지급 탭의 목록 월
+  from: '2026-10', to: '2027-09',   // 집계 기간
+  editId: null, forceStd: false,
+  reqDraft: { date:'', rtype:'person', itemKey:'', qty:1, reason:'일반' }
+};
+
+function ppeArr(x){ return Array.isArray(x) ? x.filter(v=>v!=null) : Object.values(x||{}); }
+function ppeItems(){ return objToArr(DataStore.get(PATHS.ppeItems)).sort((a,b)=>(a.order||0)-(b.order||0)); }
+function ppeKinds(item){ return ppeArr(item && item.kinds); }
+function ppeIssues(){ return objToArr(DataStore.get(PATHS.ppeIssues)); }
+function ppeCfg(){
+  const c = (DataStore.get(PATHS.ppeConfig)||{}).main || {};
+  return { units: ppeArr(c.units), std: c.std || {}, production: c.production || {} };
+}
+function ppeFlatKinds(){
+  const out = [];
+  ppeItems().forEach(item=> ppeKinds(item).forEach(kind=> out.push({ item, kind, key: item.id+'|'+kind.name })));
+  return out;
+}
+function ppeFindKind(itemId, kindName){
+  const item = ppeItems().find(i=>i.id===itemId);
+  if(!item) return { item:null, kind:null };
+  return { item, kind: ppeKinds(item).find(k=>k.name===kindName) || null };
+}
+// 적용월 기준 단가 — 해당 월 이전(포함)에 시작한 가장 최근 단가. 첫 적용월보다 앞선 월이면 첫 단가를 쓴다.
+function ppePrice(kind, month){
+  if(!kind) return 0;
+  const ps = ppeArr(kind.prices).filter(p=>p && p.from).sort((a,b)=> a.from<b.from ? -1 : a.from>b.from ? 1 : 0);
+  if(!ps.length) return 0;
+  let p = null;
+  ps.forEach(x=>{ if(x.from<=month) p = x.price; });
+  return Number(p!=null ? p : ps[0].price) || 0;
+}
+function ppeFmtPrices(kind){ return ppeArr(kind.prices).map(p=>`${p.from}:${p.price}`).join(', '); }
+function ppeParsePrices(text){
+  const out = [];
+  for(const part of String(text||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean)){
+    const m = part.match(/^(\d{4}-\d{2})\s*[:=]\s*([\d,]+)$/);
+    if(!m) return null;
+    out.push({ from:m[1], price:Number(m[2].replace(/,/g,'')) });
+  }
+  return out;
+}
+function ppeMoney(n){ return Math.round(n||0).toLocaleString('ko-KR'); }
+function ppeMonthsBetween(from, to){
+  const out = []; let [y,m] = from.split('-').map(Number); const [ty,tm] = to.split('-').map(Number);
+  while((y<ty || (y===ty && m<=tm)) && out.length<60){ out.push(`${y}-${String(m).padStart(2,'0')}`); m++; if(m>12){ m=1; y++; } }
+  return out;
+}
+function ppeAddMonths(ym, n){
+  let [y,m] = ym.split('-').map(Number); m += n;
+  while(m>12){ m-=12; y++; } while(m<1){ m+=12; y--; }
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+function ppeDotDate(d){ return String(d||'').replace(/-/g,'.'); }
+function ppeJoinCert(cert, tag){ return cert ? (tag ? `${cert} (${tag})` : cert) : (tag||''); }
+
+/* ---------- 기본 품목·지급 단위·지급 기준표 (처음 한 번 불러오기) ---------- */
+const PPE_SEED_ITEMS = [
+  { id:'i_banco', order:10, name:'반코팅장갑', unit:'개', perUnit:1, method:'monthly', kinds:[{ name:'반코팅장갑', cert:'', prices:[{from:'2026-10',price:230}] }] },
+  { id:'i_cotton', order:20, name:'면장갑', unit:'개', perUnit:1, method:'monthly', kinds:[{ name:'면장갑', cert:'', prices:[{from:'2026-10',price:200}] }] },
+  { id:'i_deungcheon', order:30, name:'등천장갑', unit:'개', perUnit:1, method:'monthly', kinds:[{ name:'등천장갑', cert:'', prices:[{from:'2026-10',price:2250}] }] },
+  { id:'i_yellow', order:40, name:'이중황장갑', unit:'개', perUnit:1, method:'monthly', kinds:[{ name:'이중황장갑', cert:'', prices:[{from:'2026-10',price:590}] }] },
+  { id:'i_mask', order:50, name:'마스크', unit:'박스', perUnit:20, method:'monthly', kinds:[{ name:'마스크', cert:'23-AV4CT-0023', prices:[{from:'2026-10',price:15000}] }] },
+  { id:'i_pvc', order:60, name:'PVC장갑', unit:'개', perUnit:1, method:'request', kinds:[{ name:'PVC장갑', cert:'', prices:[] }] },
+  { id:'i_ear', order:70, name:'귀마개 / 귀덮개', unit:'개', perUnit:1, method:'request', kinds:[
+    { name:'귀마개', cert:'방음 제 43호-3', prices:[{from:'2026-10',price:400}] },
+    { name:'귀덮개', cert:'09-AV2Cb-0002', prices:[{from:'2026-10',price:13000}] } ] },
+  { id:'i_eye', order:80, name:'보안경/보안면', unit:'개', perUnit:1, method:'request', kinds:[
+    { name:'보안경', cert:'제 215호 - 2', prices:[{from:'2026-10',price:8500}] },
+    { name:'보안면', cert:'제 215호 - 2', prices:[{from:'2026-10',price:16000}] } ] },
+  { id:'i_helmet', order:90, name:'안전모', unit:'개', perUnit:1, method:'request', kinds:[{ name:'안전모', cert:'안모 제731호-1', prices:[{from:'2026-10',price:5800}] }] },
+  { id:'i_shoes', order:100, name:'안전화', unit:'켤레', perUnit:1, method:'request', hasSize:true, splitLedger:true, kinds:[
+    { name:'안전화(베이직)', cert:'19-AV4CR-0211', prices:[{from:'2026-10',price:28000}] },
+    { name:'안전화(콜핑)', cert:'22-AV4CR-0132', prices:[{from:'2026-10',price:40000}] },
+    { name:'안전화(트렉스타)', cert:'20-AV4CR-0332', prices:[{from:'2026-10',price:43000}] } ] },
+];
+const PPE_SEED_UNITS = [
+  ['용해',1],['주입/보온',1],['조형',1],['사처리',1],['후처리',1],['품질',0],['개발',1],
+  ['환경정리',0],['전기',1],['기계',1],['합리화',1],['래들보수',1],['생산관리',0]
+];
+// 지급 기준표 (공정 순서는 PPE_SEED_UNITS와 동일, 빈칸은 0)
+const PPE_SEED_STD = {
+  i_banco:    [200,100,350,100,350,200,150,50,50,50,100,50,100],
+  i_cotton:   [0,0,100,0,600,200,0,50,200,200,100,50,0],
+  i_deungcheon:[150,150,0,0,200,0,0,0,0,0,0,50,0],
+  i_yellow:   [0,0,0,0,300,0,0,50,0,0,0,20,0],
+  i_pvc:      [0,0,0,0,0,0,0,0,0,0,0,0,0],
+  i_mask:     [10,10,20,4,24,20,5,5,5,5,12,5,5],
+};
+async function ppeSeedDefaults(){
+  const units = PPE_SEED_UNITS.map(([name,monthly],i)=>({ id:'u'+(i+1), name, monthly:!!monthly }));
+  const std = {};
+  Object.entries(PPE_SEED_STD).forEach(([itemId, arr])=>{
+    std[itemId] = {}; units.forEach((u,i)=>{ std[itemId][u.id] = arr[i]||0; });
+  });
+  for(const it of PPE_SEED_ITEMS){
+    const { id, ...doc } = it;
+    await DataStore.update(PATHS.ppeItems, id, doc);
+  }
+  await DataStore.update(PATHS.ppeConfig, 'main', { units, std });
+}
+
+/* ---------- 지급대장 엑셀 (제공받은 양식을 내장해 그대로 채움) ---------- */
+const PPE_TPL_B64 = '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';
+function ppeXml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ppeCell(ref, style, v){
+  if(v===null || v===undefined || v==='') return `<c r="${ref}" s="${style}"/>`;
+  if(typeof v==='number') return `<c r="${ref}" s="${style}"><v>${v}</v></c>`;
+  return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${ppeXml(v)}</t></is></c>`;
+}
+// spec: { rows:[{date,name,cert,qty}], blank:bool, blankName, blankCert, qtyHeader, seqStart, selected }
+function ppeFillSheetXml(tpl, spec){
+  let x = tpl;
+  const setCell = (col, r, make)=>{
+    const re = new RegExp('<c r="'+col+r+'" s="(\\d+)"(?: t="s")?(?:/>|>.*?</c>)');
+    x = x.replace(re, (m, s)=> make(s));
+  };
+  for(let r=7; r<=106; r++){
+    const row = spec.rows[r-7];
+    const eStyle = r===7 ? 29 : (r===106 ? 31 : 30); // 인증번호 칸: 줄바꿈 허용 스타일(원래 칸 테두리 유지)
+    setCell('B', r, s=> ppeCell('B'+r, s, (spec.seqStart||1) + (r-7)));
+    setCell('C', r, s=> ppeCell('C'+r, s, row ? ppeDotDate(row.date) : ''));
+    setCell('D', r, s=> ppeCell('D'+r, s, row ? row.name : (spec.blank ? spec.blankName : '')));
+    setCell('E', r, ()=> ppeCell('E'+r, eStyle, row ? row.cert : (spec.blank ? spec.blankCert : '')));
+    setCell('F', r, s=> ppeCell('F'+r, s, row ? (row.qty===''||row.qty==null ? '' : Number(row.qty)) : ''));
+  }
+  if(spec.qtyHeader){
+    x = x.replace(/<c r="F5" s="(\d+)" t="s"><v>4<\/v><\/c>/, ()=> ppeCell('F5', 32, spec.qtyHeader)); // 32: 헤더 스타일 + 줄바꿈
+  }
+  if(!spec.selected) x = x.replace(' tabSelected="1"', '');
+  return x;
+}
+function ppeSafeSheetName(name, used){
+  let base = String(name||'대장').replace(/[\\\/?*\[\]:']/g,'·').trim().slice(0,28) || '대장';
+  let n = base, i = 2;
+  while(used.has(n)){ n = base.slice(0,26)+'('+i+')'; i++; }
+  used.add(n);
+  return n;
+}
+// sheets: [{name, rows, blank, blankName, blankCert, qtyHeader}] — 100줄을 넘으면 자동으로 다음 시트로 이어짐
+function ppeBuildLedgerXlsx(sheets){
+  const tpl = new PizZip(PPE_TPL_B64, { base64:true });
+  const sheetTpl = tpl.file('xl/worksheets/sheet1.xml').asText();
+  const used = new Set();
+  const finalSheets = [];
+  sheets.forEach(sp=>{
+    const rows = sp.rows || [];
+    const chunks = sp.blank ? [[]] : Array.from({length: Math.max(1, Math.ceil(rows.length/100))}, (_,i)=> rows.slice(i*100, i*100+100));
+    chunks.forEach((chunk, ci)=>{
+      finalSheets.push({
+        ...sp, rows:chunk, seqStart: ci*100+1,
+        name: ppeSafeSheetName(ci===0 ? sp.name : `${sp.name} ${ci+1}`, used)
+      });
+    });
+  });
+  const out = new PizZip();
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const RNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  out.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${finalSheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>`);
+  out.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+  const n = finalSheets.length;
+  out.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${finalSheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${n+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId${n+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/><Relationship Id="rId${n+3}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>`);
+  const names = finalSheets.map((s,i)=>{
+    // 인쇄 영역: 일괄·기록 대장은 25줄(1장)씩 필요한 만큼만, 빈 대장은 100줄 전체
+    const end = s.blank ? 106 : Math.min(106, 6 + 25*Math.max(1, Math.ceil(s.rows.length/25)));
+    return `<definedName name="_xlnm.Print_Area" localSheetId="${i}">'${s.name}'!$B$2:$I$${end}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="${i}">'${s.name}'!$5:$6</definedName>`;
+  }).join('');
+  out.file('xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${NS}" xmlns:r="${RNS}"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="15600"/></bookViews><sheets>${finalSheets.map((s,i)=>`<sheet name="${ppeXml(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames>${names}</definedNames></workbook>`);
+  finalSheets.forEach((s,i)=>{
+    out.file(`xl/worksheets/sheet${i+1}.xml`, ppeFillSheetXml(sheetTpl, { ...s, selected: i===0 }));
+  });
+  ['xl/styles.xml','xl/theme/theme1.xml','xl/sharedStrings.xml'].forEach(p=> out.file(p, tpl.file(p).asText()));
+  return out.generate({ type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', compression:'DEFLATE' });
+}
+function ppeDownloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+
+// mode: 'blank'(요청 시 지급 품목의 빈 대장) | 'batch'(월 일괄 지급 대장, month) | 'records'(요청 시 지급 입력 내역, month)
+function ppeLedgerSpecs(mode, month){
+  const items = ppeItems();
+  const cfg = ppeCfg();
+  const units = ppeArr(cfg.units);
+  const specs = [];
+  if(mode==='blank'){
+    items.filter(i=>i.method==='request').forEach(item=>{
+      const kinds = ppeKinds(item);
+      if(item.splitLedger){
+        kinds.forEach(k=> specs.push({ name:k.name, blank:true, blankName:k.name, blankCert:k.cert||'', rows:[] }));
+      }else{
+        const certs = [...new Set(kinds.map(k=>k.cert).filter(Boolean))];
+        specs.push({ name:item.name, blank:true, blankName:item.name, blankCert:certs.join('\n'), rows:[] });
+      }
+    });
+  }else if(mode==='batch'){
+    const issues = ppeIssues().filter(r=>r.src==='batch' && r.month===month);
+    items.filter(i=>i.method==='monthly').forEach(item=>{
+      const kind = ppeKinds(item)[0]; if(!kind) return;
+      const rows = [];
+      units.forEach(u=>{
+        const r = issues.find(x=>x.itemId===item.id && x.unitId===u.id);
+        if(r && r.qty>0) rows.push({ date:r.date, name:kind.name, cert:ppeJoinCert(kind.cert, u.name), qty:r.qty });
+      });
+      if(rows.length) specs.push({ name:item.name, rows, qtyHeader: item.unit==='박스' ? '수량\n(box)' : '' });
+    });
+  }else if(mode==='records'){
+    const issues = ppeIssues().filter(r=>r.src!=='batch' && r.month===month).sort((a,b)=> (a.date||'')<(b.date||'') ? -1 : (a.date||'')>(b.date||'') ? 1 : (a.createdAt||0)-(b.createdAt||0));
+    items.forEach(item=>{
+      const kinds = ppeKinds(item);
+      const groups = item.splitLedger ? kinds.map(k=>({ label:k.name, match:r=>r.itemId===item.id && r.kind===k.name })) : [{ label:item.name, match:r=>r.itemId===item.id }];
+      groups.forEach(g=>{
+        const rows = issues.filter(g.match).map(r=>{
+          const k = kinds.find(x=>x.name===r.kind) || {};
+          const tag = r.rtype==='process' ? r.who : (r.size ? String(r.size) : '');
+          return { date:r.date, name:r.kind, cert:ppeJoinCert(k.cert, tag), qty:r.qty };
+        });
+        if(rows.length) specs.push({ name:g.label, rows, qtyHeader: item.unit==='박스' ? '수량\n(box)' : '' });
+      });
+    });
+  }
+  return specs;
+}
+function ppeDownloadLedger(mode, month){
+  if(typeof PizZip==='undefined'){ toast('엑셀 도구를 불러오지 못했습니다'); return; }
+  const specs = ppeLedgerSpecs(mode, month);
+  if(!specs.length){ toast('출력할 내용이 없습니다'); return; }
+  const blob = ppeBuildLedgerXlsx(specs);
+  const label = mode==='blank' ? '빈대장' : (mode==='batch' ? `월일괄_${month}` : `입력내역_${month}`);
+  ppeDownloadBlob(blob, `안전보호구_지급대장_${label}.xlsx`);
+}
+
+/* ---------- 집계 ---------- */
+function ppeAggregate(from, to){
+  const months = ppeMonthsBetween(from, to);
+  const issues = ppeIssues().filter(r=> r.status==='confirmed' && r.month>=from && r.month<=to);
+  const rows = [];
+  ppeFlatKinds().forEach(({item, kind})=>{
+    const per = {}; let tq = 0, ta = 0;
+    months.forEach(m=>{
+      const list = issues.filter(r=> r.itemId===item.id && r.kind===kind.name && r.month===m);
+      const qty = list.reduce((s,r)=>s+(Number(r.qty)||0),0);
+      const amt = qty * ppePrice(kind, m);
+      per[m] = { qty, amt }; tq += qty; ta += amt;
+    });
+    rows.push({ item, kind, per, totalQty:tq, totalAmt:ta });
+  });
+  return { months, rows };
+}
+
+/* ---------- 화면 ---------- */
+function renderPpe(force){
+  const el = document.getElementById('view-ppe');
+  if(!el) return;
+  if(State.mode!=='admin'){
+    el.innerHTML = '<div class="card" style="padding:24px;">🔒 마스터 계정 전용 메뉴입니다.</div>';
+    return;
+  }
+  // 다른 데이터가 갱신돼 자동 재그리기가 일어날 때, 입력 중인 칸이 있으면 건드리지 않는다(입력 내용 보호)
+  const ae = document.activeElement;
+  if(!force && ae && el.contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
+  el.innerHTML = `
+    <div class="tabs" style="margin-bottom:14px;">
+      ${PPE_TABS.map(tab=>`<button class="tab ${PPEState.tab===tab?'active':''}" data-ppe-tab="${tab}">${tab}</button>`).join('')}
+    </div>
+    <div id="ppeBody"></div>`;
+  el.querySelectorAll('[data-ppe-tab]').forEach(b=> b.addEventListener('click', ()=>{ PPEState.tab = b.dataset.ppeTab; PPEState.editId = null; renderPpe(true); }));
+  const body = document.getElementById('ppeBody');
+  if(!ppeItems().length && PPEState.tab!=='설정'){
+    body.innerHTML = `<div class="card" style="padding:22px;">
+      <div style="font-weight:700;margin-bottom:6px;">등록된 품목이 없습니다</div>
+      <p class="hint" style="margin:0 0 12px;">안전모·안전화·귀마개/귀덮개·보안경/보안면·마스크·장갑류와 올해 지급 기준표를 기본값으로 불러올 수 있습니다. 불러온 뒤 설정 탭에서 얼마든지 고칠 수 있습니다.</p>
+      <button class="btn btn-primary" id="ppeSeedBtn">기본 품목·지급 기준표 불러오기</button>
+    </div>`;
+    document.getElementById('ppeSeedBtn').addEventListener('click', async ()=>{
+      await ppeSeedDefaults(); toast('기본 품목을 불러왔습니다'); renderPpe(true);
+    });
+    return;
+  }
+  if(PPEState.tab==='월 일괄 지급') renderPpeMonthly(body);
+  else if(PPEState.tab==='요청 시 지급') renderPpeRequest(body);
+  else if(PPEState.tab==='집계') renderPpeAggregate(body);
+  else renderPpeSettings(body);
+}
+
+/* ---- 월 일괄 지급 (공정별 표: 기준표 기본값 → 예정 저장 → 확정) ---- */
+function renderPpeMonthly(body){
+  const items = ppeItems().filter(i=>i.method==='monthly');
+  const cfg = ppeCfg();
+  const units = cfg.units.filter(u=>u.monthly);
+  const m = PPEState.month;
+  const saved = ppeIssues().filter(r=>r.src==='batch' && r.month===m);
+  const byKey = {}; saved.forEach(r=>{ byKey[r.unitId+'|'+r.itemId] = r; });
+  const useSaved = saved.length>0 && !PPEState.forceStd;
+  const confirmed = saved.length>0 && saved.every(r=>r.status==='confirmed');
+  const dateVal = (saved[0] && saved[0].date) || (m+'-01');
+  const qtyOf = (u,it)=>{
+    if(useSaved){ const r = byKey[u.id+'|'+it.id]; return r ? r.qty : 0; }
+    return Number((cfg.std[it.id]||{})[u.id]) || 0;
+  };
+  const statusBadge = !saved.length
+    ? '<span class="badge" style="background:#EEF2F7;color:#475569;">미작성 · 기준표 기본값</span>'
+    : (confirmed ? '<span class="badge" style="background:#DCFCE7;color:#166534;">확정</span>'
+                 : '<span class="badge" style="background:#FEF3C7;color:#92400E;">예정 (집계 미반영)</span>');
+  const dis = confirmed ? 'disabled' : '';
+  body.innerHTML = `
+    <div class="card" style="padding:16px 18px;margin-bottom:12px;">
+      <div class="toolbar" style="flex-wrap:wrap;row-gap:10px;gap:10px;align-items:center;">
+        <label style="font-weight:700;font-size:13px;">대상 월 <input type="month" id="ppeMonth" value="${m}" class="btn btn-sm" style="font-weight:700;"></label>
+        <label style="font-weight:700;font-size:13px;">지급일 <input type="date" id="ppeBatchDate" value="${dateVal}" class="btn btn-sm" ${dis}></label>
+        ${statusBadge}
+      </div>
+      <p class="hint" style="margin:10px 0 0;">공정별 수량은 설정의 지급 기준표가 기본값입니다. 현장에서 바뀐 곳만 고친 뒤 <b>확정</b>하면 집계에 반영됩니다. 서명은 출력한 대장에 종이로 받습니다.</p>
+    </div>
+    <div class="table-wrap" style="margin-bottom:12px;"><table>
+      <thead><tr><th style="text-align:left;">공정</th>${items.map(it=>`<th>${esc(it.name)}<div class="hint" style="font-weight:400;">${esc(it.unit)}</div></th>`).join('')}</tr></thead>
+      <tbody>
+        ${units.map(u=>`<tr><td style="font-weight:700;">${esc(u.name)}</td>${items.map(it=>`<td style="text-align:center;"><input type="number" min="0" step="1" class="ppe-q" data-u="${u.id}" data-i="${it.id}" value="${qtyOf(u,it)||''}" ${dis} style="width:72px;padding:5px 6px;text-align:right;border:1px solid var(--line);border-radius:6px;"></td>`).join('')}</tr>`).join('')}
+        <tr style="background:#F8FAFC;font-weight:700;"><td>합계</td>${items.map(it=>`<td style="text-align:center;" id="ppeTot_${it.id}">0</td>`).join('')}</tr>
+        <tr style="background:#F8FAFC;"><td>금액(원)</td>${items.map(it=>`<td style="text-align:center;" id="ppeAmt_${it.id}">0</td>`).join('')}</tr>
+      </tbody>
+    </table></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${confirmed
+        ? `<button class="btn" id="ppeUnconfirm">확정 취소 (수정하기)</button>`
+        : `<button class="btn" id="ppeStdBtn">기준표 기본값으로 되돌리기</button>
+           <button class="btn" id="ppeSavePlanned">예정으로 저장</button>
+           <button class="btn btn-primary" id="ppeConfirm">확정</button>`}
+      <button class="btn" id="ppeBatchPrint">${icon('file-check',14)} 대장 출력(엑셀)</button>
+    </div>`;
+  const calc = ()=>{
+    items.forEach(it=>{
+      let sum = 0;
+      body.querySelectorAll(`.ppe-q[data-i="${it.id}"]`).forEach(inp=>{ sum += Number(inp.value)||0; });
+      const kind = ppeKinds(it)[0];
+      document.getElementById('ppeTot_'+it.id).textContent = sum.toLocaleString('ko-KR');
+      document.getElementById('ppeAmt_'+it.id).textContent = kind ? ppeMoney(sum * ppePrice(kind, m)) : '-';
+    });
+  };
+  calc();
+  body.querySelectorAll('.ppe-q').forEach(inp=> inp.addEventListener('input', calc));
+  document.getElementById('ppeMonth').addEventListener('change', e=>{
+    if(!e.target.value) return;
+    PPEState.month = e.target.value; PPEState.forceStd = false; renderPpe(true);
+  });
+  const save = async (status)=>{
+    const date = document.getElementById('ppeBatchDate').value;
+    if(!date || date.slice(0,7)!==m){ toast('지급일은 대상 월 안의 날짜여야 합니다'); return; }
+    if(status==='confirmed' && !confirm(`${m} 월 일괄 지급을 확정할까요?\n확정하면 집계에 반영됩니다. (나중에 확정 취소로 수정할 수 있습니다)`)) return;
+    const writes = [];
+    body.querySelectorAll('.ppe-q').forEach(inp=>{
+      const uid = inp.dataset.u, iid = inp.dataset.i;
+      const u = units.find(x=>x.id===uid), it = items.find(x=>x.id===iid);
+      const kind = ppeKinds(it)[0];
+      const qty = Number(inp.value) || 0;
+      const id = `bm_${m}_${uid}_${iid}`;
+      if(qty>0){
+        writes.push(DataStore.update(PATHS.ppeIssues, id, { src:'batch', month:m, date, itemId:iid, kind:kind.name, unitId:uid, who:u.name, rtype:'process', qty, status, createdAt:Date.now() }));
+      }else if(byKey[uid+'|'+iid]){
+        writes.push(DataStore.remove(PATHS.ppeIssues, id));
+      }
+    });
+    await Promise.all(writes);
+    PPEState.forceStd = false;
+    toast(status==='confirmed' ? '확정했습니다' : '예정으로 저장했습니다');
+    renderPpe(true);
+  };
+  if(document.getElementById('ppeSavePlanned')) document.getElementById('ppeSavePlanned').addEventListener('click', ()=>save('planned'));
+  if(document.getElementById('ppeConfirm')) document.getElementById('ppeConfirm').addEventListener('click', ()=>save('confirmed'));
+  if(document.getElementById('ppeStdBtn')) document.getElementById('ppeStdBtn').addEventListener('click', ()=>{ PPEState.forceStd = true; renderPpe(true); });
+  if(document.getElementById('ppeUnconfirm')) document.getElementById('ppeUnconfirm').addEventListener('click', async ()=>{
+    await Promise.all(saved.map(r=> DataStore.update(PATHS.ppeIssues, r.id, { status:'planned' })));
+    toast('확정을 취소했습니다. 수정 후 다시 확정해주세요'); renderPpe(true);
+  });
+  document.getElementById('ppeBatchPrint').addEventListener('click', ()=>{
+    if(!saved.length){ toast('먼저 "예정으로 저장"을 눌러야 대장을 출력할 수 있습니다'); return; }
+    ppeDownloadLedger('batch', m);
+  });
+}
+
+/* ---- 요청 시 지급 (개인/공정 단위, 지급 직후 빠르게 입력) ---- */
+function renderPpeRequest(body){
+  const flat = ppeFlatKinds();
+  const cfg = ppeCfg();
+  const all = ppeIssues().filter(r=>r.src!=='batch');
+  const edit = PPEState.editId ? all.find(r=>r.id===PPEState.editId) : null;
+  const dr = PPEState.reqDraft;
+  if(!dr.date) dr.date = todayStr();
+  if(!dr.itemKey && flat[0]) dr.itemKey = flat[0].key;
+  const d = edit
+    ? { date:edit.date, rtype:edit.rtype||'person', itemKey:edit.itemId+'|'+edit.kind, qty:edit.qty, reason:edit.reason||'일반', who:edit.who||'', size:edit.size||'' }
+    : { ...dr, who:'', size:'' };
+  const names = []; const seen = new Set();
+  all.filter(r=>r.rtype==='person' && r.who).sort((a,b)=>(b.date||'')<(a.date||'')?-1:1).forEach(r=>{ if(!seen.has(r.who)){ seen.add(r.who); names.push(r.who); } });
+  const cur = flat.find(f=>f.key===d.itemKey);
+  const mon = PPEState.reqMonth;
+  const list = all.filter(r=>r.month===mon).sort((a,b)=> (b.date||'')<(a.date||'') ? -1 : (b.date||'')>(a.date||'') ? 1 : (b.createdAt||0)-(a.createdAt||0));
+  let totalAmt = 0;
+  list.forEach(r=>{ const f = ppeFindKind(r.itemId, r.kind); totalAmt += (Number(r.qty)||0) * ppePrice(f.kind, r.month); });
+  body.innerHTML = `
+    <div class="card" style="padding:16px 18px;margin-bottom:12px;">
+      <div style="font-weight:700;margin-bottom:10px;">${edit?'✏️ 지급 기록 수정':'➕ 요청 시 지급 입력'}</div>
+      <div class="field-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+        <label class="field"><span>일자</span><input type="date" id="rqDate" value="${d.date}"></label>
+        <label class="field"><span>수령 단위</span>
+          <select id="rqType"><option value="person" ${d.rtype==='person'?'selected':''}>개인</option><option value="process" ${d.rtype==='process'?'selected':''}>공정</option></select></label>
+        <label class="field" id="rqWhoWrap"><span id="rqWhoLabel">${d.rtype==='process'?'공정':'이름'}</span>
+          ${d.rtype==='process'
+            ? `<select id="rqWho">${cfg.units.map(u=>`<option ${edit&&edit.who===u.name?'selected':''}>${esc(u.name)}</option>`).join('')}</select>`
+            : `<input type="text" id="rqWho" list="rqNames" autocomplete="off" value="${esc(d.who)}" placeholder="이름 입력">`}
+          <datalist id="rqNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
+        <label class="field"><span>품목</span>
+          <select id="rqItem">${flat.map(f=>`<option value="${esc(f.key)}" ${f.key===d.itemKey?'selected':''}>${esc(f.kind.name)} (${esc(f.item.unit)})</option>`).join('')}</select></label>
+        <label class="field"><span>수량</span><input type="number" id="rqQty" min="1" step="1" value="${d.qty}"></label>
+        <label class="field" id="rqSizeWrap" style="${cur&&cur.item.hasSize?'':'display:none;'}"><span>사이즈</span>
+          <select id="rqSize"><option value="">선택</option>${PPE_SIZES.map(s=>`<option ${String(d.size)===String(s)?'selected':''}>${s}</option>`).join('')}</select></label>
+        <label class="field"><span>사유</span>
+          <select id="rqReason">${PPE_REASONS.map(r=>`<option ${d.reason===r?'selected':''}>${r}</option>`).join('')}</select></label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="rqSave">${edit?'수정 저장':'추가'}</button>
+        ${edit?'<button class="btn" id="rqCancel">취소</button>':''}
+        <button class="btn" id="rqBlank">${icon('file-check',14)} 빈 대장 받기(수기 서명용)</button>
+      </div>
+      <p class="hint" style="margin:10px 0 0;">지급 때는 빈 대장에 종이로 이름·서명을 받고, 이 입력은 그 종이를 보고 나중에 해도 됩니다. 이름은 한 번 입력하면 다음부터 자동완성됩니다.</p>
+    </div>
+
+    <div class="card" style="padding:14px 16px;">
+      <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;gap:10px;align-items:center;margin-bottom:10px;">
+        <label style="font-weight:700;font-size:13px;">조회 월 <input type="month" id="rqMonth" value="${mon}" class="btn btn-sm" style="font-weight:700;"></label>
+        <span class="hint">${list.length}건 · ${ppeMoney(totalAmt)}원</span>
+        <button class="btn btn-sm" id="rqRecPrint" style="margin-left:auto;">입력 내역을 대장 양식으로</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>일자</th><th>수령</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th></th></tr></thead>
+        <tbody>${list.length ? list.map(r=>`<tr>
+          <td>${fmtDate(r.date)}</td>
+          <td>${esc(r.who||'-')}${r.rtype==='process'?' <span class="hint">(공정)</span>':''}</td>
+          <td>${esc(r.kind)}</td><td style="text-align:center;">${r.qty}</td><td style="text-align:center;">${esc(r.size||'-')}</td><td>${esc(r.reason||'일반')}</td>
+          <td style="white-space:nowrap;"><button class="btn btn-sm" data-edit="${r.id}">수정</button> <button class="btn btn-sm" data-del="${r.id}">삭제</button></td>
+        </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:22px;color:var(--ink-soft);">이 달 입력 내역이 없습니다</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+  const $ = id=>document.getElementById(id);
+  // 수령 단위/품목 바뀔 때는 전체를 다시 그리지 않고 필요한 칸만 바꾼다(입력 중인 내용 보존)
+  $('rqType').addEventListener('change', ()=>{
+    dr.rtype = $('rqType').value; dr.date = $('rqDate').value; dr.itemKey = $('rqItem').value; dr.qty = $('rqQty').value; dr.reason = $('rqReason').value;
+    renderPpe(true);
+  });
+  $('rqItem').addEventListener('change', ()=>{
+    const f = flat.find(x=>x.key===$('rqItem').value);
+    $('rqSizeWrap').style.display = (f && f.item.hasSize) ? '' : 'none';
+  });
+  $('rqSave').addEventListener('click', async ()=>{
+    const date = $('rqDate').value, rtype = $('rqType').value, who = $('rqWho').value.trim();
+    const f = flat.find(x=>x.key===$('rqItem').value);
+    const qty = Number($('rqQty').value);
+    const size = (f && f.item.hasSize) ? $('rqSize').value : '';
+    if(!date){ toast('일자를 입력해주세요'); return; }
+    if(!who){ toast(rtype==='process' ? '공정을 선택해주세요' : '이름을 입력해주세요'); return; }
+    if(!f){ toast('품목을 선택해주세요'); return; }
+    if(!(qty>0)){ toast('수량을 입력해주세요'); return; }
+    if(f.item.hasSize && !size){ toast('사이즈를 선택해주세요'); return; }
+    const rec = { src:'request', date, month:date.slice(0,7), itemId:f.item.id, kind:f.kind.name, qty, rtype, who, size, reason:$('rqReason').value, status:'confirmed' };
+    if(edit){
+      await DataStore.update(PATHS.ppeIssues, edit.id, rec);
+      PPEState.editId = null; toast('수정했습니다');
+    }else{
+      rec.createdAt = Date.now();
+      await DataStore.push(PATHS.ppeIssues, rec);
+      toast('추가했습니다');
+    }
+    // 연속 입력을 위해 일자·품목·수령 단위는 유지, 이름/사이즈/사유/수량만 초기화
+    Object.assign(dr, { date, rtype, itemKey:f.key, qty:1, reason:'일반' });
+    if(date.slice(0,7)!==PPEState.reqMonth) PPEState.reqMonth = date.slice(0,7);
+    renderPpe(true);
+    const w = document.getElementById('rqWho'); if(w && w.tagName==='INPUT') w.focus();
+  });
+  if($('rqCancel')) $('rqCancel').addEventListener('click', ()=>{ PPEState.editId = null; renderPpe(true); });
+  $('rqBlank').addEventListener('click', ()=> ppeDownloadLedger('blank'));
+  $('rqRecPrint').addEventListener('click', ()=> ppeDownloadLedger('records', mon));
+  $('rqMonth').addEventListener('change', e=>{ if(e.target.value){ PPEState.reqMonth = e.target.value; renderPpe(true); } });
+  body.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=>{ PPEState.editId = b.dataset.edit; renderPpe(true); window.scrollTo({top:0,behavior:'smooth'}); }));
+  body.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('이 지급 기록을 삭제할까요?')) return;
+    await DataStore.remove(PATHS.ppeIssues, b.dataset.del); toast('삭제했습니다'); renderPpe(true);
+  }));
+}
+
+/* ---- 집계 (예산 근거: 수량·금액·단가·원단위, 월별) ---- */
+function renderPpeAggregate(body){
+  const { from, to } = PPEState;
+  const agg = ppeAggregate(from, to);
+  const cfg = ppeCfg();
+  const hasProd = agg.months.some(m=> Number(cfg.production[m])>0);
+  const ea = (row, qty)=> qty * (Number(row.item.perUnit)||1);
+  const cellTxt = n => n ? n.toLocaleString('ko-KR') : '-';
+  const monthTot = agg.months.map(m=> agg.rows.reduce((s,r)=> s + r.per[m].amt, 0));
+  const grand = monthTot.reduce((a,b)=>a+b,0);
+  const rowsHtml = agg.rows.map(row=>{
+    const label = `${esc(row.kind.name)}${row.item.unit==='박스'?' <span class="hint">(박스)</span>':''}`;
+    const unitPriceTot = row.totalQty ? row.totalAmt/row.totalQty : 0;
+    const totEA = ea(row, row.totalQty);
+    const totProd = agg.months.reduce((s,m)=> s + (Number(cfg.production[m])||0), 0);
+    return `
+      <tr style="border-top:2px solid var(--line);"><td rowspan="${hasProd?4:3}" style="font-weight:700;vertical-align:middle;">${label}</td><td>수량</td>${agg.months.map(m=>`<td style="text-align:right;">${cellTxt(row.per[m].qty)}</td>`).join('')}<td style="text-align:right;font-weight:700;">${cellTxt(row.totalQty)}</td></tr>
+      <tr><td>금액</td>${agg.months.map(m=>`<td style="text-align:right;">${cellTxt(row.per[m].amt)}</td>`).join('')}<td style="text-align:right;font-weight:700;">${cellTxt(row.totalAmt)}</td></tr>
+      <tr><td>단가</td>${agg.months.map(m=>`<td style="text-align:right;">${row.per[m].qty ? ppeMoney(row.per[m].amt/row.per[m].qty) : '-'}</td>`).join('')}<td style="text-align:right;">${row.totalQty ? ppeMoney(unitPriceTot) : '-'}</td></tr>
+      ${hasProd ? `<tr><td>원단위<div class="hint" style="font-weight:400;">kg/EA</div></td>${agg.months.map(m=>{ const q = ea(row,row.per[m].qty), p = Number(cfg.production[m])||0; return `<td style="text-align:right;">${q&&p ? (p/q).toFixed(1) : '-'}</td>`; }).join('')}<td style="text-align:right;">${totEA&&totProd ? (totProd/totEA).toFixed(1) : '-'}</td></tr>` : ''}`;
+  }).join('');
+  body.innerHTML = `
+    <div class="card" style="padding:16px 18px;margin-bottom:12px;">
+      <div class="toolbar" style="flex-wrap:wrap;row-gap:10px;gap:10px;align-items:center;">
+        <label style="font-weight:700;font-size:13px;">시작 <input type="month" id="agFrom" value="${from}" class="btn btn-sm"></label>
+        <label style="font-weight:700;font-size:13px;">종료 <input type="month" id="agTo" value="${to}" class="btn btn-sm"></label>
+        <button class="btn btn-sm" data-preset="oct">10월~다음해 9월</button>
+        <button class="btn btn-sm" data-preset="year">올해 1~12월</button>
+        <button class="btn btn-sm btn-primary" id="agDownload" style="margin-left:auto;">${icon('file-check',14)} 엑셀 다운로드</button>
+      </div>
+      <p class="hint" style="margin:10px 0 0;">확정된 월 일괄 지급과 요청 시 지급 기록만 집계됩니다. 금액은 지급 월의 단가(설정의 단가 이력) × 수량입니다. 마스크는 박스 기준입니다.</p>
+    </div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">월 생산량(kg) — 원단위 계산용 (선택)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${agg.months.map(m=>`<label style="font-size:12px;">${m.slice(2)}<br><input type="number" min="0" class="ppe-prod" data-m="${m}" value="${cfg.production[m]||''}" style="width:92px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;text-align:right;"></label>`).join('')}
+      </div>
+    </div>
+    <div class="table-wrap"><table style="min-width:${220 + agg.months.length*84}px;">
+      <thead><tr><th style="text-align:left;">구분</th><th></th>${agg.months.map(m=>`<th>${m.slice(2).replace('-','.')}</th>`).join('')}<th>합계</th></tr></thead>
+      <tbody>${rowsHtml}
+        <tr style="border-top:2px solid var(--line);background:#F8FAFC;font-weight:700;"><td colspan="2">금액 합계(원)</td>${monthTot.map(v=>`<td style="text-align:right;">${cellTxt(v)}</td>`).join('')}<td style="text-align:right;">${cellTxt(grand)}</td></tr>
+      </tbody>
+    </table></div>`;
+  const $ = id=>document.getElementById(id);
+  const apply = ()=>{ const f = $('agFrom').value, t = $('agTo').value; if(f && t && f<=t){ PPEState.from=f; PPEState.to=t; renderPpe(true); } else toast('기간을 확인해주세요'); };
+  $('agFrom').addEventListener('change', apply); $('agTo').addEventListener('change', apply);
+  body.querySelectorAll('[data-preset]').forEach(b=> b.addEventListener('click', ()=>{
+    const y = new Date().getFullYear();
+    if(b.dataset.preset==='year'){ PPEState.from = `${y}-01`; PPEState.to = `${y}-12`; }
+    else { const base = new Date().getMonth()+1>=10 ? y : y-1; PPEState.from = `${base}-10`; PPEState.to = `${base+1}-09`; }
+    renderPpe(true);
+  }));
+  body.querySelectorAll('.ppe-prod').forEach(inp=> inp.addEventListener('change', async ()=>{
+    const prod = { ...cfg.production }; const v = Number(inp.value);
+    if(v>0) prod[inp.dataset.m] = v; else delete prod[inp.dataset.m];
+    await DataStore.update(PATHS.ppeConfig, 'main', { production: prod });
+    renderPpe(true);
+  }));
+  $('agDownload').addEventListener('click', ()=>{
+    if(typeof XLSX==='undefined'){ toast('엑셀 도구를 불러오지 못했습니다'); return; }
+    const aoa = [['구분','', ...agg.months.map(m=>m), '합계']];
+    agg.rows.forEach(row=>{
+      const nm = row.item.unit==='박스' ? `${row.kind.name}(박스)` : row.kind.name;
+      const totProd = agg.months.reduce((s,m)=> s + (Number(cfg.production[m])||0), 0);
+      aoa.push([nm,'수량', ...agg.months.map(m=>row.per[m].qty||''), row.totalQty||'']);
+      aoa.push([nm,'금액', ...agg.months.map(m=>row.per[m].amt||''), row.totalAmt||'']);
+      aoa.push([nm,'단가', ...agg.months.map(m=>row.per[m].qty ? Math.round(row.per[m].amt/row.per[m].qty) : ''), row.totalQty ? Math.round(row.totalAmt/row.totalQty) : '']);
+      if(hasProd) aoa.push([nm,'원단위(Kg/EA)', ...agg.months.map(m=>{ const q=ea(row,row.per[m].qty), p=Number(cfg.production[m])||0; return q&&p ? Number((p/q).toFixed(2)) : ''; }), (ea(row,row.totalQty)&&totProd) ? Number((totProd/ea(row,row.totalQty)).toFixed(2)) : '']);
+    });
+    aoa.push(['금액 합계','', ...monthTot.map(v=>v||''), grand||'']);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:20},{wch:14}, ...agg.months.map(()=>({wch:11})), {wch:13}];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '보호구 지급 집계');
+    XLSX.writeFile(wb, `보호구_지급집계_${from}_${to}.xlsx`);
+  });
+}
+
+/* ---- 설정: 품목 마스터 / 지급 단위 · 지급 기준표 ---- */
+function renderPpeSettings(body){
+  const items = ppeItems();
+  const cfg = ppeCfg();
+  const monthlyItems = items.filter(i=>i.method==='monthly');
+  body.innerHTML = `
+    <div class="card" style="padding:16px 18px;margin-bottom:12px;">
+      <div class="toolbar" style="margin-bottom:10px;gap:10px;flex-wrap:wrap;">
+        <div style="font-weight:700;">📦 품목 마스터</div>
+        <div style="display:flex;gap:8px;margin-left:auto;">
+          ${items.length ? '' : '<button class="btn btn-sm" id="ppeSeedBtn2">기본 품목 불러오기</button>'}
+          <button class="btn btn-sm btn-primary" id="ppeAddItem">+ 품목 추가</button>
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>품목(대장 품명)</th><th>지급 방식</th><th>단위</th><th>종류 · 인증번호 · 현재 단가</th><th></th></tr></thead>
+        <tbody>${items.length ? items.map(it=>`<tr>
+          <td style="font-weight:700;">${esc(it.name)}${it.hasSize?' <span class="hint">· 사이즈</span>':''}</td>
+          <td>${it.method==='monthly'?'월 일괄':'요청 시'}</td>
+          <td>${esc(it.unit)}${Number(it.perUnit)>1?` <span class="hint">(1${esc(it.unit)}=${it.perUnit}개)</span>`:''}</td>
+          <td style="font-size:12.5px;line-height:1.6;">${ppeKinds(it).map(k=>`${esc(k.name)} · ${esc(k.cert||'인증번호 없음')} · ${ppePrice(k, todayStr().slice(0,7)) ? ppeMoney(ppePrice(k, todayStr().slice(0,7)))+'원' : '<span style="color:#E5484D;">단가 미입력</span>'}`).join('<br>')}</td>
+          <td style="white-space:nowrap;"><button class="btn btn-sm" data-item-edit="${it.id}">편집</button></td>
+        </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--ink-soft);">등록된 품목이 없습니다</td></tr>'}</tbody>
+      </table></div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-weight:700;margin-bottom:4px;">🏭 지급 단위(공정) · 지급 기준표</div>
+      <p class="hint" style="margin:0 0 10px;">"월 일괄" 체크한 공정만 월 일괄 지급 표에 나옵니다. 나머지 공정은 요청 시 지급으로 입력합니다. 기준표 수량은 월 일괄 지급의 기본값입니다.</p>
+      <div class="table-wrap"><table id="ppeUnitTbl">
+        <thead><tr><th>공정 이름</th><th>월 일괄</th>${monthlyItems.map(it=>`<th>${esc(it.name)}<div class="hint" style="font-weight:400;">${esc(it.unit)}</div></th>`).join('')}<th></th></tr></thead>
+        <tbody>${cfg.units.map(u=>`<tr data-uid="${u.id}">
+          <td><input type="text" class="pu-name" value="${esc(u.name)}" style="width:110px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;"></td>
+          <td style="text-align:center;"><input type="checkbox" class="pu-monthly" ${u.monthly?'checked':''}></td>
+          ${monthlyItems.map(it=>`<td style="text-align:center;"><input type="number" min="0" class="pu-std" data-i="${it.id}" value="${Number((cfg.std[it.id]||{})[u.id])||''}" style="width:68px;padding:5px 6px;text-align:right;border:1px solid var(--line);border-radius:6px;"></td>`).join('')}
+          <td><button class="btn btn-sm" data-unit-del="${u.id}">삭제</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-sm" id="ppeAddUnit">+ 공정 추가</button>
+        <button class="btn btn-sm btn-primary" id="ppeSaveUnits">기준표 저장</button>
+      </div>
+    </div>`;
+  const $ = id=>document.getElementById(id);
+  if($('ppeSeedBtn2')) $('ppeSeedBtn2').addEventListener('click', async ()=>{ await ppeSeedDefaults(); toast('기본 품목을 불러왔습니다'); renderPpe(true); });
+  $('ppeAddItem').addEventListener('click', ()=> openPpeItemModal(null));
+  body.querySelectorAll('[data-item-edit]').forEach(b=> b.addEventListener('click', ()=> openPpeItemModal(items.find(i=>i.id===b.dataset.itemEdit))));
+  const readUnits = ()=>{
+    const units = [], std = {};
+    monthlyItems.forEach(it=> std[it.id] = {});
+    const oldStd = cfg.std || {};
+    // 월 일괄 품목이 아닌 품목의 기존 기준표 값은 그대로 보존
+    Object.keys(oldStd).forEach(k=>{ if(!std[k]) std[k] = oldStd[k]; });
+    body.querySelectorAll('#ppeUnitTbl tbody tr').forEach(tr=>{
+      const name = tr.querySelector('.pu-name').value.trim();
+      if(!name) return;
+      const id = tr.dataset.uid;
+      units.push({ id, name, monthly: tr.querySelector('.pu-monthly').checked });
+      tr.querySelectorAll('.pu-std').forEach(inp=>{ std[inp.dataset.i][id] = Number(inp.value)||0; });
+    });
+    return { units, std };
+  };
+  $('ppeSaveUnits').addEventListener('click', async ()=>{
+    const { units, std } = readUnits();
+    await DataStore.update(PATHS.ppeConfig, 'main', { units, std });
+    toast('저장했습니다'); renderPpe(true);
+  });
+  $('ppeAddUnit').addEventListener('click', async ()=>{
+    const name = (prompt('추가할 공정 이름') || '').trim();
+    if(!name) return;
+    const { units, std } = readUnits();
+    units.push({ id:'u'+Date.now(), name, monthly:false });
+    await DataStore.update(PATHS.ppeConfig, 'main', { units, std });
+    renderPpe(true);
+  });
+  body.querySelectorAll('[data-unit-del]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('이 공정을 목록에서 뺄까요? (이미 입력된 지급 기록은 그대로 남습니다)')) return;
+    const { units, std } = readUnits();
+    await DataStore.update(PATHS.ppeConfig, 'main', { units: units.filter(u=>u.id!==b.dataset.unitDel), std });
+    renderPpe(true);
+  }));
+}
+
+function openPpeItemModal(item){
+  const isEdit = !!item;
+  const it = item || { name:'', unit:'개', perUnit:1, method:'request', hasSize:false, splitLedger:false, order:(ppeItems().length+1)*10, kinds:[{ name:'', cert:'', prices:[] }] };
+  const kinds = ppeKinds(it).length ? ppeKinds(it) : [{ name:'', cert:'', prices:[] }];
+  const kindRow = k=>`<div class="pk-row" style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;display:grid;gap:8px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <label class="field"><span>종류 표시명</span><input type="text" class="pk-name" value="${esc(k.name)}" placeholder="예: 귀마개"></label>
+        <label class="field"><span>인증번호 (없으면 비움)</span><input type="text" class="pk-cert" value="${esc(k.cert||'')}"></label>
+      </div>
+      <label class="field"><span>단가 이력 — 적용월:단가, … (예: 2026-10:28000, 2027-01:29500)</span><input type="text" class="pk-prices" value="${esc(ppeFmtPrices(k))}"></label>
+      <button type="button" class="btn btn-sm pk-del" style="justify-self:start;">이 종류 삭제</button>
+    </div>`;
+  showModal(`
+    <div class="modal-head"><h3>${isEdit?'품목 편집':'품목 추가'}</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+        <label class="field"><span>품목 (대장 품명)</span><input type="text" id="pi_name" value="${esc(it.name)}"></label>
+        <label class="field"><span>지급 방식</span><select id="pi_method"><option value="monthly" ${it.method==='monthly'?'selected':''}>월 일괄 (공정별)</option><option value="request" ${it.method!=='monthly'?'selected':''}>요청 시</option></select></label>
+        <label class="field"><span>단위</span><input type="text" id="pi_unit" value="${esc(it.unit)}" placeholder="개 / 박스 / 켤레"></label>
+        <label class="field"><span>1단위당 개수</span><input type="number" id="pi_perUnit" min="1" value="${it.perUnit||1}"></label>
+        <label class="field"><span>표시 순서</span><input type="number" id="pi_order" value="${it.order||0}"></label>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 10px;">
+        <label style="font-size:13px;"><input type="checkbox" id="pi_size" ${it.hasSize?'checked':''}> 사이즈 입력 (안전화)</label>
+        <label style="font-size:13px;"><input type="checkbox" id="pi_split" ${it.splitLedger?'checked':''}> 대장을 종류별로 따로 출력</label>
+      </div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px;">종류 · 인증번호 · 단가</div>
+      <div id="pi_kinds">${kinds.map(kindRow).join('')}</div>
+      <button type="button" class="btn btn-sm" id="pi_addKind">+ 종류 추가</button>
+    </div>
+    <div class="modal-foot">
+      ${isEdit?'<button class="btn" id="pi_del" style="margin-right:auto;">삭제</button>':''}
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="pi_save">저장</button>
+    </div>`);
+  const wrap = document.getElementById('pi_kinds');
+  const bindDel = ()=> wrap.querySelectorAll('.pk-del').forEach(b=> b.onclick = ()=>{ if(wrap.querySelectorAll('.pk-row').length>1) b.closest('.pk-row').remove(); else toast('종류는 최소 1개 필요합니다'); });
+  bindDel();
+  document.getElementById('pi_addKind').addEventListener('click', ()=>{ wrap.insertAdjacentHTML('beforeend', kindRow({ name:'', cert:'', prices:[] })); bindDel(); });
+  document.getElementById('pi_save').addEventListener('click', async ()=>{
+    const name = document.getElementById('pi_name').value.trim();
+    if(!name){ toast('품목 이름을 입력해주세요'); return; }
+    const ks = [];
+    for(const row of wrap.querySelectorAll('.pk-row')){
+      const kn = row.querySelector('.pk-name').value.trim();
+      if(!kn) continue;
+      const prices = ppeParsePrices(row.querySelector('.pk-prices').value);
+      if(prices===null){ toast(`"${kn}" 단가 이력 형식을 확인해주세요 (예: 2026-10:28000)`); return; }
+      ks.push({ name:kn, cert:row.querySelector('.pk-cert').value.trim(), prices });
+    }
+    if(!ks.length){ toast('종류를 하나 이상 입력해주세요'); return; }
+    if(new Set(ks.map(k=>k.name)).size !== ks.length){ toast('종류 표시명이 겹칩니다'); return; }
+    const doc = {
+      name, method:document.getElementById('pi_method').value, unit:document.getElementById('pi_unit').value.trim()||'개',
+      perUnit:Number(document.getElementById('pi_perUnit').value)||1, order:Number(document.getElementById('pi_order').value)||0,
+      hasSize:document.getElementById('pi_size').checked, splitLedger:document.getElementById('pi_split').checked, kinds:ks
+    };
+    if(isEdit) await DataStore.update(PATHS.ppeItems, item.id, doc);
+    else await DataStore.push(PATHS.ppeItems, doc);
+    closeModal(); toast('저장했습니다'); renderPpe(true);
+  });
+  if(isEdit) document.getElementById('pi_del').addEventListener('click', async ()=>{
+    if(!confirm(`"${item.name}" 품목을 삭제할까요?\n이미 입력된 지급 기록은 남지만 집계 표에서는 사라집니다.`)) return;
+    await DataStore.remove(PATHS.ppeItems, item.id); closeModal(); toast('삭제했습니다'); renderPpe(true);
+  });
+}
+
 </script>
 
 <!-- ============================================================
