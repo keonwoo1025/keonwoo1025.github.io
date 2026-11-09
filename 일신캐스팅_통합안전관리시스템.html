@@ -10085,13 +10085,21 @@ function ppeFindKind(itemId, kindName){
   if(!item) return { item:null, kind:null };
   return { item, kind: ppeKinds(item).find(k=>k.name===kindName) || null };
 }
-function ppePrice(kind, month){
+// 종류별 단위·1단위당 개수 (없으면 품목 값). 단가 기준이 '개당'이면 입력 단위당 단가 = 개당 단가 × 1단위당 개수
+function ppeKindUnit(item, kind){ return (kind && kind.unit) || (item && item.unit) || '개'; }
+function ppeKindPer(item, kind){ return Number(kind && kind.perUnit) || Number(item && item.perUnit) || 1; }
+function ppePriceRaw(kind, month){
   if(!kind) return 0;
   const ps = ppeArr(kind.prices).filter(p=>p && p.from).sort((a,b)=> a.from<b.from ? -1 : a.from>b.from ? 1 : 0);
   if(!ps.length) return 0;
   let p = null;
   ps.forEach(x=>{ if(x.from<=month) p = x.price; });
   return Number(p!=null ? p : ps[0].price) || 0;
+}
+function ppePrice(kind, month){
+  if(!kind) return 0;
+  const raw = ppePriceRaw(kind, month);
+  return kind.priceBasis==='each' ? raw * (Number(kind.perUnit)||1) : raw;
 }
 function ppeFmtPrices(kind){ return ppeArr(kind.prices).map(p=>`${p.from}:${p.price}`).join(', '); }
 function ppeParsePrices(text){
@@ -10122,21 +10130,21 @@ const PPE_SEED_ITEMS = [
   { id:'i_mask', order:50, name:'마스크', unit:'박스', perUnit:20, method:'monthly', kinds:[{ name:'마스크', cert:'23-AV4CT-0023', prices:[{from:'2026-10',price:15000}] }] },
   { id:'i_pvc', order:60, name:'PVC장갑', unit:'개', perUnit:1, method:'request', kinds:[{ name:'PVC장갑', cert:'', prices:[] }] },
   { id:'i_ear', order:70, name:'귀마개 / 귀덮개', unit:'개', perUnit:1, method:'request', kinds:[
-    { name:'귀마개', cert:'방음 제 43호-3', prices:[{from:'2026-10',price:400}] },
+    { name:'귀마개', cert:'방음 제 43호-3', unit:'박스', perUnit:200, priceBasis:'each', prices:[{from:'2026-10',price:400}] },
     { name:'귀덮개', cert:'09-AV2Cb-0002', prices:[{from:'2026-10',price:13000}] } ] },
   { id:'i_eye', order:80, name:'보안경/보안면', unit:'개', perUnit:1, method:'request', kinds:[
     { name:'보안경', cert:'제 215호 - 2', prices:[{from:'2026-10',price:8500}] },
     { name:'보안면', cert:'제 215호 - 2', prices:[{from:'2026-10',price:16000}] } ] },
   { id:'i_helmet', order:90, name:'안전모', unit:'개', perUnit:1, method:'request', kinds:[{ name:'안전모', cert:'안모 제731호-1', prices:[{from:'2026-10',price:5800}] }] },
   { id:'i_shoes', order:100, name:'안전화', unit:'켤레', perUnit:1, method:'request', hasSize:true, kinds:[
-    { name:'안전화(베이직)', cert:'19-AV4CR-0211', prices:[{from:'2026-10',price:28000}] },
-    { name:'안전화(콜핑)', cert:'22-AV4CR-0132', prices:[{from:'2026-10',price:40000}] },
-    { name:'안전화(트렉스타)', cert:'20-AV4CR-0332', prices:[{from:'2026-10',price:43000}] } ] },
+    { name:'안전화(베이직)', cert:'19-AV4CR-0211', cycle:{n:15,unit:'day'}, prices:[{from:'2026-10',price:28000}] },
+    { name:'안전화(콜핑)', cert:'22-AV4CR-0132', cycle:{n:6,unit:'month'}, prices:[{from:'2026-10',price:40000}] },
+    { name:'안전화(트렉스타)', cert:'20-AV4CR-0332', cycle:{n:6,unit:'month'}, prices:[{from:'2026-10',price:43000}] } ] },
 ];
 // [공정, 월 일괄 여부] — 관리직·보안실은 지급 단위에서 제외(관리직 개인 지급은 요청 시 지급의 '개인'으로 입력)
 const PPE_SEED_UNITS = [
   ['용해',1],['주입/보온',1],['조형',1],['사처리',1],['후처리',1],['품질',0],['개발',1],
-  ['환경정리',0],['전기',1],['기계',1],['합리화',1],['래들보수',1],['생산관리',0],['집진기',0]
+  ['환경정리',0],['전기',1],['기계',1],['합리화',1],['래들보수',1],['생산관리',0],['집진기',0,'2027-01']
 ];
 // 현행 지급 기준표 (월) — 집진기는 기준표 없음(빈칸)
 const PPE_SEED_STD = {
@@ -10150,7 +10158,7 @@ const PPE_SEED_STD = {
 // 공정별 인원 (관리직·보안실 제외) — 품질=공정품질+스펙트로+UVT+실험실, 주입/보온=주입+보온
 const PPE_DEFAULT_HEADS = { '용해':12,'주입/보온':17,'조형':17,'사처리':5,'후처리':33,'품질':14,'개발':7,'환경정리':3,'집진기':4,'전기':6,'기계':6,'합리화':5,'래들보수':3,'생산관리':6 };
 async function ppeSeedDefaults(){
-  const units = PPE_SEED_UNITS.map(([name,monthly],i)=>({ id:'u'+(i+1), name, monthly:!!monthly }));
+  const units = PPE_SEED_UNITS.map(([name,monthly,tf],i)=>({ id:'u'+(i+1), name, monthly:!!monthly, ...(tf?{trackFrom:tf}:{}) }));
   const std = {};
   Object.entries(PPE_SEED_STD).forEach(([itemId, arr])=>{
     std[itemId] = {}; units.forEach((u,i)=>{ std[itemId][u.id] = arr[i]||0; });
@@ -10159,22 +10167,38 @@ async function ppeSeedDefaults(){
     const { id, ...doc } = it;
     await DataStore.update(PATHS.ppeItems, id, doc);
   }
-  await DataStore.update(PATHS.ppeConfig, 'main', { units, std, v:3 });
+  await DataStore.update(PATHS.ppeConfig, 'main', { units, std, v:4 });
 }
-// 이전 버전으로 이미 불러온 데이터 보정(한 번만): 집진기 추가·요청 시 공정화(v3), 예정 상태 기록은 모두 집계 대상으로
+// 이전 버전으로 이미 불러온 데이터 보정(한 번만)
+//  v3: 집진기 요청 시 공정화, 예정 상태 기록은 모두 집계 대상으로
+//  v4: 집진기 추가 판정 시작월(2027-01), 귀마개 박스(200개)·개당 단가, 안전화 지급 주기(베이직 15일 / 그 외 6개월)
 let PPE_MIGRATING = false;
 async function ppeMigrate(){
   if(PPE_MIGRATING) return;
   const cfg = ppeCfg();
-  if(!cfg.units.length || cfg.v>=3) return;
+  if(!cfg.units.length || cfg.v>=4) return;
   PPE_MIGRATING = true;
   try{
-    const units = cfg.units.map(u=> u.name==='집진기' ? { ...u, monthly:false } : u);
-    if(!units.some(u=>u.name==='집진기')) units.push({ id:'u'+(Date.now()), name:'집진기', monthly:false });
-    for(const r of ppeIssues()){
-      if(r.status==='planned') await DataStore.update(PATHS.ppeIssues, r.id, { status:'confirmed' });
+    let units = cfg.units.slice();
+    if(cfg.v<3){
+      units = units.map(u=> u.name==='집진기' ? { ...u, monthly:false } : u);
+      if(!units.some(u=>u.name==='집진기')) units.push({ id:'u'+(Date.now()), name:'집진기', monthly:false });
+      for(const r of ppeIssues()){
+        if(r.status==='planned') await DataStore.update(PATHS.ppeIssues, r.id, { status:'confirmed' });
+      }
     }
-    await DataStore.update(PATHS.ppeConfig, 'main', { units, v:3 });
+    units = units.map(u=> (u.name==='집진기' && !u.trackFrom) ? { ...u, trackFrom:'2027-01' } : u);
+    const ear = ppeItems().find(i=>i.id==='i_ear');
+    if(ear){
+      const kinds = ppeKinds(ear).map(k=> (k.name==='귀마개' && k.unit===undefined && k.perUnit===undefined) ? { ...k, unit:'박스', perUnit:200, priceBasis:'each' } : k);
+      await DataStore.update(PATHS.ppeItems, ear.id, { kinds });
+    }
+    const shoes = ppeItems().find(i=>i.id==='i_shoes');
+    if(shoes){
+      const kinds = ppeKinds(shoes).map(k=> k.cycle ? k : { ...k, cycle: /베이직/.test(k.name) ? { n:15, unit:'day' } : { n:6, unit:'month' } });
+      await DataStore.update(PATHS.ppeItems, shoes.id, { kinds });
+    }
+    await DataStore.update(PATHS.ppeConfig, 'main', { units, v:4 });
   } finally { PPE_MIGRATING = false; }
 }
 
@@ -10201,7 +10225,7 @@ function ppeStdMonthly(unit, item, kind, cfg, P){
     return { normal: base*P.normal, hot: base*P.hot };
   }
   if(item.id==='i_mask'){ const per = Number(item.perUnit)||1; return { normal: base*P.normal/per, hot: base*P.hot/per }; }
-  if(item.id==='i_ear' && kind.name==='귀마개') return { normal: base*P.normal, hot: base*P.hot };
+  if(item.id==='i_ear' && kind.name==='귀마개'){ const per = ppeKindPer(item, kind); return { normal: base*P.normal/per, hot: base*P.hot/per }; }
   return null;
 }
 function ppeStdForMonths(unit, item, kind, cfg, P, months){
@@ -10209,29 +10233,130 @@ function ppeStdForMonths(unit, item, kind, cfg, P, months){
   return months.reduce((t,m)=> t + (P.hotMonths.includes(Number(m.slice(5)))? s.hot : s.normal), 0);
 }
 
+/* ---------- 추가 지급 판정 ----------
+   월 일괄 품목(장갑·마스크):
+     · 월 일괄 공정: 월 일괄에서 기준표 초과분 + 요청 시로 입력된 것 전부(소속 공정을 입력한 개인 지급 포함)
+     · 그 외 공정: 한 달 요청 시 합계가 월 기준을 넘는 수량
+     · 공정의 '추가 판정 시작월' 이전 달은 판정하지 않음(집진기)
+   종류에 지급 주기가 있는 품목(안전화): 같은 사람이 직전 지급의 주기 안에 또 받으면 추가 (종류 구분 없이 합산)
+   안전모·보안경·귀마개 등은 판정하지 않음 ---------- */
+const PPE_WHY = { over:'월 일괄 초과', req:'요청 시 추가', cycle:'주기 내 재지급' };
+function ppeNormName(s){ return String(s||'').replace(/\s+/g,'').toLowerCase(); }
+function ppeAddCycle(dateStr, cyc){
+  const d = new Date(dateStr+'T00:00:00Z');
+  if(cyc.unit==='month'){ const day = d.getUTCDate(); d.setUTCMonth(d.getUTCMonth()+Number(cyc.n)); if(d.getUTCDate()!==day) d.setUTCDate(0); }
+  else d.setUTCDate(d.getUTCDate()+Number(cyc.n));
+  return d.toISOString().slice(0,10);
+}
+function ppeIssueUnit(r, cfg){
+  cfg = cfg || ppeCfg();
+  if(r.src==='batch') return cfg.units.find(u=>u.id===r.unitId) || null;
+  const nm = r.rtype==='process' ? r.who : r.dept;
+  return nm ? (cfg.units.find(u=>u.name===nm) || null) : null;
+}
+function ppeExtraMap(issues){
+  issues = issues || ppeIssues();
+  const cfg = ppeCfg(), items = ppeItems();
+  const itemById = {}; items.forEach(i=>{ itemById[i.id] = i; });
+  const out = {};
+  const add = (id, q, why)=>{ if(q>0){ const o = out[id] || (out[id] = { qty:0, why }); o.qty += q; } };
+  const judged = (u, month)=> !!u && (!u.trackFrom || month >= u.trackFrom);
+  const stdFor = (itemId, u)=> Number((cfg.std[itemId]||{})[u.id]) || 0;
+  const groups = {};
+  issues.forEach(r=>{
+    const item = itemById[r.itemId]; if(!item || item.method!=='monthly') return;
+    const u = ppeIssueUnit(r, cfg); if(!judged(u, r.month)) return;
+    const qty = Number(r.qty)||0;
+    if(r.src==='batch'){
+      const std = r.stdQty!=null ? Number(r.stdQty)||0 : stdFor(item.id, u);
+      add(r.id, Math.max(0, qty-std), 'over');
+    }else if(u.monthly){
+      add(r.id, qty, 'req');
+    }else{
+      const k = r.month+'|'+u.id+'|'+item.id; (groups[k] = groups[k] || { u, item, list:[] }).list.push(r);
+    }
+  });
+  const byOrder = (a,b)=> (a.date||'')<(b.date||'') ? -1 : (a.date||'')>(b.date||'') ? 1 : (a.createdAt||0)-(b.createdAt||0);
+  Object.values(groups).forEach(g=>{
+    const std = stdFor(g.item.id, g.u); let cum = 0;
+    g.list.sort(byOrder).forEach(r=>{
+      const q = Number(r.qty)||0, before = cum; cum += q;
+      add(r.id, Math.max(0, cum - Math.max(std, before)), 'req');
+    });
+  });
+  // 지급 주기(안전화): 사람별 · 종류 구분 없이 품목 단위로 합산
+  const cyc = {};
+  issues.forEach(r=>{
+    const item = itemById[r.itemId]; if(!item || r.src==='batch' || r.rtype==='process' || !r.who) return;
+    if(!ppeKinds(item).some(k=>k.cycle && Number(k.cycle.n)>0)) return;
+    const k = item.id+'|'+ppeNormName(r.who); (cyc[k] = cyc[k] || { item, list:[] }).list.push(r);
+  });
+  Object.values(cyc).forEach(g=>{
+    let prevEnd = null;
+    g.list.sort(byOrder).forEach(r=>{
+      const kind = ppeKinds(g.item).find(k=>k.name===r.kind) || {};
+      const q = Number(r.qty)||0;
+      const within = prevEnd && r.date && r.date < prevEnd;
+      add(r.id, within ? q : Math.max(0, q-1), 'cycle');
+      prevEnd = (kind.cycle && Number(kind.cycle.n)>0 && r.date) ? ppeAddCycle(r.date, kind.cycle) : null;
+    });
+  });
+  return out;
+}
+// 추가 지급 집계: 구분별 · 공정별 · 품목(종류)별
+function ppeExtraAgg(issues, xmap){
+  xmap = xmap || ppeExtraMap();
+  const cfg = ppeCfg();
+  const out = { total:0, byCat:{}, byUnit:{}, byUnitKey:{}, byKey:{} };
+  const put = (obj, name, key, kindObj, q, amt)=>{
+    const o = obj[name] || (obj[name] = { amt:0, items:{} });
+    o.amt += amt;
+    const it = o.items[key] || (o.items[key] = { kindObj, qty:0, amt:0 }); it.qty += q; it.amt += amt;
+  };
+  issues.forEach(r=>{
+    const x = xmap[r.id]; if(!x) return;
+    const f = ppeFindKind(r.itemId, r.kind); if(!f.kind) return;
+    const amt = x.qty * ppePrice(f.kind, r.month), key = r.itemId+'|'+r.kind;
+    const u = ppeIssueUnit(r, cfg), label = u ? u.name : (r.dept || '공정 미지정');
+    out.total += amt;
+    put(out.byCat, x.why, key, f, x.qty, amt);
+    put(out.byUnit, label, key, f, x.qty, amt);
+    const bk = out.byKey[key] || (out.byKey[key] = { qty:0, amt:0, over:0, req:0, cycle:0 }); bk.qty += x.qty; bk.amt += amt; bk[x.why] += x.qty;
+    const uk = label+'|'+key; const o = out.byUnitKey[uk] || (out.byUnitKey[uk] = { qty:0, amt:0 }); o.qty += x.qty; o.amt += amt;
+  });
+  return out;
+}
+function ppeExtraText(items){
+  return Object.values(items).map(it=> `${it.kindObj.kind.name} ${ppeNum(it.qty)}${ppeKindUnit(it.kindObj.item, it.kindObj.kind)}`).join(', ');
+}
+
 /* ---------- 집계 ---------- */
-// 월별 지급 합계: key(품목|종류) → { batch, req, qty, amt }
-function ppeMonthTotals(month, issues){
+// 월별 지급 합계: key(품목|종류) → { batch, req, qty, amt, ex, exAmt }
+function ppeMonthTotals(month, issues, xmap){
+  xmap = xmap || ppeExtraMap();
   const list = (issues||ppeIssues()).filter(r=> r.month===month);
   const out = {};
   ppeFlatKinds().forEach(({item,kind,key})=>{
     const mine = list.filter(r=> r.itemId===item.id && r.kind===kind.name);
     const batch = mine.filter(r=>r.src==='batch').reduce((s,r)=>s+(Number(r.qty)||0),0);
     const req = mine.filter(r=>r.src!=='batch').reduce((s,r)=>s+(Number(r.qty)||0),0);
-    out[key] = { batch, req, qty:batch+req, amt:(batch+req)*ppePrice(kind, month) };
+    const ex = mine.reduce((s,r)=>s+((xmap[r.id]||{}).qty||0),0);
+    const price = ppePrice(kind, month);
+    out[key] = { batch, req, qty:batch+req, amt:(batch+req)*price, ex, exAmt:ex*price };
   });
   return out;
 }
 function ppeYearAgg(year){
   const months = ppeYearMonths(year);
   const issues = ppeIssues().filter(r=> r.month && r.month.slice(0,4)===String(year));
-  const per = months.map(m=> ppeMonthTotals(m, issues));
+  const xmap = ppeExtraMap();
+  const per = months.map(m=> ppeMonthTotals(m, issues, xmap));
   const rows = ppeFlatKinds().map(({item,kind,key})=>{
     const tq = per.reduce((s,p)=>s+p[key].qty,0), ta = per.reduce((s,p)=>s+p[key].amt,0);
-    return { item, kind, key, per: per.map(p=>p[key]), totalQty:tq, totalAmt:ta, batch:per.reduce((s,p)=>s+p[key].batch,0), req:per.reduce((s,p)=>s+p[key].req,0) };
+    return { item, kind, key, per: per.map(p=>p[key]), totalQty:tq, totalAmt:ta, ex:per.reduce((s,p)=>s+p[key].ex,0), exAmt:per.reduce((s,p)=>s+p[key].exAmt,0), batch:per.reduce((s,p)=>s+p[key].batch,0), req:per.reduce((s,p)=>s+p[key].req,0) };
   });
   const recorded = months.filter((m,i)=> Object.values(per[i]).some(v=>v.qty>0));
-  return { months, rows, issues, recorded };
+  return { months, rows, issues, recorded, xmap, extra: ppeExtraAgg(issues, xmap) };
 }
 
 /* ============================================================
@@ -10434,6 +10559,11 @@ function ppeDownloadLedger(sel, filledMonth){
 
 /* ---------- 화면 ---------- */
 const PPE_INP = 'padding:5px 6px;border:1px solid var(--line);border-radius:6px;';
+function ppePriceLabel(kind, month){
+  const p = ppePrice(kind, month);
+  if(!p) return '<span class="hint">단가 없음</span>';
+  return ppeNum(p) + (kind.priceBasis==='each' ? `<div class="hint">${ppeNum(ppePriceRaw(kind, month))}원/개</div>` : '');
+}
 function ppeBadge(text){ return `<span class="badge" style="background:#EEF2F7;color:#475569;">${text}</span>`; }
 function ppeInfo(text){ return `<span class="ppe-i" title="${esc(text)}">ⓘ</span>`; }
 const PPE_RED = '#B42318', PPE_BLUE = '#1D4ED8';
@@ -10454,13 +10584,14 @@ function ppeEnsureStyle(){
 #view-ppe td input[type=number]{-moz-appearance:textfield;}
 #view-ppe .ppe-sec{font-weight:800;font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 #view-ppe .ppe-i{color:#8A94A6;cursor:help;font-size:13px;font-weight:400;}
-#view-ppe .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px;}
+#view-ppe .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px;}
+#view-ppe table tbody tr.ex td{background:#FFF1F0;}
 #view-ppe .kpi{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:#fff;}
 #view-ppe .kpi .k{font-size:12px;color:var(--ink-soft);}
 #view-ppe .kpi .v{font-size:22px;font-weight:800;margin-top:2px;}
 #view-ppe .mrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
 #view-ppe .bh{font-size:10.5px;color:#667085;min-height:13px;line-height:13px;}
-@media (max-width:640px){#view-ppe .kpis{grid-template-columns:1fr;}}`;
+@media (max-width:900px){#view-ppe .kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}`;
   document.head.appendChild(st);
 }
 function ppeStdKeys(){ // 인당 기준(안) 대상 종류
@@ -10500,7 +10631,7 @@ function renderPpe(force){
     });
     return;
   }
-  if(ppeCfg().units.length && ppeCfg().v<3) ppeMigrate();
+  if(ppeCfg().units.length && ppeCfg().v<4) ppeMigrate();
   if(PPEState.tab==='지급') renderPpeIssue(body);
   else if(PPEState.tab==='예산') renderPpeBudget(body);
   else if(PPEState.tab==='지급기준') renderPpeStandard(body);
@@ -10526,12 +10657,18 @@ function renderPpeIssue(body){
   // --- 연·월 이동 + KPI
   const years = []; for(let y=Math.min(2026,year); y<=Math.max(2030, year); y++) years.push(y);
   const hasRec = new Set(allIssues.filter(r=>r.month && r.month.slice(0,4)===String(year)).map(r=>r.month));
-  const cur = ppeMonthTotals(m, allIssues), prev = ppeMonthTotals(ppeAddMonths(m,-1), allIssues);
+  const xmap = ppeExtraMap(allIssues);
+  const cur = ppeMonthTotals(m, allIssues, xmap), prev = ppeMonthTotals(ppeAddMonths(m,-1), allIssues, xmap);
   const sumRows = flat.filter(f=> cur[f.key].qty>0 || prev[f.key].qty>0);
   const curTot = flat.reduce((s,f)=>s+cur[f.key].amt,0), prevTot = flat.reduce((s,f)=>s+prev[f.key].amt,0);
+  const curEx = flat.reduce((s,f)=>s+cur[f.key].exAmt,0);
   const listAll = allIssues.filter(r=>r.month===m).sort((a,b)=> (b.date||'')<(a.date||'') ? -1 : (b.date||'')>(a.date||'') ? 1 : (b.createdAt||0)-(a.createdAt||0));
   const filt = PPEState.listFilter || 'all';
-  const list = listAll.filter(r=> filt==='all' || (filt==='batch') === (r.src==='batch'));
+  const list = listAll.filter(r=> filt==='all' ? true : filt==='extra' ? !!xmap[r.id] : (filt==='batch') === (r.src==='batch'));
+  const exAgg = ppeExtraAgg(listAll, xmap);
+  // 월 일괄 공정이 이 달 요청 시로 받은 수량(월 일괄 표 칸에 '요청 +N'으로 표시)
+  const reqOf = {};
+  listAll.filter(r=>r.src!=='batch').forEach(r=>{ const u = ppeIssueUnit(r, cfg); if(u && u.monthly){ const k = u.id+'|'+r.itemId; reqOf[k] = (reqOf[k]||0) + (Number(r.qty)||0); } });
 
   // --- 요청 시 지급 입력 행
   const edit = PPEState.editId ? allIssues.find(r=>r.id===PPEState.editId) : null;
@@ -10542,8 +10679,6 @@ function renderPpeIssue(body){
   }
   if(!edit && PPEState.rows.editing){ PPEState.rows = [ppeNewRow(null, m)]; }
   const rows = PPEState.rows;
-  const names = []; const seen = new Set();
-  allIssues.filter(r=>r.src!=='batch' && r.rtype==='person' && r.who).sort((a,b)=>(b.date||'')<(a.date||'')?-1:1).forEach(r=>{ if(!seen.has(r.who)){ seen.add(r.who); names.push(r.who); } });
   const rowHtml = (r,i)=>{
     const f = flat.find(x=>x.key===r.itemKey);
     const hasSize = f && f.item.hasSize;
@@ -10552,13 +10687,13 @@ function renderPpeIssue(body){
       <td><select class="rq-f" data-f="rtype" style="${PPE_INP}"><option value="person" ${r.rtype==='person'?'selected':''}>개인</option><option value="process" ${r.rtype==='process'?'selected':''}>공정</option></select></td>
       <td>${r.rtype==='process'
         ? `<select class="rq-f" data-f="who" style="${PPE_INP}"><option value="">선택</option>${cfg.units.map(u=>`<option ${r.who===u.name?'selected':''}>${esc(u.name)}</option>`).join('')}</select>`
-        : `<input type="text" class="rq-f" data-f="who" list="rqNames" autocomplete="off" value="${esc(r.who)}" placeholder="이름" style="${PPE_INP}width:100px;">`}</td>
+        : `<input type="text" class="rq-f" data-f="who" autocomplete="off" value="${esc(r.who)}" placeholder="이름" style="${PPE_INP}width:100px;">`}</td>
       <td>${r.rtype==='process' ? '<span class="hint">-</span>' : `<select class="rq-f" data-f="dept" style="${PPE_INP}"><option value="">없음(관리직 등)</option>${cfg.units.map(u=>`<option ${r.dept===u.name?'selected':''}>${esc(u.name)}</option>`).join('')}</select>`}</td>
-      <td><select class="rq-f" data-f="itemKey" style="${PPE_INP}">${flat.map(x=>`<option value="${esc(x.key)}" ${x.key===r.itemKey?'selected':''}>${esc(x.kind.name)} (${esc(x.item.unit)})</option>`).join('')}</select></td>
+      <td><select class="rq-f" data-f="itemKey" style="${PPE_INP}">${flat.map(x=>`<option value="${esc(x.key)}" ${x.key===r.itemKey?'selected':''}>${esc(x.kind.name)} (${esc(ppeKindUnit(x.item,x.kind))})</option>`).join('')}</select></td>
       <td><input type="number" class="rq-f" data-f="qty" min="1" step="1" value="${r.qty}" style="${PPE_INP}width:60px;"></td>
       <td>${hasSize ? `<select class="rq-f" data-f="size" style="${PPE_INP}"><option value="">선택</option>${PPE_SIZES.map(s=>`<option ${String(r.size)===String(s)?'selected':''}>${s}</option>`).join('')}</select>` : '<span class="hint">-</span>'}</td>
       <td><select class="rq-f" data-f="reason" style="${PPE_INP}">${PPE_REASONS.map(x=>`<option ${r.reason===x?'selected':''}>${x}</option>`).join('')}</select></td>
-      <td id="rqP${i}">-</td><td id="rqA${i}" style="font-weight:700;">-</td>
+      <td id="rqP${i}">-</td><td id="rqA${i}" style="font-weight:700;">-</td><td id="rqX${i}"></td>
       <td>${rows.length>1 && !edit ? `<button class="btn btn-sm" data-rowdel="${i}">✕</button>` : ''}</td>
     </tr>`;
   };
@@ -10577,16 +10712,16 @@ function renderPpeIssue(body){
         <div class="kpi"><div class="k">${Number(m.slice(5))}월 지급 금액</div><div class="v">${ppeMoney(curTot)}원</div></div>
         <div class="kpi"><div class="k">전월 대비</div><div class="v">${ppeDiffTxt(curTot-prevTot, n=>ppeMoney(n)+'원')}</div></div>
         <div class="kpi"><div class="k">지급 건수</div><div class="v">${listAll.length}건</div></div>
+        <div class="kpi"><div class="k">추가 지급 금액</div><div class="v" style="color:${curEx>0?PPE_RED:'inherit'};">${ppeMoney(curEx)}원</div></div>
       </div>
     </div>
 
     <div class="card" id="ppeReqCard" style="padding:16px 18px;margin-bottom:12px;">
-      <div class="ppe-sec">① ${edit?'요청 시 지급 수정':'요청 시 지급 입력'} ${ppeInfo('안전모·안전화·귀마개 등 필요할 때 지급하는 품목입니다. 종이 대장에 서명을 받은 뒤 이 입력은 나중에 몰아서 해도 됩니다. 관리직 등은 수령을 "개인"으로, 이름은 한 번 입력하면 자동완성됩니다.')}</div>
+      <div class="ppe-sec">① ${edit?'요청 시 지급 수정':'요청 시 지급 입력'} ${ppeInfo('안전모·안전화·귀마개 등 필요할 때 지급하는 품목입니다. 종이 대장에 서명을 받은 뒤 이 입력은 나중에 몰아서 해도 됩니다. 관리직 등은 수령을 "개인"으로 입력하고, 같은 사람은 이름을 똑같이(공백은 무시) 입력해야 안전화 주기 판정이 됩니다. 동명이인은 "홍길동2"처럼 구분하세요.')}</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>일자</th><th>수령</th><th>이름 / 공정</th><th>소속 공정</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th></th></tr></thead>
+        <thead><tr><th>일자</th><th>수령</th><th>이름 / 공정</th><th>소속 공정</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th>판정</th><th></th></tr></thead>
         <tbody id="rqRows">${rows.map(rowHtml).join('')}</tbody>
       </table></div>
-      <datalist id="rqNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
         ${edit ? '<button class="btn" id="rqCancel">취소</button>' : '<button class="btn" id="rqAddRow">+ 행 추가</button>'}
         <button class="btn btn-primary" id="rqSave">${edit?'수정 저장':`저장${rows.length>1?` (${rows.length}행)`:''}`}</button>
@@ -10604,7 +10739,7 @@ function renderPpeIssue(body){
       <div class="table-wrap" style="margin-bottom:10px;"><table>
         <thead><tr><th style="min-width:90px;">공정</th>${items.map(it=>`<th style="min-width:96px;">${esc(it.name)}<div class="hint" style="font-weight:400;">${esc(it.unit)}</div></th>`).join('')}</tr></thead>
         <tbody>
-          ${units.map(u=>`<tr><td style="font-weight:700;">${esc(u.name)}</td>${items.map(it=>`<td><input type="number" min="0" step="1" class="ppe-q" data-u="${u.id}" data-i="${it.id}" data-std="${stdOf(u,it)}" value="${qtyOf(u,it)||''}" style="width:64px;${PPE_INP}background:transparent;"><div class="bh"></div></td>`).join('')}</tr>`).join('')}
+          ${units.map(u=>`<tr><td style="font-weight:700;">${esc(u.name)}</td>${items.map(it=>`<td><input type="number" min="0" step="1" class="ppe-q" data-u="${u.id}" data-i="${it.id}" data-std="${stdOf(u,it)}" data-req="${reqOf[u.id+'|'+it.id]||0}" value="${qtyOf(u,it)||''}" style="width:64px;${PPE_INP}background:transparent;"><div class="bh"></div></td>`).join('')}</tr>`).join('')}
           <tr class="tot"><td>합계</td>${items.map(it=>`<td id="ppeTot_${it.id}">0</td>`).join('')}</tr>
           <tr class="tot"><td>금액(원)</td>${items.map(it=>`<td id="ppeAmt_${it.id}">0</td>`).join('')}</tr>
         </tbody>
@@ -10618,30 +10753,44 @@ function renderPpeIssue(body){
     <div class="card" style="padding:16px 18px;">
       <div class="ppe-sec">③ ${Number(m.slice(5))}월 지급 내역 ${ppeInfo('품목별 합계와 건별 내역입니다. 월 일괄 건의 수정은 ②의 표에서 하고, 삭제하면 해당 칸이 0이 됩니다.')}</div>
       <div class="table-wrap" style="margin-bottom:14px;"><table>
-        <thead><tr><th>품목</th><th>월 일괄</th><th>요청 시</th><th>합계 수량</th><th>단가(원)</th><th>금액(원)</th><th>전월 금액</th><th>전월 대비</th></tr></thead>
-        <tbody>${sumRows.length ? sumRows.map(f=>`<tr><td style="font-weight:700;">${esc(f.kind.name)} <span class="hint">(${esc(f.item.unit)})</span></td>
+        <thead><tr><th>품목</th><th>월 일괄</th><th>요청 시</th><th>합계 수량</th><th>전월 수량</th><th>수량 증감</th><th>단가(원)</th><th>금액(원)</th><th>전월 금액</th><th>금액 증감</th><th>추가 수량</th><th>추가 금액</th></tr></thead>
+        <tbody>${sumRows.length ? sumRows.map(f=>`<tr><td style="font-weight:700;">${esc(f.kind.name)} <span class="hint">(${esc(ppeKindUnit(f.item,f.kind))})</span></td>
           <td>${ppeNum(cur[f.key].batch)}</td><td>${ppeNum(cur[f.key].req)}</td><td style="font-weight:700;">${ppeNum(cur[f.key].qty)}</td>
-          <td>${ppeNum(ppePrice(f.kind, m))}</td><td>${ppeNum(cur[f.key].amt)}</td><td>${ppeNum(prev[f.key].amt)}</td><td>${ppeDiffTxt(cur[f.key].amt-prev[f.key].amt)}</td></tr>`).join('')
-          + `<tr class="tot"><td colspan="5">합계</td><td>${ppeNum(curTot)}</td><td>${ppeNum(prevTot)}</td><td>${ppeDiffTxt(curTot-prevTot)}</td></tr>`
-          : '<tr><td colspan="8" style="padding:18px;color:var(--ink-soft);">이 달 지급 기록이 없습니다</td></tr>'}</tbody>
+          <td>${ppeNum(prev[f.key].qty)}</td><td>${ppeDiffTxt(cur[f.key].qty-prev[f.key].qty, n=>ppeNum(n,1))}</td>
+          <td>${ppePriceLabel(f.kind, m)}</td><td>${ppeNum(cur[f.key].amt)}</td><td>${ppeNum(prev[f.key].amt)}</td><td>${ppeDiffTxt(cur[f.key].amt-prev[f.key].amt)}</td>
+          <td style="color:${cur[f.key].ex?PPE_RED:'inherit'};font-weight:${cur[f.key].ex?700:400};">${cur[f.key].ex?'+':''}${ppeNum(cur[f.key].ex)}</td><td style="color:${cur[f.key].exAmt?PPE_RED:'inherit'};">${ppeNum(cur[f.key].exAmt)}</td></tr>`).join('')
+          + `<tr class="tot"><td colspan="7">합계</td><td>${ppeNum(curTot)}</td><td>${ppeNum(prevTot)}</td><td>${ppeDiffTxt(curTot-prevTot)}</td><td></td><td style="color:${curEx?PPE_RED:'inherit'};">${ppeNum(curEx)}</td></tr>`
+          : '<tr><td colspan="12" style="padding:18px;color:var(--ink-soft);">이 달 지급 기록이 없습니다</td></tr>'}</tbody>
       </table></div>
+      ${exAgg.total>0 ? `<div class="ppe-sec" style="font-size:14px;">추가 지급 분류 ${ppeInfo('월 일괄 초과 = 기준표보다 더 준 수량 / 요청 시 추가 = 월 일괄 공정의 요청 지급, 기준 외 공정의 월 기준 초과분 / 주기 내 재지급 = 안전화 등 지급 주기 안에 다시 받은 것')}</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;">
+        <div class="table-wrap"><table>
+          <thead><tr><th>구분</th><th>내용</th><th>금액(원)</th></tr></thead>
+          <tbody>${Object.entries(PPE_WHY).filter(([k])=>exAgg.byCat[k]).map(([k,t])=>`<tr><td style="font-weight:700;">${t}</td><td>${esc(ppeExtraText(exAgg.byCat[k].items))}</td><td style="color:${PPE_RED};">${ppeNum(exAgg.byCat[k].amt)}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>공정</th><th>내용</th><th>금액(원)</th></tr></thead>
+          <tbody>${Object.entries(exAgg.byUnit).sort((a,b)=>b[1].amt-a[1].amt).map(([n,o])=>`<tr><td style="font-weight:700;">${esc(n)}</td><td>${esc(ppeExtraText(o.items))}</td><td style="color:${PPE_RED};">${ppeNum(o.amt)}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>` : ''}
       <div class="mrow" style="margin-bottom:8px;">
         <b style="font-size:13px;">건별 내역</b>
-        ${[['all','전체'],['batch','월 일괄'],['request','요청 시']].map(([k,t])=>`<button class="btn btn-sm ${filt===k?'btn-primary':''}" data-lf="${k}">${t}</button>`).join('')}
+        ${[['all','전체'],['batch','월 일괄'],['request','요청 시'],['extra','추가 지급']].map(([k,t])=>`<button class="btn btn-sm ${filt===k?'btn-primary':''}" data-lf="${k}">${t}</button>`).join('')}
         <span class="hint">${list.length}건</span>
         <button class="btn btn-sm" id="delSel" style="margin-left:auto;" disabled>선택 삭제</button>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th><input type="checkbox" id="selAll"></th><th>구분</th><th>일자</th><th>수령</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="selAll"></th><th>구분</th><th>일자</th><th>수령</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th>추가</th><th></th></tr></thead>
         <tbody>${list.length ? list.map(r=>{
-          const f = ppeFindKind(r.itemId, r.kind), pr = ppePrice(f.kind, r.month), isB = r.src==='batch';
-          return `<tr>
+          const f = ppeFindKind(r.itemId, r.kind), pr = ppePrice(f.kind, r.month), isB = r.src==='batch', xr = xmap[r.id];
+          return `<tr${xr?' class="ex"':''}>
           <td><input type="checkbox" class="sel-r" value="${r.id}"></td><td>${isB?'월 일괄':'요청 시'}</td><td>${fmtDate(r.date)}</td>
           <td>${esc(r.who||'-')}${r.rtype==='process' && !isB?' <span class="hint">(공정)</span>':''}${r.dept?` <span class="hint">(${esc(r.dept)})</span>`:''}</td>
           <td>${esc(r.kind)}</td><td>${r.qty}</td><td>${esc(r.size||'-')}</td><td>${isB?'-':esc(r.reason||'일반')}</td>
-          <td>${ppeNum(pr)}</td><td style="font-weight:700;">${ppeNum((Number(r.qty)||0)*pr)}</td>
+          <td>${ppePriceLabel(f.kind, r.month)}</td><td style="font-weight:700;">${ppeNum((Number(r.qty)||0)*pr)}</td>
+          <td>${xr?`<span style="color:${PPE_RED};font-weight:700;">+${xr.qty}</span><div class="hint">${PPE_WHY[xr.why]}</div>`:''}</td>
           <td style="white-space:nowrap;"><button class="btn btn-sm" ${isB?`data-editb="${r.unitId}|${r.itemId}"`:`data-edit="${r.id}"`}>수정</button> <button class="btn btn-sm" data-del="${r.id}">삭제</button></td>
-        </tr>`; }).join('') : '<tr><td colspan="11" style="padding:20px;color:var(--ink-soft);">내역이 없습니다</td></tr>'}</tbody>
+        </tr>`; }).join('') : '<tr><td colspan="12" style="padding:20px;color:var(--ink-soft);">내역이 없습니다</td></tr>'}</tbody>
       </table></div>
     </div>`;
 
@@ -10663,7 +10812,8 @@ function renderPpeIssue(body){
     let bg = '', fg = '';
     if(v>std){ bg = '#FDE2E2'; fg = PPE_RED; } else if(v<std){ bg = '#DCEBFE'; fg = PPE_BLUE; } else if(std===0){ bg = '#EAECF0'; }
     td.style.background = bg; inp.style.color = fg; inp.style.fontWeight = (v!==std) ? '700' : '';
-    td.querySelector('.bh').textContent = std>0 ? '기준 '+std.toLocaleString('ko-KR') : '';
+    const rq = Number(inp.dataset.req)||0;
+    td.querySelector('.bh').textContent = (std>0 ? '기준 '+std.toLocaleString('ko-KR') : '') + (rq ? (std>0?' · ':'')+'요청 +'+rq.toLocaleString('ko-KR') : '');
   };
   const calc = ()=>{
     items.forEach(it=>{
@@ -10687,7 +10837,7 @@ function renderPpeIssue(body){
       const qty = Number(inp.value) || 0;
       const id = `bm_${m}_${uid}_${iid}`;
       if(qty>0){
-        writes.push(DataStore.update(PATHS.ppeIssues, id, { src:'batch', month:m, date, itemId:iid, kind:kind.name, unitId:uid, who:u.name, rtype:'process', qty, createdAt:Date.now() }));
+        writes.push(DataStore.update(PATHS.ppeIssues, id, { src:'batch', month:m, date, itemId:iid, kind:kind.name, unitId:uid, who:u.name, rtype:'process', qty, stdQty:Number(inp.dataset.std)||0, createdAt:Date.now() }));
       }else if(byKey[uid+'|'+iid]){
         writes.push(DataStore.remove(PATHS.ppeIssues, id));
       }
@@ -10712,6 +10862,10 @@ function renderPpeIssue(body){
       if(pc) pc.textContent = p ? ppeMoney(p) : '단가 없음';
       if(ac) ac.textContent = p ? ppeMoney((Number(r.qty)||0)*p) : '-';
     });
+    // 입력 중인 행의 추가 지급 여부 미리 판정 (안전화 주기·월 일괄 공정 요청 지급 등)
+    const drafts = rows.map((r,i)=>{ const [iid, kn] = String(r.itemKey||'').split('|'); return { id:'__d'+i, src:'request', month:String(r.date||m).slice(0,7), date:r.date||(m+'-01'), itemId:iid, kind:kn, qty:Number(r.qty)||0, rtype:r.rtype, who:String(r.who||'').trim(), dept:r.rtype==='person'?(r.dept||''):'', createdAt:Date.now()+i }; }).filter(d=>d.who && d.qty>0);
+    const xm = ppeExtraMap(allIssues.filter(x=> !(edit && x.id===edit.id)).concat(drafts));
+    rows.forEach((r,i)=>{ const c = $('rqX'+i), x = xm['__d'+i]; if(c) c.innerHTML = x ? `<span style="color:${PPE_RED};font-weight:700;">추가 +${x.qty}</span><div class="hint">${PPE_WHY[x.why]}</div>` : ''; });
   };
   sync();
   body.querySelectorAll('.rq-f').forEach(inp=>{
@@ -10856,10 +11010,11 @@ function ppeCompare(year){
       const b = agg.issues.filter(r=> r.src==='batch' && r.itemId===item.id && r.kind===kind.name && r.unitId===u.id).reduce((s,r)=>s+(Number(r.qty)||0),0);
       const q = agg.issues.filter(r=> r.src!=='batch' && ((r.rtype==='process' && r.who===u.name) || (r.rtype!=='process' && r.dept===u.name)) && r.itemId===item.id && r.kind===kind.name).reduce((s,r)=>s+(Number(r.qty)||0),0);
       const s = keys.has(key) ? ppeStdForMonths(u, item, kind, cfg, P, months) : null;
-      return { unit:u, batch:b, req:q, std:s };
+      return { unit:u, batch:b, req:q, std:s, ex:(agg.extra.byUnitKey[u.name+'|'+key]||{qty:0}).qty };
     });
     const person = agg.issues.filter(r=> r.src!=='batch' && r.rtype!=='process' && !r.dept && r.itemId===item.id && r.kind===kind.name).reduce((s,r)=>s+(Number(r.qty)||0),0);
-    return { item, kind, key, batch:a.batch, req:a.req, std, price, per, person, totalQty:a.totalQty, totalAmt:a.totalAmt, hasStd:keys.has(key) };
+    const exK = agg.extra.byKey[key] || { qty:0, amt:0 };
+    return { item, kind, key, batch:a.batch, req:a.req, std, price, per, person, ex:exK.qty, exAmt:exK.amt, totalQty:a.totalQty, totalAmt:a.totalAmt, hasStd:keys.has(key) };
   });
   return { year, months, agg, rows };
 }
@@ -10874,10 +11029,22 @@ function renderPpeBudget(body){
   const grand = monthTot.reduce((a,b)=>a+b,0);
   const years = []; for(let y=2026;y<=Math.max(2030, year);y++) years.push(y);
   const open = PPEState.cmpOpen || (PPEState.cmpOpen = {});
+  const cfgB = ppeCfg();
+  const baseOf = (item, m)=> item.method!=='monthly' ? null : cfgB.units.filter(u=>!u.trackFrom || m>=u.trackFrom).reduce((s,u)=> s + (Number((cfgB.std[item.id]||{})[u.id])||0), 0);
   const rowsHtml = shown.map(row=>{
-    const label = `${esc(row.kind.name)}${row.item.unit==='박스'?' <span class="hint">(박스)</span>':''}`;
+    const ku = ppeKindUnit(row.item,row.kind), per = ppeKindPer(row.item,row.kind), each = row.kind.priceBasis==='each';
+    const label = `${esc(row.kind.name)}${ku!=='개'?` <span class="hint">(${esc(ku)})</span>`:''}`;
+    const qtyCells = row.per.map((p,i)=>{
+      const B = baseOf(row.item, agg.months[i]); let st = '', tt = '';
+      if(p.qty>0 && B!=null){
+        if(p.ex>0) st = `background:#FDE2E2;color:${PPE_RED};font-weight:700;`;
+        else if(p.qty<B) st = `background:#DCEBFE;color:${PPE_BLUE};font-weight:700;`;
+        tt = `현행 기준 ${ppeNum(B)} · 추가 ${ppeNum(p.ex)}`;
+      }
+      return `<td style="${st}" title="${tt}">${cell(p.qty)}${p.ex>0?`<div class="bh" style="color:${PPE_RED};">추가 +${ppeNum(p.ex)}</div>`:''}${each&&p.qty?`<div class="bh">${ppeNum(p.qty*per)}개</div>`:''}</td>`;
+    }).join('');
     return `
-      <tr><td rowspan="3" style="font-weight:700;">${label}</td><td>수량</td>${row.per.map(p=>`<td>${cell(p.qty)}</td>`).join('')}<td style="font-weight:700;">${cell(row.totalQty)}</td></tr>
+      <tr><td rowspan="3" style="font-weight:700;">${label}</td><td>수량</td>${qtyCells}<td style="font-weight:700;">${cell(row.totalQty)}${row.ex>0?`<div class="bh" style="color:${PPE_RED};">추가 +${ppeNum(row.ex)}</div>`:''}${each&&row.totalQty?`<div class="bh">${ppeNum(row.totalQty*per)}개</div>`:''}</td></tr>
       <tr><td>금액</td>${row.per.map(p=>`<td>${cell(p.amt)}</td>`).join('')}<td style="font-weight:700;">${cell(row.totalAmt)}</td></tr>
       <tr><td>단가</td>${row.per.map(p=>`<td>${p.qty ? ppeMoney(p.amt/p.qty) : '-'}</td>`).join('')}<td>${row.totalQty ? ppeMoney(row.totalAmt/row.totalQty) : '-'}</td></tr>`;
   }).join('');
@@ -10886,15 +11053,16 @@ function renderPpeBudget(body){
   const nRec = cmp.months.length;
   const cmpHtml = cmpRows.map(r=>{
     const act = r.batch + r.req; const d = r.std==null ? null : act - r.std; const isOpen = !!open[r.key];
-    let h = `<tr class="clk" data-ck="${esc(r.key)}"><td style="font-weight:700;">${isOpen?'▾':'▸'} ${esc(r.kind.name)} <span class="hint">(${esc(r.item.unit)})</span></td>
+    let h = `<tr class="clk" data-ck="${esc(r.key)}"><td style="font-weight:700;">${isOpen?'▾':'▸'} ${esc(r.kind.name)} <span class="hint">(${esc(ppeKindUnit(r.item,r.kind))})</span></td>
       <td>${ppeNum(r.batch)}</td><td>${ppeNum(r.req)}</td><td style="font-weight:700;">${ppeNum(act)}</td>
-      <td>${r.std==null?'-':ppeNum(r.std,1)}</td><td>${d==null?'-':dCol(d)}</td><td>${d==null?'-':ppeDiffTxt(Math.round(d*r.price))}</td></tr>`;
+      <td>${r.std==null?'-':ppeNum(r.std,1)}</td><td>${d==null?'-':dCol(d)}</td><td>${d==null?'-':ppeDiffTxt(Math.round(d*r.price))}</td>
+      <td style="color:${r.ex?PPE_RED:'inherit'};font-weight:${r.ex?700:400};">${r.ex?'+':''}${ppeNum(r.ex)}</td><td style="color:${r.exAmt?PPE_RED:'inherit'};">${ppeNum(r.exAmt)}</td></tr>`;
     if(isOpen){
       h += r.per.filter(p=> p.batch>0 || p.req>0 || (p.std||0)>0).map(p=>{
         const a = p.batch+p.req, dd = p.std==null ? null : a - p.std;
-        return `<tr class="sub"><td>└ ${esc(p.unit.name)}</td><td>${ppeNum(p.batch)}</td><td>${ppeNum(p.req)}</td><td>${ppeNum(a)}</td><td>${p.std==null?'-':ppeNum(p.std,1)}</td><td>${dd==null?'-':dCol(dd)}</td><td>${dd==null?'-':ppeDiffTxt(Math.round(dd*r.price))}</td></tr>`;
+        return `<tr class="sub"><td>└ ${esc(p.unit.name)}</td><td>${ppeNum(p.batch)}</td><td>${ppeNum(p.req)}</td><td>${ppeNum(a)}</td><td>${p.std==null?'-':ppeNum(p.std,1)}</td><td>${dd==null?'-':dCol(dd)}</td><td>${dd==null?'-':ppeDiffTxt(Math.round(dd*r.price))}</td><td style="color:${p.ex?PPE_RED:'inherit'};">${p.ex?'+':''}${ppeNum(p.ex)}</td><td></td></tr>`;
       }).join('');
-      if(r.person) h += `<tr class="sub"><td>└ 개인 지급(요청)</td><td>-</td><td>${ppeNum(r.person)}</td><td>${ppeNum(r.person)}</td><td>-</td><td>-</td><td>-</td></tr>`;
+      if(r.person) h += `<tr class="sub"><td>└ 개인 지급(요청)</td><td>-</td><td>${ppeNum(r.person)}</td><td>${ppeNum(r.person)}</td><td>-</td><td>-</td><td>-</td><td></td><td></td></tr>`;
     }
     return h;
   }).join('');
@@ -10919,15 +11087,24 @@ function renderPpeBudget(body){
     </div>
 
     <div class="card" style="padding:14px 16px;margin-bottom:12px;">
-      <div class="ppe-sec">② 실제 지급 vs 인당 기준(안) ${ppeInfo('품목 행을 누르면 공정별로 펼쳐집니다. 차이 = 실제 − 기준 (빨강 + = 기준보다 많이 지급). 인당 기준은 미확정·참고용입니다.')}</div>
+      <div class="ppe-sec">② 실제 지급 vs 인당 기준(안) · 추가 지급 ${ppeInfo('품목 행을 누르면 공정별로 펼쳐집니다. 차이 = 실제 − 기준 (빨강 + = 기준보다 많이 지급). 인당 기준(안)은 미확정·참고용이고 현행에는 혹서기 증량이 없어 현행이 적게 나오는 것이 정상입니다. 추가 지급은 현행 기준표 기준입니다.')}</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>품목</th><th>월 일괄</th><th>요청 시</th><th>실제 합계</th><th>인당 기준(안)</th><th>차이</th><th>금액 차이(원)</th></tr></thead>
-        <tbody>${cmpHtml || '<tr><td colspan="7" style="padding:18px;color:var(--ink-soft);">비교할 기록이 없습니다</td></tr>'}</tbody>
+        <thead><tr><th>품목</th><th>월 일괄</th><th>요청 시</th><th>실제 합계</th><th>인당 기준(안)</th><th>차이</th><th>금액 차이(원)</th><th>추가 지급</th><th>추가 금액(원)</th></tr></thead>
+        <tbody>${cmpHtml || '<tr><td colspan="9" style="padding:18px;color:var(--ink-soft);">비교할 기록이 없습니다</td></tr>'}</tbody>
       </table></div>
     </div>
 
+    ${agg.extra.total>0 ? `<div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <div class="ppe-sec">③ 추가 지급 분류 (${year}년) <span style="font-weight:400;font-size:13px;color:${PPE_RED};">${ppeMoney(agg.extra.total)}원</span> ${ppeInfo('월 일괄 초과 / 요청 시 추가 / 주기 내 재지급으로 나뉩니다. 집진기는 추가 판정 시작월 이전은 제외됩니다.')}</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div class="table-wrap"><table><thead><tr><th>구분</th><th>내용</th><th>금액(원)</th></tr></thead>
+          <tbody>${Object.entries(PPE_WHY).filter(([k])=>agg.extra.byCat[k]).map(([k,t])=>`<tr><td style="font-weight:700;">${t}</td><td>${esc(ppeExtraText(agg.extra.byCat[k].items))}</td><td style="color:${PPE_RED};">${ppeNum(agg.extra.byCat[k].amt)}</td></tr>`).join('')}</tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>공정</th><th>내용</th><th>금액(원)</th></tr></thead>
+          <tbody>${Object.entries(agg.extra.byUnit).sort((a,b)=>b[1].amt-a[1].amt).map(([n,o])=>`<tr><td style="font-weight:700;">${esc(n)}</td><td>${esc(ppeExtraText(o.items))}</td><td style="color:${PPE_RED};">${ppeNum(o.amt)}</td></tr>`).join('')}</tbody></table></div>
+      </div></div>` : ''}
+
     <details id="simDet" ${PPEState.simOpen?'open':''}>
-      <summary class="card" style="padding:12px 16px;cursor:pointer;font-weight:800;font-size:15px;">③ ${year+1}년 예산 시뮬레이션 <span style="font-weight:400;font-size:12.5px;color:var(--ink-soft);">(펼치기)</span></summary>
+      <summary class="card" style="padding:12px 16px;cursor:pointer;font-weight:800;font-size:15px;">${agg.extra.total>0?'④':'③'} ${year+1}년 예산 시뮬레이션 <span style="font-weight:400;font-size:12.5px;color:var(--ink-soft);">(펼치기)</span></summary>
       <div id="simBox" style="margin-top:10px;"></div>
     </details>`;
   const $ = id=>document.getElementById(id);
@@ -10965,7 +11142,7 @@ function renderPpeSim(box, cmp){
       <div class="table-wrap"><table>
         <thead><tr><th style="text-align:left;">품목</th><th>기준 수량</th><th>수량 증감(%)</th><th>${ty}년 수량</th><th>단가(원)</th><th>${ty}년 금액(원)</th><th>${year}년 금액(원)</th><th>증감(원)</th></tr></thead>
         <tbody>${rows.length ? rows.map((r,i)=>`<tr data-k="${esc(r.key)}">
-          <td style="font-weight:700;">${esc(r.kind.name)} <span class="hint">(${esc(r.item.unit)})</span></td>
+          <td style="font-weight:700;">${esc(r.kind.name)} <span class="hint">(${esc(ppeKindUnit(r.item,r.kind))})</span></td>
           <td style="text-align:center;" class="sm-base">${ppeNum(baseQty(r),1)}</td>
           <td style="text-align:center;"><input type="number" step="1" class="sm-adj" value="${S.adj[r.key]||0}" style="width:70px;${PPE_INP}text-align:right;"></td>
           <td style="text-align:center;font-weight:700;" class="sm-qty">0</td>
@@ -11022,8 +11199,11 @@ function ppeDownloadBudget(year, agg, cmp, sim){
   const rows1 = [];
   const mh = agg.months.map(m=> Number(m.slice(5))+'월');
   agg.rows.filter(r=>r.totalQty>0).forEach(r=>{
-    const nm = r.item.unit==='박스' ? `${r.kind.name}(박스)` : r.kind.name;
+    const ku = ppeKindUnit(r.item,r.kind), per = ppeKindPer(r.item,r.kind);
+    const nm = ku!=='개' ? `${r.kind.name}(${ku})` : r.kind.name;
     rows1.push([nm, '수량', ...r.per.map(p=>p.qty||''), r.totalQty||'']);
+    if(r.kind.priceBasis==='each') rows1.push([nm, '개수', ...r.per.map(p=>p.qty ? p.qty*per : ''), r.totalQty*per||'']);
+    if(r.ex>0) rows1.push([nm, '추가 수량', ...r.per.map(p=>p.ex||''), r.ex]);
     rows1.push([nm, '금액', ...r.per.map(p=>p.amt||''), r.totalAmt||'']);
     rows1.push([nm, '단가', ...r.per.map(p=>p.qty ? Math.round(p.amt/p.qty) : ''), r.totalQty ? Math.round(r.totalAmt/r.totalQty) : '']);
   });
@@ -11033,11 +11213,11 @@ function ppeDownloadBudget(year, agg, cmp, sim){
   // 2) 현행·추가·인당기준 비교
   const rows2 = cmp.rows.filter(r=> r.batch>0 || r.req>0 || r.hasStd).map(r=>{
     const act = r.batch + r.req, d = r.std==null ? '' : Math.round((act - r.std)*10)/10;
-    return [r.kind.name, r.item.unit, r.batch||'', r.req||'', act||'', r.std==null ? '' : Math.round(r.std*10)/10, d, d==='' ? '' : Math.round(d*r.price)];
+    return [r.kind.name, ppeKindUnit(r.item,r.kind), r.batch||'', r.req||'', act||'', r.std==null ? '' : Math.round(r.std*10)/10, d, d==='' ? '' : Math.round(d*r.price), r.ex||'', r.exAmt||''];
   });
-  sheets.push(ppeTableSheet('3-way 비교', `${year}년 월 일괄 · 추가 지급 · 인당 기준(안) 비교`, ['품목','단위','① 월 일괄','② 요청 시 추가','①+② 실제','③ 인당 기준(안)','차이(①+②−③)','금액 차이(원)'], rows2, { widths:[20,8,12,14,12,14,14,14], note:`인당 기준(안)은 미확정·참고용 — 기록된 ${cmp.months.length}개월(${cmp.months.map(m=>Number(m.slice(5))+'월').join(', ')}) 기준` }));
+  sheets.push(ppeTableSheet('3-way 비교', `${year}년 월 일괄 · 추가 지급 · 인당 기준(안) 비교`, ['품목','단위','① 월 일괄','② 요청 시 추가','①+② 실제','③ 인당 기준(안)','차이(①+②−③)','금액 차이(원)','추가 지급 수량','추가 지급 금액(원)'], rows2, { widths:[20,8,12,14,12,14,14,14,14,16], note:`인당 기준(안)은 미확정·참고용 — 기록된 ${cmp.months.length}개월(${cmp.months.map(m=>Number(m.slice(5))+'월').join(', ')}) 기준` }));
   // 3) 시뮬레이션
-  const rows3 = sim.rows.map(x=> [x.r.kind.name, x.r.item.unit, Math.round(x.qty/(1+x.adj/100)||0), x.adj, x.qty, x.price, x.amt, x.r.totalAmt, x.amt - x.r.totalAmt]);
+  const rows3 = sim.rows.map(x=> [x.r.kind.name, ppeKindUnit(x.r.item,x.r.kind), Math.round(x.qty/(1+x.adj/100)||0), x.adj, x.qty, x.price, x.amt, x.r.totalAmt, x.amt - x.r.totalAmt]);
   rows3.push({ cells:['합계','','','','','',sim.total,sim.old,sim.total-sim.old], tot:true });
   sheets.push(ppeTableSheet(`${sim.ty} 예산 시뮬레이션`, `${sim.ty}년 보호구 예산 시뮬레이션`, ['품목','단위','기준 수량','수량 증감(%)',`${sim.ty}년 수량`,'단가(원)',`${sim.ty}년 금액(원)`,`${year}년 금액(원)`,'증감(원)'], rows3, { widths:[20,8,12,12,12,12,15,15,13], note:`기준: ${PPEState.sim.base==='std'?'인당 지급기준(안)':year+'년 실적'} / 단가 인상률 ${PPEState.sim.rate||0}%` }));
   ppeDownloadBlob(ppeXlsxBuild(sheets), `보호구_예산_${year}.xlsx`);
@@ -11093,7 +11273,7 @@ function renderPpeStandard(body){
       <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;gap:10px;align-items:center;margin-bottom:8px;">
         <div style="font-weight:700;">현행 대비 기준(안) 비교</div>
         <select id="stdKey" class="btn btn-sm">${keys.map(k=>`<option value="${esc(k.key)}" ${k.key===PPEState.stdKey?'selected':''}>${esc(k.kind.name)}</option>`).join('')}</select>
-        <span class="hint">${selK?esc(selK.item.unit):''} 단위</span>${ppeInfo('차이 = 현행 − 기준 (빨강 + = 기준보다 많이 지급). 현행·기준 모두 0인 공정은 숨깁니다.')}
+        <span class="hint">${selK?esc(ppeKindUnit(selK.item,selK.kind)):''} 단위</span>${ppeInfo('차이 = 현행 − 기준 (빨강 + = 기준보다 많이 지급). 현행·기준 모두 0인 공정은 숨깁니다.')}
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th style="text-align:left;">공정</th><th>인원</th><th>현행 월</th><th>기준 월(평소)</th><th>기준 월(혹서기)</th><th>현행 연(×12)</th><th>기준 연</th><th>연 차이</th><th>연 금액 차이(원)</th></tr></thead>
@@ -11162,7 +11342,7 @@ function renderPpeSettings(body){
           <td style="font-weight:700;">${esc(it.name)}${it.hasSize?' <span class="hint">· 사이즈</span>':''}</td>
           <td>${it.method==='monthly'?'월 일괄':'요청 시'}</td>
           <td>${esc(it.unit)}${Number(it.perUnit)>1?` <span class="hint">(1${esc(it.unit)}=${it.perUnit}개)</span>`:''}</td>
-          <td style="font-size:12.5px;line-height:1.6;">${ppeKinds(it).map(k=>`${esc(k.name)} · ${esc(k.cert||'인증번호 없음')} · ${ppePrice(k, nowM) ? ppeMoney(ppePrice(k, nowM))+'원' : '<span style="color:#E5484D;">단가 미입력</span>'}`).join('<br>')}</td>
+          <td style="font-size:12.5px;line-height:1.6;">${ppeKinds(it).map(k=>`${esc(k.name)}${k.unit?` <span class="hint">(${esc(k.unit)}${k.perUnit?`=${k.perUnit}개`:''})</span>`:''} · ${esc(k.cert||'인증번호 없음')} · ${ppePriceRaw(k, nowM) ? ppeMoney(ppePriceRaw(k, nowM))+'원'+(k.priceBasis==='each'?'/개':'') : '<span style="color:#E5484D;">단가 미입력</span>'}${k.cycle?` · 주기 ${k.cycle.n}${k.cycle.unit==='month'?'개월':'일'}`:''}`).join('<br>')}</td>
           <td style="white-space:nowrap;"><button class="btn btn-sm" data-item-edit="${it.id}">편집</button></td>
         </tr>`).join('') : '<tr><td colspan="6" style="padding:20px;color:var(--ink-soft);">등록된 품목이 없습니다</td></tr>'}</tbody>
       </table></div>
@@ -11180,12 +11360,13 @@ function renderPpeSettings(body){
 
     <div class="card" style="padding:16px 18px;">
       <div style="font-weight:700;margin-bottom:4px;">🏭 지급 단위(공정)</div>
-      <div style="margin-bottom:10px;">${ppeInfo('"월 일괄" 체크한 공정만 지급 탭의 월 일괄 표에 나옵니다. 나머지는 요청 시 지급으로 입력합니다.')}</div>
+      <div style="margin-bottom:10px;">${ppeInfo('"월 일괄" 체크한 공정만 지급 탭의 월 일괄 표에 나옵니다. 나머지는 요청 시 지급으로 입력합니다. "추가 판정 시작월"을 넣으면 그 달부터 추가 지급을 판정하고(예: 집진기 2027-01), 비우면 항상 판정합니다.')}</div>
       <div class="table-wrap"><table id="ppeUnitTbl">
-        <thead><tr><th>공정 이름</th><th>월 일괄</th><th></th></tr></thead>
+        <thead><tr><th>공정 이름</th><th>월 일괄</th><th>추가 판정 시작월</th><th></th></tr></thead>
         <tbody>${cfg.units.map(u=>`<tr data-uid="${u.id}">
           <td><input type="text" class="pu-name" value="${esc(u.name)}" style="width:140px;${PPE_INP}"></td>
           <td style="text-align:center;"><input type="checkbox" class="pu-monthly" ${u.monthly?'checked':''}></td>
+          <td><input type="month" class="pu-track" value="${esc(u.trackFrom||'')}" style="${PPE_INP}"></td>
           <td><button class="btn btn-sm" data-unit-del="${u.id}">삭제</button></td>
         </tr>`).join('')}</tbody>
       </table></div>
@@ -11228,7 +11409,7 @@ function renderPpeSettings(body){
     const units = [];
     body.querySelectorAll('#ppeUnitTbl tbody tr').forEach(tr=>{
       const name = tr.querySelector('.pu-name').value.trim(); if(!name) return;
-      units.push({ id:tr.dataset.uid, name, monthly: tr.querySelector('.pu-monthly').checked });
+      const tf = tr.querySelector('.pu-track').value; units.push({ id:tr.dataset.uid, name, monthly: tr.querySelector('.pu-monthly').checked, ...(tf?{trackFrom:tf}:{}) });
     });
     return units;
   };
@@ -11264,6 +11445,15 @@ function openPpeItemModal(item){
         <label class="field"><span>종류 표시명</span><input type="text" class="pk-name" value="${esc(k.name)}" placeholder="예: 귀마개"></label>
         <label class="field"><span>인증번호 (없으면 비움)</span><input type="text" class="pk-cert" value="${esc(k.cert||'')}"></label>
       </div>
+      <details ${(k.unit||k.perUnit||k.priceBasis||k.cycle)?'open':''}>
+        <summary style="cursor:pointer;font-size:12.5px;color:var(--ink-soft);">단위 · 단가 기준 · 지급 주기 (필요할 때만)</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px;">
+          <label class="field" style="margin:0;"><span>단위 (비우면 품목 단위)</span><input type="text" class="pk-unit" value="${esc(k.unit||'')}" placeholder="예: 박스"></label>
+          <label class="field" style="margin:0;"><span>1단위당 개수</span><input type="number" class="pk-per" min="1" value="${k.perUnit||''}" placeholder="예: 200"></label>
+          <label class="field" style="margin:0;"><span>단가 기준</span><select class="pk-basis"><option value="unit" ${k.priceBasis!=='each'?'selected':''}>단위당 (박스당 등)</option><option value="each" ${k.priceBasis==='each'?'selected':''}>개당 (× 1단위당 개수)</option></select></label>
+          <label class="field" style="margin:0;"><span>지급 주기 (없으면 비움)</span><span style="display:flex;gap:4px;"><input type="number" class="pk-cyc" min="1" value="${k.cycle?k.cycle.n:''}" style="width:70px;"><select class="pk-cycu"><option value="day" ${!k.cycle||k.cycle.unit!=='month'?'selected':''}>일</option><option value="month" ${k.cycle&&k.cycle.unit==='month'?'selected':''}>개월</option></select></span></label>
+        </div>
+      </details>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
         <label class="field" style="margin:0;"><span>현재 단가 (원)</span><input type="number" class="pk-price" min="0" value="${cur.price||''}" style="width:120px;"></label>
         <label class="field" style="margin:0;"><span>적용 시작월</span><input type="month" class="pk-from" value="${esc(cur.from||nowM)}"></label>
@@ -11327,7 +11517,10 @@ function openPpeItemModal(item){
       }
       if(new Set(prices.map(p=>p.from)).size !== prices.length){ toast(`"${kn}" 단가 시작월이 겹칩니다`); return; }
       prices.sort((a,b)=> a.from<b.from ? -1 : a.from>b.from ? 1 : 0);
-      ks.push({ name:kn, cert:row.querySelector('.pk-cert').value.trim(), prices });
+      const ku = row.querySelector('.pk-unit').value.trim(), kp = Number(row.querySelector('.pk-per').value)||0, kc = Number(row.querySelector('.pk-cyc').value)||0;
+      ks.push({ name:kn, cert:row.querySelector('.pk-cert').value.trim(), prices,
+        ...(ku?{unit:ku}:{}), ...(kp>0?{perUnit:kp}:{}), ...(row.querySelector('.pk-basis').value==='each'?{priceBasis:'each'}:{}),
+        ...(kc>0?{cycle:{ n:kc, unit:row.querySelector('.pk-cycu').value }}:{}) });
     }
     if(!ks.length){ toast('종류를 하나 이상 입력해주세요'); return; }
     if(new Set(ks.map(k=>k.name)).size !== ks.length){ toast('종류 표시명이 겹칩니다'); return; }
