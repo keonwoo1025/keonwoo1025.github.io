@@ -10629,18 +10629,19 @@ function renderPpeIssue(body){
         <b style="font-size:13px;">건별 내역</b>
         ${[['all','전체'],['batch','월 일괄'],['request','요청 시']].map(([k,t])=>`<button class="btn btn-sm ${filt===k?'btn-primary':''}" data-lf="${k}">${t}</button>`).join('')}
         <span class="hint">${list.length}건</span>
+        <button class="btn btn-sm" id="delSel" style="margin-left:auto;" disabled>선택 삭제</button>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>구분</th><th>일자</th><th>수령</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="selAll"></th><th>구분</th><th>일자</th><th>수령</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th></th></tr></thead>
         <tbody>${list.length ? list.map(r=>{
           const f = ppeFindKind(r.itemId, r.kind), pr = ppePrice(f.kind, r.month), isB = r.src==='batch';
           return `<tr>
-          <td>${isB?'월 일괄':'요청 시'}</td><td>${fmtDate(r.date)}</td>
+          <td><input type="checkbox" class="sel-r" value="${r.id}"></td><td>${isB?'월 일괄':'요청 시'}</td><td>${fmtDate(r.date)}</td>
           <td>${esc(r.who||'-')}${r.rtype==='process' && !isB?' <span class="hint">(공정)</span>':''}${r.dept?` <span class="hint">(${esc(r.dept)})</span>`:''}</td>
           <td>${esc(r.kind)}</td><td>${r.qty}</td><td>${esc(r.size||'-')}</td><td>${isB?'-':esc(r.reason||'일반')}</td>
           <td>${ppeNum(pr)}</td><td style="font-weight:700;">${ppeNum((Number(r.qty)||0)*pr)}</td>
           <td style="white-space:nowrap;"><button class="btn btn-sm" ${isB?`data-editb="${r.unitId}|${r.itemId}"`:`data-edit="${r.id}"`}>수정</button> <button class="btn btn-sm" data-del="${r.id}">삭제</button></td>
-        </tr>`; }).join('') : '<tr><td colspan="10" style="padding:20px;color:var(--ink-soft);">내역이 없습니다</td></tr>'}</tbody>
+        </tr>`; }).join('') : '<tr><td colspan="11" style="padding:20px;color:var(--ink-soft);">내역이 없습니다</td></tr>'}</tbody>
       </table></div>
     </div>`;
 
@@ -10759,6 +10760,18 @@ function renderPpeIssue(body){
     if(!confirm('이 지급 기록을 삭제할까요?')) return;
     await DataStore.remove(PATHS.ppeIssues, b.dataset.del); toast('삭제했습니다'); renderPpe(true);
   }));
+
+  const selBoxes = ()=> [...body.querySelectorAll('.sel-r')];
+  const refreshSel = ()=>{ const n = selBoxes().filter(c=>c.checked).length; $('delSel').disabled = !n; $('delSel').textContent = n ? `선택 삭제 (${n}건)` : '선택 삭제'; $('selAll').checked = n>0 && n===selBoxes().length; };
+  selBoxes().forEach(c=> c.addEventListener('change', refreshSel));
+  $('selAll').addEventListener('change', e=>{ selBoxes().forEach(c=> c.checked = e.target.checked); refreshSel(); });
+  $('delSel').addEventListener('click', async ()=>{
+    const ids = selBoxes().filter(c=>c.checked).map(c=>c.value);
+    if(!ids.length) return;
+    if(!confirm(`선택한 ${ids.length}건을 삭제할까요?`)) return;
+    await Promise.all(ids.map(id=> DataStore.remove(PATHS.ppeIssues, id)));
+    toast(`${ids.length}건 삭제했습니다`); renderPpe(true);
+  });
 
   // ---- 지급대장 엑셀 (간단 팝업)
   $('lgOpen').addEventListener('click', ()=>{
