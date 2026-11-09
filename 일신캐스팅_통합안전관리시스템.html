@@ -10537,7 +10537,7 @@ function renderPpeIssue(body){
   const edit = PPEState.editId ? allIssues.find(r=>r.id===PPEState.editId) : null;
   if(!PPEState.rows || !PPEState.rows.length) PPEState.rows = [ppeNewRow(null, m)];
   if(edit && !PPEState.rows.editing){
-    PPEState.rows = [{ date:edit.date, rtype:edit.rtype||'person', who:edit.who||'', itemKey:edit.itemId+'|'+edit.kind, qty:edit.qty, size:edit.size||'', reason:edit.reason||'일반' }];
+    PPEState.rows = [{ date:edit.date, rtype:edit.rtype||'person', who:edit.who||'', dept:edit.dept||'', itemKey:edit.itemId+'|'+edit.kind, qty:edit.qty, size:edit.size||'', reason:edit.reason||'일반' }];
     PPEState.rows.editing = edit.id;
   }
   if(!edit && PPEState.rows.editing){ PPEState.rows = [ppeNewRow(null, m)]; }
@@ -10553,6 +10553,7 @@ function renderPpeIssue(body){
       <td>${r.rtype==='process'
         ? `<select class="rq-f" data-f="who" style="${PPE_INP}"><option value="">선택</option>${cfg.units.map(u=>`<option ${r.who===u.name?'selected':''}>${esc(u.name)}</option>`).join('')}</select>`
         : `<input type="text" class="rq-f" data-f="who" list="rqNames" autocomplete="off" value="${esc(r.who)}" placeholder="이름" style="${PPE_INP}width:100px;">`}</td>
+      <td>${r.rtype==='process' ? '<span class="hint">-</span>' : `<select class="rq-f" data-f="dept" style="${PPE_INP}"><option value="">없음(관리직 등)</option>${cfg.units.map(u=>`<option ${r.dept===u.name?'selected':''}>${esc(u.name)}</option>`).join('')}</select>`}</td>
       <td><select class="rq-f" data-f="itemKey" style="${PPE_INP}">${flat.map(x=>`<option value="${esc(x.key)}" ${x.key===r.itemKey?'selected':''}>${esc(x.kind.name)} (${esc(x.item.unit)})</option>`).join('')}</select></td>
       <td><input type="number" class="rq-f" data-f="qty" min="1" step="1" value="${r.qty}" style="${PPE_INP}width:60px;"></td>
       <td>${hasSize ? `<select class="rq-f" data-f="size" style="${PPE_INP}"><option value="">선택</option>${PPE_SIZES.map(s=>`<option ${String(r.size)===String(s)?'selected':''}>${s}</option>`).join('')}</select>` : '<span class="hint">-</span>'}</td>
@@ -10582,7 +10583,7 @@ function renderPpeIssue(body){
     <div class="card" id="ppeReqCard" style="padding:16px 18px;margin-bottom:12px;">
       <div class="ppe-sec">① ${edit?'요청 시 지급 수정':'요청 시 지급 입력'} ${ppeInfo('안전모·안전화·귀마개 등 필요할 때 지급하는 품목입니다. 종이 대장에 서명을 받은 뒤 이 입력은 나중에 몰아서 해도 됩니다. 관리직 등은 수령을 "개인"으로, 이름은 한 번 입력하면 자동완성됩니다.')}</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>일자</th><th>수령</th><th>이름 / 공정</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th></th></tr></thead>
+        <thead><tr><th>일자</th><th>수령</th><th>이름 / 공정</th><th>소속 공정</th><th>품목</th><th>수량</th><th>사이즈</th><th>사유</th><th>단가</th><th>금액</th><th></th></tr></thead>
         <tbody id="rqRows">${rows.map(rowHtml).join('')}</tbody>
       </table></div>
       <datalist id="rqNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
@@ -10635,7 +10636,7 @@ function renderPpeIssue(body){
           const f = ppeFindKind(r.itemId, r.kind), pr = ppePrice(f.kind, r.month), isB = r.src==='batch';
           return `<tr>
           <td>${isB?'월 일괄':'요청 시'}</td><td>${fmtDate(r.date)}</td>
-          <td>${esc(r.who||'-')}${r.rtype==='process' && !isB?' <span class="hint">(공정)</span>':''}</td>
+          <td>${esc(r.who||'-')}${r.rtype==='process' && !isB?' <span class="hint">(공정)</span>':''}${r.dept?` <span class="hint">(${esc(r.dept)})</span>`:''}</td>
           <td>${esc(r.kind)}</td><td>${r.qty}</td><td>${esc(r.size||'-')}</td><td>${isB?'-':esc(r.reason||'일반')}</td>
           <td>${ppeNum(pr)}</td><td style="font-weight:700;">${ppeNum((Number(r.qty)||0)*pr)}</td>
           <td style="white-space:nowrap;"><button class="btn btn-sm" ${isB?`data-editb="${r.unitId}|${r.itemId}"`:`data-edit="${r.id}"`}>수정</button> <button class="btn btn-sm" data-del="${r.id}">삭제</button></td>
@@ -10714,7 +10715,7 @@ function renderPpeIssue(body){
   sync();
   body.querySelectorAll('.rq-f').forEach(inp=>{
     inp.addEventListener('input', sync);
-    inp.addEventListener('change', ()=>{ sync(); if(inp.dataset.f==='rtype' || inp.dataset.f==='itemKey'){ if(inp.dataset.f==='rtype') rows[Number(inp.closest('tr').dataset.ri)].who=''; renderPpe(true); } });
+    inp.addEventListener('change', ()=>{ sync(); if(inp.dataset.f==='rtype' || inp.dataset.f==='itemKey'){ if(inp.dataset.f==='rtype'){ const rr = rows[Number(inp.closest('tr').dataset.ri)]; rr.who=''; rr.dept=''; } renderPpe(true); } });
   });
   body.querySelectorAll('[data-rowdel]').forEach(b=> b.addEventListener('click', ()=>{ sync(); rows.splice(Number(b.dataset.rowdel),1); renderPpe(true); }));
   if($('rqAddRow')) $('rqAddRow').addEventListener('click', ()=>{ sync(); rows.push(ppeNewRow(rows[rows.length-1], m)); renderPpe(true); });
@@ -10731,7 +10732,7 @@ function renderPpeIssue(body){
       if(!f){ toast(`${tag}: 품목을 선택해주세요`); return; }
       if(!(qty>0)){ toast(`${tag}: 수량을 입력해주세요`); return; }
       if(f.item.hasSize && !r.size){ toast(`${tag}: 사이즈를 선택해주세요`); return; }
-      recs.push({ src:'request', date:r.date, month:r.date.slice(0,7), itemId:f.item.id, kind:f.kind.name, qty, rtype:r.rtype, who, size:f.item.hasSize ? String(r.size) : '', reason:r.reason||'일반' });
+      recs.push({ src:'request', date:r.date, month:r.date.slice(0,7), itemId:f.item.id, kind:f.kind.name, qty, rtype:r.rtype, who, dept: r.rtype==='person' ? (r.dept||'') : '', size:f.item.hasSize ? String(r.size) : '', reason:r.reason||'일반' });
     }
     if(edit){
       await DataStore.update(PATHS.ppeIssues, edit.id, recs[0]);
@@ -10798,7 +10799,7 @@ function renderPpeIssue(body){
 }
 function ppeNewRow(prev, month){
   const flat = ppeFlatKinds();
-  return { date: prev ? prev.date : (month===todayStr().slice(0,7) ? todayStr() : month+'-01'), rtype: prev ? prev.rtype : 'person', who:'',
+  return { date: prev ? prev.date : (month===todayStr().slice(0,7) ? todayStr() : month+'-01'), rtype: prev ? prev.rtype : 'person', who:'', dept: prev ? (prev.dept||'') : '',
            itemKey: prev ? prev.itemKey : ((flat[0]&&flat[0].key)||''), qty:1, size:'', reason:'일반' };
 }
 
@@ -10840,11 +10841,11 @@ function ppeCompare(year){
     // 공정별
     const per = cfg.units.map(u=>{
       const b = agg.issues.filter(r=> r.src==='batch' && r.itemId===item.id && r.kind===kind.name && r.unitId===u.id).reduce((s,r)=>s+(Number(r.qty)||0),0);
-      const q = agg.issues.filter(r=> r.src!=='batch' && r.rtype==='process' && r.who===u.name && r.itemId===item.id && r.kind===kind.name).reduce((s,r)=>s+(Number(r.qty)||0),0);
+      const q = agg.issues.filter(r=> r.src!=='batch' && ((r.rtype==='process' && r.who===u.name) || (r.rtype!=='process' && r.dept===u.name)) && r.itemId===item.id && r.kind===kind.name).reduce((s,r)=>s+(Number(r.qty)||0),0);
       const s = keys.has(key) ? ppeStdForMonths(u, item, kind, cfg, P, months) : null;
       return { unit:u, batch:b, req:q, std:s };
     });
-    const person = agg.issues.filter(r=> r.src!=='batch' && r.rtype!=='process' && r.itemId===item.id && r.kind===kind.name).reduce((s,r)=>s+(Number(r.qty)||0),0);
+    const person = agg.issues.filter(r=> r.src!=='batch' && r.rtype!=='process' && !r.dept && r.itemId===item.id && r.kind===kind.name).reduce((s,r)=>s+(Number(r.qty)||0),0);
     return { item, kind, key, batch:a.batch, req:a.req, std, price, per, person, totalQty:a.totalQty, totalAmt:a.totalAmt, hasStd:keys.has(key) };
   });
   return { year, months, agg, rows };
