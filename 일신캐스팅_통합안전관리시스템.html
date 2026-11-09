@@ -10052,7 +10052,7 @@ document.getElementById('sidebarLangBtn').addEventListener('click', ()=>{
    - 마스터 전용이라 한국어만 사용 (일반 사용자에게 보이지 않음)
 ============================================================= */
 const PPE_TABS = ['지급','예산','지급기준','설정'];
-const PPE_REASONS = ['일반','신규입사','교체(마모)','파손','분실'];
+const PPE_REASONS = ['일반','신규입사','교체(마모)','파손','분실','부족'];
 const PPE_SIZES = (()=>{ const a=[]; for(let s=220;s<=310;s+=5) a.push(s); return a; })();
 const PPE_GLOVES = ['i_banco','i_cotton','i_deungcheon','i_yellow'];
 const PPEState = {
@@ -11155,6 +11155,16 @@ function renderPpeSettings(body){
       </table></div>
     </div>
 
+    <div class="card" style="padding:16px 18px;margin-bottom:12px;">
+      <div class="ppe-sec">🔁 기록 월 이동 ${ppeInfo('잘못된 달에 입력한 지급 기록을 통째로 다른 달로 옮깁니다. 일자는 같은 날짜로 따라가고(없는 날짜는 말일), 월 일괄 기록만 옮깁니다(요청 시 지급은 일자 기준이라 그대로 둡니다).')}</div>
+      <div class="mrow">
+        <select id="mvFrom" class="btn btn-sm">${[...new Set(ppeIssues().filter(r=>r.src==='batch').map(r=>r.month).filter(Boolean))].sort().map(x=>`<option value="${x}">${x} (월 일괄 ${ppeIssues().filter(r=>r.src==='batch'&&r.month===x).length}건)</option>`).join('') || '<option value="">월 일괄 기록 없음</option>'}</select>
+        <span>→</span>
+        <input type="month" id="mvTo" class="btn btn-sm">
+        <button class="btn btn-sm btn-primary" id="mvGo">이동</button>
+      </div>
+    </div>
+
     <div class="card" style="padding:16px 18px;">
       <div style="font-weight:700;margin-bottom:4px;">🏭 지급 단위(공정)</div>
       <div style="margin-bottom:10px;">${ppeInfo('"월 일괄" 체크한 공정만 지급 탭의 월 일괄 표에 나옵니다. 나머지는 요청 시 지급으로 입력합니다.')}</div>
@@ -11173,6 +11183,24 @@ function renderPpeSettings(body){
     </div>`;
   const $ = id=>document.getElementById(id);
   if($('ppeSeedBtn2')) $('ppeSeedBtn2').addEventListener('click', async ()=>{ await ppeSeedDefaults(); toast('기본 품목을 불러왔습니다'); renderPpe(true); });
+  $('mvGo').addEventListener('click', async ()=>{
+    const from = $('mvFrom').value, to = $('mvTo').value;
+    if(!from || !to){ toast('옮길 달과 이동할 달을 선택해주세요'); return; }
+    if(from===to){ toast('같은 달입니다'); return; }
+    const src = ppeIssues().filter(r=>r.src==='batch' && r.month===from);
+    const dst = ppeIssues().filter(r=>r.src==='batch' && r.month===to).length;
+    if(!confirm(`${from} 월 일괄 ${src.length}건을 ${to}(으)로 옮길까요?${dst?`\n※ ${to}에 월 일괄 ${dst}건이 이미 있어, 같은 공정·품목은 덮어씁니다.`:''}`)) return;
+    const [ty,tm] = to.split('-').map(Number), last = new Date(ty, tm, 0).getDate();
+    for(const r of src){
+      const { id, ...doc } = r;
+      const day = Math.min(Number(String(r.date||'').slice(8,10))||1, last);
+      doc.month = to; doc.date = `${to}-${String(day).padStart(2,'0')}`;
+      if(r.src==='batch'){ await DataStore.update(PATHS.ppeIssues, `bm_${to}_${r.unitId}_${r.itemId}`, doc); await DataStore.remove(PATHS.ppeIssues, id); }
+      else await DataStore.update(PATHS.ppeIssues, id, { month:doc.month, date:doc.date });
+    }
+    toast(`${src.length}건을 ${to}(으)로 옮겼습니다`);
+    PPEState.month = to; PPEState.tab = '지급'; renderPpe(true);
+  });
   $('ppeAddItem').addEventListener('click', ()=> openPpeItemModal(null));
   body.querySelectorAll('[data-mv]').forEach(b=> b.addEventListener('click', async ()=>{
     const [id, dir] = b.dataset.mv.split('|'); const arr = ppeItems();
