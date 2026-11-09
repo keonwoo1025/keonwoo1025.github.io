@@ -10051,7 +10051,7 @@ document.getElementById('sidebarLangBtn').addEventListener('click', ()=>{
    - 법정 서류는 종이 서명본이 원본 — 앱은 기록·집계를 맡고, 지급대장 엑셀은 미리 인쇄할 수 있게 만들어준다.
    - 마스터 전용이라 한국어만 사용 (일반 사용자에게 보이지 않음)
 ============================================================= */
-const PPE_TABS = ['지급','예산','지급기준','설정'];
+const PPE_TABS = ['지급','예산','지급기준','시나리오','설정'];
 const PPE_REASONS = ['일반','신규입사','교체(마모)','파손','분실','부족'];
 const PPE_SIZES = (()=>{ const a=[]; for(let s=220;s<=310;s+=5) a.push(s); return a; })();
 const PPE_GLOVES = ['i_banco','i_cotton','i_deungcheon','i_yellow'];
@@ -10635,6 +10635,7 @@ function renderPpe(force){
   if(PPEState.tab==='지급') renderPpeIssue(body);
   else if(PPEState.tab==='예산') renderPpeBudget(body);
   else if(PPEState.tab==='지급기준') renderPpeStandard(body);
+  else if(PPEState.tab==='시나리오') renderPpeScenario(body);
   else renderPpeSettings(body);
 }
 
@@ -11221,6 +11222,158 @@ function ppeDownloadBudget(year, agg, cmp, sim){
   rows3.push({ cells:['합계','','','','','',sim.total,sim.old,sim.total-sim.old], tot:true });
   sheets.push(ppeTableSheet(`${sim.ty} 예산 시뮬레이션`, `${sim.ty}년 보호구 예산 시뮬레이션`, ['품목','단위','기준 수량','수량 증감(%)',`${sim.ty}년 수량`,'단가(원)',`${sim.ty}년 금액(원)`,`${year}년 금액(원)`,'증감(원)'], rows3, { widths:[20,8,12,12,12,12,15,15,13], note:`기준: ${PPEState.sim.base==='std'?'인당 지급기준(안)':year+'년 실적'} / 단가 인상률 ${PPEState.sim.rate||0}%` }));
   ppeDownloadBlob(ppeXlsxBuild(sheets), `보호구_예산_${year}.xlsx`);
+}
+
+/* ============================================================
+   탭 5. 시나리오 (임시) — 지급기준 협의 회의 자료
+   현행 기준표 · 2026 실적(1~11월 + 12월 예상) · 인당 기준(안) · 협의 제안을 한 표에서 비교한다.
+   확정되면 이 블록(ppeScn*, renderPpeScenario)과 탭 이름만 지우면 된다. 기준표는 직접 수정한다(여기서는 읽기만).
+============================================================= */
+const PPE_SCN_LAST = 11;   // 실적이 입력된 마지막 달 (12월은 월 일괄 기준 예상)
+function ppeScnStep(item, kind){ const u = ppeKindUnit(item, kind); return u==='박스' ? (ppeKindPer(item,kind)>=100 ? 0.5 : 1) : 10; }
+function ppeScnData(S){
+  const cfg = ppeCfg(), P = ppeStdParams(cfg), year = 2026;
+  const months = ppeYearMonths(year), done = months.slice(0, PPE_SCN_LAST), decM = months[11];
+  const issues = ppeIssues(), xmap = ppeExtraMap(issues);
+  const kinds = ppeFlatKinds().filter(f=> f.item.method==='monthly' || (f.item.id==='i_ear' && f.kind.name==='귀마개'));
+  const rate = Math.max(0, Math.min(100, Number(S.rate)||0)) / 100;
+  return kinds.map(f=>{
+    const { item, kind, key } = f, step = ppeScnStep(item, kind), each = kind.priceBasis==='each';
+    const price = ppePrice(kind, `${year+1}-01`) || ppePrice(kind, `${year}-12`);
+    const mine = issues.filter(r=> r.itemId===item.id && r.kind===kind.name && done.includes(r.month));
+    const labelOf = r=>{ const u = ppeIssueUnit(r, cfg); return u ? u.id : '_etc'; };
+    const rowsDef = cfg.units.map(u=>({ id:u.id, u })).concat([{ id:'_etc', u:null }]);
+    const rows = rowsDef.map(({id,u})=>{
+      const mm = done.map(m=> mine.filter(r=>r.month===m && labelOf(r)===id).reduce((s,r)=>s+(Number(r.qty)||0),0));
+      const exMonths = done.filter(m=> mine.some(r=>r.month===m && labelOf(r)===id && xmap[r.id])).length;
+      const sum11 = mm.reduce((a,b)=>a+b,0), avg11 = sum11/done.length;
+      let decExp;
+      if(u && u.monthly && item.method==='monthly'){
+        const b = issues.find(r=> r.src==='batch' && r.month===decM && r.itemId===item.id && r.unitId===u.id);
+        decExp = b ? (Number(b.qty)||0) : (Number((cfg.std[item.id]||{})[u.id])||0);
+      }else decExp = avg11;
+      const actYear = sum11 + decExp, actMon = actYear/12;
+      const cur = (u && item.method==='monthly') ? (Number((cfg.std[item.id]||{})[u.id])||0) : 0;
+      const stdYear = u ? (ppeStdForMonths(u, item, kind, cfg, P, months)||0) : 0, stdMon = stdYear/12;
+      const ok = `${key}|${id}`;
+      const auto = u ? Math.round((actMon + (stdMon-actMon)*rate)/step)*step : Math.round(actMon/step)*step;
+      const manual = S.over && S.over[ok]!=null && S.over[ok]!=='';
+      const prop = manual ? Number(S.over[ok])||0 : auto;
+      return { id, name: u ? u.name : '기타(소속 없음)', heads: u ? ppeHeads(u,cfg) : 0, mm, exMonths, cur, actMon, stdMon, prop, manual, ok, show: (cur||actMon||stdMon||prop) };
+    }).filter(r=>r.show);
+    const sum = fn=> rows.reduce((s,r)=>s+fn(r),0);
+    const monthTot = done.map((m,i)=> rows.reduce((s,r)=>s+r.mm[i],0));
+    const avgOf = idx=> idx.length ? idx.reduce((s,i)=>s+monthTot[i],0)/idx.length : 0;
+    const hotIdx = done.map((m,i)=>i).filter(i=> P.hotMonths.includes(i+1)), restIdx = done.map((m,i)=>i).filter(i=> !P.hotMonths.includes(i+1));
+    const hotRatio = avgOf(restIdx) ? avgOf(hotIdx)/avgOf(restIdx) : null;
+    const t = { cur:sum(r=>r.cur), act:sum(r=>r.actMon), std:sum(r=>r.stdMon), prop:sum(r=>r.prop) };
+    const per = each ? 1 : 1; // 금액은 입력 단위 기준 단가(ppePrice)로 계산
+    const amt = { cur:t.cur*12*price, act:t.act*12*price, std:t.std*12*price, prop:t.prop*12*price };
+    return { f, item, kind, key, step, price, rows, t, amt, hotRatio, unit: ppeKindUnit(item,kind), per, hasCur: item.method==='monthly' };
+  });
+}
+function ppeScnLoad(){
+  if(PPEState.scn) return PPEState.scn;
+  const saved = (DataStore.get(PATHS.ppeConfig)||{}).scenario || {};
+  PPEState.scn = { rate: saved.rate!=null ? Number(saved.rate) : 50, over: { ...(saved.over||{}) }, item: null };
+  return PPEState.scn;
+}
+function renderPpeScenario(body){
+  const S = ppeScnLoad();
+  const data = ppeScnData(S);
+  if(!data.length){ body.innerHTML = '<div class="card" style="padding:20px;">비교할 품목이 없습니다</div>'; return; }
+  if(!data.some(d=>d.key===S.item)) S.item = data[0].key;
+  const sel = data.find(d=>d.key===S.item);
+  const fm = (n,d)=> ppeNum(n, d===undefined?1:d);
+  const sgn = (n,fmt)=> ppeDiffTxt(Math.round(n*10)/10, fmt||(x=>ppeNum(x,1)));
+  const T = { cur:0, act:0, std:0, prop:0 };
+  data.forEach(d=>{ Object.keys(T).forEach(k=> T[k]+=d.amt[k]); });
+  const maxAmt = Math.max(T.cur, T.act, T.std, T.prop, 1);
+  const bars = [['현행 기준 그대로(혹서기 미반영)',T.cur,'#98A2B3'],['2026 실적(11월 + 12월 예상)',T.act,'#667085'],['협의 제안',T.prop,'#1D4ED8'],['인당 기준(안)',T.std,'#344054']];
+  const pct = (a,b)=> b ? Math.round((a-b)/b*1000)/10 : 0;
+
+  body.innerHTML = `
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <div class="mrow">
+        <b>지급기준 협의 시나리오</b> ${ppiTmp()}
+        <span class="hint">2026년 1~${PPE_SCN_LAST}월 실적 + 12월 예상(월 일괄 기준) · 단가는 2027-01 기준 동일 적용 · 월 환산 = 연 수량 ÷ 12</span>
+        ${ppeInfo('월 환산 수량은 혹서기(6~9월) 증량이 연 수량에 녹아 있는 값이라 현행 기준표 숫자와 직접 비교할 수 있습니다. 현행 기준표에는 혹서기가 반영되어 있지 않습니다. 12월은 월 일괄 저장분(없으면 현행 기준표), 요청 시 공정은 1~11월 평균으로 예상합니다.')}
+      </div>
+      <div class="mrow" style="margin-top:10px;">
+        <label style="font-size:13px;font-weight:700;">제안 = 실적에서 인당 기준(안) 방향으로 <b id="scnRateTxt" style="font-size:15px;">${S.rate}</b>%
+          <input type="range" id="scnRate" min="0" max="100" step="5" value="${S.rate}" style="vertical-align:middle;width:220px;"></label>
+        <span class="hint">0% = 2026 실적 그대로 · 100% = 인당 기준(안)</span>
+        <button class="btn btn-sm" id="scnReset">직접 입력 초기화</button>
+        <button class="btn btn-sm btn-primary" id="scnSave">시나리오 저장</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <div class="ppe-sec">① 한눈에 보기 ${ppeInfo('월 수량은 입력 단위 기준(장갑 개, 마스크·귀마개 박스)의 월 환산입니다. 귀마개는 현행 기준이 없습니다.')}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th rowspan="2">품목</th><th colspan="4">월 환산 수량</th><th colspan="2">제안 vs 현행</th><th rowspan="2">혹서기/평월<br>실적 비</th><th colspan="4">연 금액(원)</th><th colspan="2">제안 대비 증감(원)</th></tr>
+        <tr><th>현행</th><th>2026 실적</th><th>인당 기준(안)</th><th>협의 제안</th><th>증감</th><th>%</th><th>현행</th><th>실적</th><th>인당 안</th><th>제안</th><th>vs 현행</th><th>vs 실적</th></tr></thead>
+        <tbody>${data.map(d=>`<tr class="clk" data-sk="${esc(d.key)}" ${d.key===S.item?'style="outline:2px solid #1D4ED8;outline-offset:-2px;"':''}>
+          <td style="font-weight:700;">${esc(d.kind.name)} <span class="hint">(${esc(d.unit)})</span></td>
+          <td>${d.hasCur?fm(d.t.cur):'-'}</td><td>${fm(d.t.act)}</td><td>${fm(d.t.std)}</td><td style="font-weight:700;color:#1D4ED8;">${fm(d.t.prop)}</td>
+          <td>${d.hasCur?sgn(d.t.prop-d.t.cur):'-'}</td><td>${d.hasCur && d.t.cur?sgn(pct(d.t.prop,d.t.cur),x=>ppeNum(x,1)+'%'):'-'}</td>
+          <td>${d.hotRatio?ppeNum(d.hotRatio,2)+'배':'-'}</td>
+          <td>${d.hasCur?ppeNum(d.amt.cur):'-'}</td><td>${ppeNum(d.amt.act)}</td><td>${ppeNum(d.amt.std)}</td><td style="font-weight:700;">${ppeNum(d.amt.prop)}</td>
+          <td>${d.hasCur?ppeDiffTxt(Math.round(d.amt.prop-d.amt.cur)):'-'}</td><td>${ppeDiffTxt(Math.round(d.amt.prop-d.amt.act))}</td></tr>`).join('')}
+          <tr class="tot"><td>합계</td><td colspan="7"></td><td>${ppeNum(T.cur)}</td><td>${ppeNum(T.act)}</td><td>${ppeNum(T.std)}</td><td>${ppeNum(T.prop)}</td><td>${ppeDiffTxt(Math.round(T.prop-T.cur))}</td><td>${ppeDiffTxt(Math.round(T.prop-T.act))}</td></tr>
+        </tbody>
+      </table></div>
+      <div style="margin-top:14px;display:grid;gap:8px;max-width:760px;">
+        ${bars.map(([t,v,c])=>`<div style="display:grid;grid-template-columns:210px 1fr 130px;gap:10px;align-items:center;font-size:13px;"><span>${t}</span><div style="background:#EEF2F7;border-radius:5px;height:20px;"><div style="width:${Math.max(1,Math.round(v/maxAmt*100))}%;height:100%;background:${c};border-radius:5px;"></div></div><b style="text-align:right;">${ppeMoney(v)}원</b></div>`).join('')}
+        <div class="hint">현행 기준 → 협의 제안: ${T.cur?`${ppeMoney(T.prop-T.cur)}원 (${pct(T.prop,T.cur)}%) · `:''}2026 실적 → 협의 제안: ${ppeMoney(T.prop-T.act)}원 (${pct(T.prop,T.act)}%)</div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px 16px;">
+      <div class="ppe-sec">② 공정별 상세 ${ppeInfo('제안 칸은 직접 고칠 수 있습니다(고친 칸은 파랑 테두리, 슬라이더보다 우선). 추가 발생 개월 = 1~11월 중 추가 지급이 나온 달 수로, 많을수록 기준이 구조적으로 부족하다는 뜻입니다. 실적이 현행보다 많으면 빨강, 적으면 파랑입니다.')}</div>
+      <div class="mrow" style="margin-bottom:10px;">${data.map(d=>`<button class="btn btn-sm ${d.key===S.item?'btn-primary':''}" data-sk="${esc(d.key)}">${esc(d.kind.name)}</button>`).join('')}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>공정</th><th>인원</th><th>현행 월</th><th>2026 실적<br>월 환산</th><th>추가 발생<br>개월</th><th>인당 기준(안)<br>월 환산</th><th>협의 제안<br>월</th><th>제안−현행</th><th>제안 연 수량</th><th>연 금액 증감<br>(제안−현행)</th></tr></thead>
+        <tbody>${sel.rows.map(r=>{
+          const dCur = sel.hasCur ? r.prop - r.cur : null;
+          const actStyle = sel.hasCur && r.cur>0 || sel.hasCur ? (r.actMon>r.cur+0.05 ? `color:${PPE_RED};font-weight:700;` : (r.actMon<r.cur-0.05 ? `color:${PPE_BLUE};font-weight:700;` : '')) : '';
+          return `<tr><td style="font-weight:700;">${esc(r.name)}</td><td>${r.heads||'-'}</td><td>${sel.hasCur&&r.cur?fm(r.cur):'-'}</td>
+          <td style="${actStyle}">${fm(r.actMon)}</td><td>${r.exMonths?`<b style="color:${PPE_RED};">${r.exMonths}</b>/${PPE_SCN_LAST}`:'-'}</td><td>${r.stdMon?fm(r.stdMon):'-'}</td>
+          <td><input type="number" class="scn-in" data-ok="${esc(r.ok)}" min="0" step="${sel.step}" value="${Math.round(r.prop*100)/100}" style="width:76px;${PPE_INP}${r.manual?'border-color:#1D4ED8;border-width:2px;':''}"></td>
+          <td>${dCur==null?'-':sgn(dCur)}</td><td>${fm(r.prop*12,0)}</td><td>${dCur==null?'-':ppeDiffTxt(Math.round(dCur*12*sel.price))}</td></tr>`; }).join('')}
+          <tr class="tot"><td>합계</td><td>${sel.rows.reduce((s,r)=>s+r.heads,0)}</td><td>${sel.hasCur?fm(sel.t.cur):'-'}</td><td>${fm(sel.t.act)}</td><td></td><td>${fm(sel.t.std)}</td><td>${fm(sel.t.prop)}</td><td>${sel.hasCur?sgn(sel.t.prop-sel.t.cur):'-'}</td><td>${fm(sel.t.prop*12,0)}</td><td>${sel.hasCur?ppeDiffTxt(Math.round(sel.amt.prop-sel.amt.cur)):'-'}</td></tr>
+        </tbody>
+      </table></div>
+    </div>`;
+
+  const $ = id=>document.getElementById(id);
+  $('scnRate').addEventListener('input', e=>{ $('scnRateTxt').textContent = e.target.value; });
+  $('scnRate').addEventListener('change', e=>{ S.rate = Number(e.target.value); renderPpe(true); });
+  $('scnReset').addEventListener('click', ()=>{ S.over = {}; renderPpe(true); });
+  $('scnSave').addEventListener('click', async ()=>{ await DataStore.update(PATHS.ppeConfig, 'scenario', { rate:S.rate, over:S.over }); toast('시나리오를 저장했습니다'); });
+  body.querySelectorAll('[data-sk]').forEach(b=> b.addEventListener('click', ()=>{ S.item = b.dataset.sk; renderPpe(true); }));
+  body.querySelectorAll('.scn-in').forEach(i=> i.addEventListener('change', ()=>{ if(i.value==='') delete S.over[i.dataset.ok]; else S.over[i.dataset.ok] = Number(i.value); renderPpe(true); }));
+  $('ppeTopAct').innerHTML = `<button class="btn btn-primary" id="scnXlsx">${icon('file-check',14)} 시나리오 엑셀</button>`;
+  $('scnXlsx').addEventListener('click', ()=> ppeScnDownload(data, S));
+}
+function ppiTmp(){ return '<span class="badge" style="background:#EEF2F7;color:#475569;">임시 · 확정 후 삭제</span>'; }
+function ppeScnDownload(data, S){
+  if(typeof PizZip==='undefined'){ toast('엑셀 도구를 불러오지 못했습니다'); return; }
+  const r1 = x=> Math.round(x*10)/10;
+  const sheets = [];
+  const sumRows = data.map(d=>[ d.kind.name, d.unit, d.hasCur?r1(d.t.cur):'', r1(d.t.act), r1(d.t.std), r1(d.t.prop), d.hasCur?r1(d.t.prop-d.t.cur):'', d.hotRatio==null?'':Math.round(d.hotRatio*100)/100,
+    d.hasCur?Math.round(d.amt.cur):'', Math.round(d.amt.act), Math.round(d.amt.std), Math.round(d.amt.prop), d.hasCur?Math.round(d.amt.prop-d.amt.cur):'', Math.round(d.amt.prop-d.amt.act) ]);
+  const sm = k=> data.reduce((s,d)=> s+d.amt[k],0);
+  sumRows.push({ cells:['합계','','','','','','','', Math.round(sm('cur')), Math.round(sm('act')), Math.round(sm('std')), Math.round(sm('prop')), Math.round(sm('prop')-sm('cur')), Math.round(sm('prop')-sm('act'))], tot:true });
+  sheets.push(ppeTableSheet('시나리오 요약','보호구 지급기준 협의 시나리오 (월 환산 수량 · 연 금액)',
+    ['품목','단위','현행 월','2026 실적 월환산','인당 기준(안) 월환산','협의 제안 월','제안−현행','혹서기/평월 실적비','연금액 현행','연금액 실적','연금액 인당안','연금액 제안','제안−현행(원)','제안−실적(원)'], sumRows,
+    { widths:[18,7,10,13,15,12,11,13,14,14,14,14,14,14], headH:42, note:`2026년 1~${PPE_SCN_LAST}월 실적 + 12월 예상(월 일괄 기준) / 단가 2027-01 기준 동일 적용 / 월 환산 = 연 수량÷12 / 현행 기준표는 혹서기 미반영 / 제안 = 실적에서 인당 기준(안) 방향 ${S.rate}% 반영(직접 입력 우선)` }));
+  data.forEach(d=>{
+    const rows = d.rows.map(r=>[ r.name, r.heads||'', d.hasCur&&r.cur?r.cur:'', r1(r.actMon), r.exMonths||'', r.stdMon?r1(r.stdMon):'', r1(r.prop), d.hasCur?r1(r.prop-r.cur):'', Math.round(r.prop*12), d.hasCur?Math.round((r.prop-r.cur)*12*d.price):'' ]);
+    rows.push({ cells:['합계', d.rows.reduce((s,r)=>s+r.heads,0), d.hasCur?r1(d.t.cur):'', r1(d.t.act), '', r1(d.t.std), r1(d.t.prop), d.hasCur?r1(d.t.prop-d.t.cur):'', Math.round(d.t.prop*12), d.hasCur?Math.round(d.amt.prop-d.amt.cur):''], tot:true });
+    sheets.push(ppeTableSheet(d.kind.name, `${d.kind.name} (${d.unit}) 공정별 시나리오`, ['공정','인원','현행 월','2026 실적 월환산',`추가 발생 개월(1~${PPE_SCN_LAST}월)`,'인당 기준(안) 월환산','협의 제안 월','제안−현행','제안 연 수량','연 금액 증감(원)'], rows, { widths:[18,8,10,14,16,15,12,11,13,15], headH:42, note:'제안 월 = 실적에서 인당 기준(안) 방향 반영값(직접 입력 우선)' }));
+  });
+  ppeDownloadBlob(ppeXlsxBuild(sheets), `보호구_지급기준_협의_시나리오.xlsx`);
 }
 
 /* ============================================================
