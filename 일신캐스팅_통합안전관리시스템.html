@@ -876,6 +876,9 @@ const State = {
 function canTerminate(){ return State.mode==='admin' || State.mode==='dept'; }
 // 작업허가: 마스터(admin)는 검토·승인·종료 전부, 안전환경부 계정은 검토+승인(안전환경부장이 승인 주체), 그 외 부서는 검토만
 function isSafetyDept(){ return State.mode==='dept' && State.dept==='안전환경부'; }
+// 보호구 지급 메뉴: 마스터(전체) + 안전환경부 계정(지급 탭의 등록·수정·삭제만, 설정·품목·기준은 마스터 전용)
+function canPpe(){ return State.mode==='admin' || isSafetyDept(); }
+function ppeActor(){ return State.mode==='admin' ? '마스터' : (State.dept||'부서'); }
 function canApprovePermit(){ return State.mode==='admin' || isSafetyDept(); }
 // 생산부·품질관리부·관리부 계정이 외주업체 대신 신청서를 직접 입력하려 할 때 경고 (안전환경부·마스터는 해당 없음)
 function needsDirectPermitWarning(){ return State.mode==='dept'; } // 모든 부서 계정(안전환경부 포함)은 신청 전에 사내/외주 구분을 거침 — 마스터만 해당 없음
@@ -1152,7 +1155,7 @@ const TRANSLATIONS = {
   nav_s5s:{ko:'3정5S',en:'3Jeong 5S',th:'3Jeong 5S',id:'3Jeong 5S',mn:'3Jeong 5S'},
   nav_s5s_sub:{ko:'3정 정리·정돈 활동 관리',en:'3Jeong 5S activity management',th:'การจัดการกิจกรรม 3Jeong 5S',id:'Manajemen kegiatan 3Jeong 5S',mn:'3Жон 5S ажлын менежмент'},
   nav_ppe:{ko:'보호구 지급'},
-  nav_ppe_sub:{ko:'월별 지급 실적 · 예산 · 지급기준 · 지급대장 (마스터 전용)'},
+  nav_ppe_sub:{ko:'월별 지급 실적 · 예산 · 지급기준 · 지급대장 (마스터·안전환경부)'},
   bug_th_title:{ko:'제목',en:'Title',th:'หัวข้อ',id:'Judul',mn:'Гарчиг'},
   bug_th_reporter:{ko:'신고자',en:'Reported by',th:'ผู้แจ้ง',id:'Dilaporkan oleh',mn:'Мэдээлэгч'},
   bug_empty:{ko:'등록된 버그신고가 없습니다',en:'No bug reports yet',th:'ยังไม่มีการแจ้งปัญหา',id:'Belum ada laporan bug',mn:'Алдааны мэдээлэл алга байна'},
@@ -1948,7 +1951,7 @@ function icon(name, size=18){ return `<svg viewBox="0 0 24 24" width="${size}" h
 function renderNav(){
   const nav = document.getElementById('navList');
   const items = State.mode==='partner' ? NAV_ITEMS.filter(i=>i.id==='permits')
-    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='ppe')
+    : State.mode==='dept' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && (i.id!=='ppe' || isSafetyDept()))
     : State.mode==='user' ? NAV_ITEMS.filter(i=> i.id!=='contractors' && i.id!=='ppe')
     : NAV_ITEMS; // "통계"는 대시보드 탭만 전체공개, 월별 인원수 입력은 전체관리자 전용(탭에서 갈림) / "3정5S"는 전체관리자·부서관리자 전용
   nav.innerHTML = items.map(item=>{
@@ -2011,7 +2014,7 @@ function switchView(id){
   if(State.mode==='dept' && id==='contractors') id = 'dashboard';
   if(State.mode==='user' && id==='contractors') id = 'dashboard';
   if(id==='stats' && State.mode==='partner') id = 'permits'; // 외주업체 계정은 통계 접근 불가(작업허가만)
-  if(id==='ppe' && State.mode!=='admin') id = (State.mode==='partner' ? 'permits' : 'dashboard'); // 보호구 지급은 마스터 전용
+  if(id==='ppe' && !canPpe()) id = (State.mode==='partner' ? 'permits' : 'dashboard'); // 보호구 지급은 마스터·안전환경부 계정만
   if(id==='s5s' && State.mode==='partner') id = 'permits'; // 3정5S는 외주업체 계정은 접근 불가, 일반사용자는 열람만 가능
   State.view = id;
   const pathsForView = (id==='dashboard' && State.mode!=='admin')
@@ -2104,6 +2107,123 @@ function fmtBytes(n){
   if(n < 1024*1024) return (n/1024).toFixed(1)+' KB';
   if(n < 1024*1024*1024) return (n/1024/1024).toFixed(1)+' MB';
   return (n/1024/1024/1024).toFixed(2)+' GB';
+}
+
+/* ============================================================
+   정기보고서 (마스터) — 대시보드 요약 팝업 + 인쇄
+   월을 고르면 그 달 기준으로 사고접수·위험성평가·작업허가 현황을 요약한다 (새로 입력하는 값 없음 — 이미 등록된 자료만 집계)
+============================================================= */
+function periodicReportHtml(ym){
+  const year = ym.slice(0,4);
+  const incidents = objToArr(DataStore.get(PATHS.incidents));
+  const risks = objToArr(DataStore.get(PATHS.risks));
+  const permits = objToArr(DataStore.get(PATHS.permits));
+  const inM = s => (s||'').slice(0,7)===ym;
+  const inY = s => (s||'').slice(0,4)===year && (s||'').slice(0,7)<=ym;
+  const dateOfMs = ms => { const d = new Date(ms); return isNaN(d) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const cnt = (arr, fn) => arr.filter(fn).length;
+
+  // ── 사고 ──
+  const incM = incidents.filter(i=> inM(i.datetime)).sort((a,b)=> (a.datetime||'')<(b.datetime||'')?-1:1);
+  const incY = incidents.filter(i=> inY(i.datetime));
+  const leaveY = incY.reduce((s,i)=> s + (Number(i.leaveDays)||0), 0);
+  // 최근 6개월 추이
+  const trend = [];
+  for(let k=5;k>=0;k--){
+    const d = new Date(Number(ym.slice(0,4)), Number(ym.slice(5,7))-1-k, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    trend.push({label:`${d.getMonth()+1}월`, n: cnt(incidents, i=> (i.datetime||'').slice(0,7)===key)});
+  }
+  // ── 위험성평가 ──
+  const rkM = risks.filter(r=> inM(dateOfMs(r.createdAt)));
+  const rkY = risks.filter(r=> inY(dateOfMs(r.createdAt)));
+  const rkDoneM = risks.filter(r=> inM(r.completedDate));
+  const byStatus = {}; risks.forEach(r=>{ const s = r.status||'접수완료'; byStatus[s] = (byStatus[s]||0)+1; });
+  const openRisks = risks.filter(r=> r.status!=='완료');
+  const openHigh = openRisks.filter(r=> riskLevel(r)>=4).sort((a,b)=> riskLevel(b)-riskLevel(a));
+  const adhocN = cnt(risks, adhocIsRisk);
+  // ── 작업허가 ──
+  const pmDate = p => String(p.startDate||dateOfMs(p.createdAt)||'');
+  const pmM = permits.filter(p=> inM(pmDate(p)));
+  const pmStatus = {}; pmM.forEach(p=>{ pmStatus[p.status||'-'] = (pmStatus[p.status||'-']||0)+1; });
+
+  const kv = (rows)=> `<table class="rp-t"><tbody>${rows.map(r=>`<tr><th>${esc(r[0])}</th><td>${esc(String(r[1]))}</td><th>${esc(r[2])}</th><td>${esc(String(r[3]))}</td></tr>`).join('')}</tbody></table>`;
+  const list = (head, rows, empty)=> rows.length
+    ? `<table class="rp-t rp-list"><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(String(c==null?'':c))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : `<div class="rp-empty">${esc(empty)}</div>`;
+  const ymd = s => String(s||'').slice(0,10).replace(/-/g,'.');
+
+  return `
+    <div class="rp">
+      <div class="rp-title">안전환경 정기보고 <span>${ym.slice(0,4)}년 ${Number(ym.slice(5,7))}월 기준</span></div>
+      <div class="rp-sub">일신캐스팅 안전환경부 · 출력일 ${ymd(todayStr())}</div>
+
+      <h4>1. 핵심 현황</h4>
+      ${kv([
+        ['사고접수 (당월)', cnt(incM,()=>true)+'건', '사고접수 (연 누계)', incY.length+'건'],
+        ['산재 처리 (당월)', cnt(incM,i=>i.isIndustrialAccident)+'건', '산재 처리 (연 누계)', cnt(incY,i=>i.isIndustrialAccident)+'건'],
+        ['조사표 작성 (당월 발생분)', cnt(incM,i=>i.hasInvestigationReport)+'건', '조사표 작성 (연 누계)', cnt(incY,i=>i.hasInvestigationReport)+'건'],
+        ['휴업일수 (연 누계)', leaveY+'일', '수시 위험성평가 대상', adhocN+'건'],
+        ['위험성평가 등록 (당월)', rkM.length+'건', '위험성평가 등록 (연 누계)', rkY.length+'건'],
+        ['위험성평가 완료 (당월)', rkDoneM.length+'건', '미완료 위험성평가 (현재)', openRisks.length+'건'],
+        ['미완료 고위험 (Ⅳ등급 이상)', openHigh.length+'건', '작업허가 (당월)', pmM.length+'건'],
+      ])}
+
+      <h4>2. 사고접수 내역 (${Number(ym.slice(5,7))}월)</h4>
+      ${list(['일시','공정','장소','유형','심각도','처리상태','조사표'],
+        incM.map(i=>[ (i.datetime||'').replace('T',' ').slice(0,16), i.process||'', i.location||'', i.accidentType||i.type||'', i.injurySeverity||'', i.status||'', i.hasInvestigationReport?'작성':'-' ]),
+        '이 달 접수된 사고가 없습니다.')}
+      <div class="rp-trend">최근 6개월 사고 추이 — ${trend.map(t=>`${t.label} <b>${t.n}</b>건`).join(' · ')}</div>
+
+      <h4>3. 위험성평가 현황</h4>
+      <div class="rp-line">전체 ${risks.length}건 — ${Object.keys(byStatus).map(k=>`${esc(k)} ${byStatus[k]}건`).join(' · ') || '등록된 건 없음'}</div>
+      ${list(['공정','유해·위험 요인','위험도','진행상태','등록일'],
+        openHigh.slice(0,15).map(r=>[ r.process||'', cleanHazardTextForExport(r.hazard||''), riskLevelInfo(riskLevel(r)).roman+' '+riskLevelInfo(riskLevel(r)).label, r.status||'', ymd(dateOfMs(r.createdAt)) ]),
+        '미완료 고위험(Ⅳ등급 이상) 건이 없습니다.')}
+      ${openHigh.length>15 ? `<div class="rp-more">※ 미완료 고위험 ${openHigh.length}건 중 상위 15건만 표시</div>` : ''}
+
+      <h4>4. 작업허가 (${Number(ym.slice(5,7))}월)</h4>
+      <div class="rp-line">총 ${pmM.length}건 — ${Object.keys(pmStatus).map(k=>`${esc(k)} ${pmStatus[k]}건`).join(' · ') || '해당 월 건 없음'}</div>
+    </div>`;
+}
+const PERIODIC_REPORT_CSS = `
+  .rp{font-family:'Malgun Gothic','Noto Sans KR',sans-serif;color:#111;font-size:12.5px;line-height:1.55;}
+  .rp-title{font-size:19px;font-weight:800;border-bottom:3px solid #1F3A5F;padding-bottom:6px;} .rp-title span{font-size:14px;font-weight:600;color:#555;margin-left:8px;}
+  .rp-sub{color:#666;font-size:11.5px;margin:6px 0 4px;}
+  .rp h4{margin:16px 0 6px;font-size:13.5px;border-left:4px solid #1F3A5F;padding-left:8px;}
+  .rp-t{width:100%;border-collapse:collapse;margin-bottom:4px;font-size:12.5px;} .rp-t th,.rp-t td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top;}
+  .rp-t th{background:#eef2f7;font-weight:700;white-space:nowrap;} .rp-list thead th{background:#dfe6ee;text-align:center;}
+  .rp-empty,.rp-line,.rp-trend,.rp-more{padding:6px 2px;color:#333;} .rp-empty,.rp-more{color:#777;} .rp-trend{margin-top:4px;font-size:12px;}
+`;
+function openPeriodicReport(){
+  if(State.mode!=='admin'){ toast('마스터 계정에서만 출력할 수 있습니다'); return; }
+  const defYm = todayStr().slice(0,7);
+  showModal(`
+    <div class="modal-head"><h3>정기보고서 요약</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <label style="font-weight:700;font-size:13px;">기준 월</label>
+        <input type="month" id="rpMonth" value="${defYm}">
+        <span class="hint">이미 등록된 자료를 집계한 요약입니다</span>
+      </div>
+      <style>${PERIODIC_REPORT_CSS}</style>
+      <div id="rpBody" style="max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff;">${periodicReportHtml(defYm)}</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>닫기</button>
+      <button class="btn btn-primary" id="rpPrintBtn">🖨 인쇄</button>
+    </div>
+  `);
+  const mon = document.getElementById('rpMonth');
+  mon.addEventListener('change', ()=>{ if(mon.value) document.getElementById('rpBody').innerHTML = periodicReportHtml(mon.value); });
+  document.getElementById('rpPrintBtn').addEventListener('click', ()=>{
+    const ym = mon.value || defYm;
+    const win = window.open('', '_blank');
+    if(!win){ toast('팝업이 차단되었습니다. 이 사이트의 팝업을 허용해주세요.'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>안전환경 정기보고 ${ym}</title><style>@page{size:A4;margin:14mm;} body{margin:0;} ${PERIODIC_REPORT_CSS}</style></head><body>${periodicReportHtml(ym)}</body></html>`);
+    win.document.close();
+    win.onload = ()=> win.print();
+  });
 }
 
 async function runFullBackupExport(){
@@ -2259,7 +2379,7 @@ function renderDashboard(){
         <h1>${t('dash_title')}</h1>
         <p>${t('dash_slogan')}</p>
       </div>
-      ${State.mode==='admin' ? `<button class="btn btn-sm" id="backupExportBtn" style="margin-left:auto;">📦 전체 데이터 백업(내보내기)</button>` : ''}
+      ${State.mode==='admin' ? `<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-sm" id="backupExportBtn">📦 전체 데이터 백업(내보내기)</button><button class="btn btn-sm" id="periodicReportBtn">📄 정기보고서</button></div>` : ''}
     </div>
 
     ${CONFIG_IS_PLACEHOLDER ? `<div class="config-banner">${icon('alert-triangle',15)} ${t('config_banner')}</div>`:''}
@@ -2343,6 +2463,8 @@ function renderDashboard(){
   bindMiniListClicks(document.getElementById('dashMiniNotices'), openNoticeDetail);
   renderMonthlyChart(monthly);
   renderAccidentTypeChart(incidents);
+  const periodicBtn = document.getElementById('periodicReportBtn');
+  if(periodicBtn) periodicBtn.addEventListener('click', openPeriodicReport);
   const backupBtn = document.getElementById('backupExportBtn');
   if(backupBtn) backupBtn.addEventListener('click', runFullBackupExport);
 }
@@ -3503,6 +3625,10 @@ function generatePermitDocx(p){
 /* ============================================================
    10. 위험성평가
 ============================================================= */
+function riskKindNow(){
+  const mgr = State.mode==='admin' || State.mode==='dept';
+  return (mgr && State.filters.risksKind==='수시') ? '수시' : '정기';
+}
 function getFilteredRisksList(){
   const filter = State.filters.risks || '전체';
   const processFilter = State.filters.risksProcess || '전체';
@@ -3512,6 +3638,8 @@ function getFilteredRisksList(){
   const allRisks = objToArr(DataStore.get(PATHS.risks));
   const arr = allRisks.slice().sort((a,b)=> new Date(riskSortDate(b)) - new Date(riskSortDate(a)));
   let f = filter==='전체' ? arr : arr.filter(r=>r.status===filter);
+  // 정기(전체 — 사고 접수 시 자동 등록) / 수시(사고접수 관리에서 조사표 체크된 건만) — 수시 탭은 관리자만
+  if(riskKindNow()==='수시') f = f.filter(adhocIsRisk);
   if(processFilter!=='전체') f = f.filter(r=>r.process===processFilter);
   if(deptFilter!=='전체') f = f.filter(r=> PROCESS_TO_DEPT[r.process]===deptFilter);
   if(yearFilter!=='전체') f = f.filter(r=> r.createdAt && new Date(r.createdAt).getFullYear()===Number(yearFilter));
@@ -3529,6 +3657,7 @@ function getFilteredRisksList(){
 
 function renderRisks(){
   const el = document.getElementById('view-risks');
+  if(State.filters.risks==='접수완료' || State.filters.risks==='조치중') State.filters.risks = '전체'; // 상태 탭 정리: 전체/완료/일부개선만
   const filter = State.filters.risks || '전체';
   const processFilter = State.filters.risksProcess || '전체';
   const deptFilter = State.filters.risksDept || '전체';
@@ -3544,8 +3673,11 @@ function renderRisks(){
 
   el.innerHTML = `
     <div class="toolbar" style="flex-wrap:wrap;row-gap:8px;">
+      ${isManager ? `<div class="tabs" id="riskKindTabs">
+        ${['정기','수시'].map(k=>`<button class="tab ${riskKindNow()===k?'active':''}" data-k="${k}">${k} 위험성평가</button>`).join('')}
+      </div>` : ''}
       <div class="tabs" id="riskTabs">
-        ${['전체','접수완료','조치중','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
+        ${['전체','완료','일부개선완료'].map(s=>`<button class="tab ${filter===s?'active':''}" data-s="${s}">${s==='전체'?t('tab_all'):statusLabel(s)}</button>`).join('')}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <select id="riskYearFilter" class="btn btn-sm" style="font-weight:700;">
@@ -3561,8 +3693,8 @@ function renderRisks(){
           ${PROCESS_OPTIONS_WITH_TECH.map(p=>`<option value="${p}" ${processFilter===p?'selected':''}>${esc(p)}</option>`).join('')}
         </select>
         <button class="btn btn-sm" id="galleryToggleBtn">${viewMode==='table' ? icon('alert-triangle',14)+' '+t('btn_gallery_view') : icon('grid',14)+' '+t('btn_table_view')}</button>
-        ${isManager ? `<button class="btn btn-sm" id="printRisksBtn">${icon('file-check',14)} ${t('btn_print')}</button>` : ''}
-        ${isManager ? `<button class="btn btn-sm" id="excelRisksBtn">${icon('file-check',14)} ${t('btn_excel')}</button>` : ''}
+        ${isManager && riskKindNow()==='정기' ? `<button class="btn btn-sm" id="printRisksBtn">${icon('file-check',14)} ${t('btn_print')}</button>` : ''}
+        ${isManager ? `<button class="btn btn-sm" id="excelRisksBtn">${icon('file-check',14)} ${riskKindNow()==='수시' ? '수시 양식 다운로드' : t('btn_excel')}</button>` : ''}
         <button class="btn btn-primary" id="addRiskBtn">${icon('plus',15)} ${t('risks_add_btn')}</button>
       </div>
     </div>
@@ -3574,6 +3706,9 @@ function renderRisks(){
   `;
   el.querySelectorAll('#riskTabs .tab').forEach(t=>t.addEventListener('click', ()=>{
     State.filters.risks = t.dataset.s; renderRisks();
+  }));
+  el.querySelectorAll('#riskKindTabs .tab').forEach(b=>b.addEventListener('click', ()=>{
+    State.filters.risksKind = b.dataset.k; renderRisks();
   }));
   document.getElementById('riskYearFilter').addEventListener('change', e=>{
     State.filters.risksYear = e.target.value; renderRisks();
@@ -3593,14 +3728,16 @@ function renderRisks(){
     renderRisks();
   });
   if(isManager){
-    document.getElementById('printRisksBtn').addEventListener('click', ()=> printRisks(getFilteredRisksList()));
+    const printBtn = document.getElementById('printRisksBtn');
+    if(printBtn) printBtn.addEventListener('click', ()=> printRisks(getFilteredRisksList()));
     document.getElementById('excelRisksBtn').addEventListener('click', ()=>{
       const checked = Array.from(document.querySelectorAll('.risk-row-check:checked')).map(cb=>cb.dataset.riskId);
+      const gen = riskKindNow()==='수시' ? generateAdhocExcel : generateRiskExcel;
       if(checked.length){
         const all = DataStore.get(PATHS.risks);
-        generateRiskExcel(checked.map(id=> Object.assign({id}, all[id])));
+        gen(checked.map(id=> Object.assign({id}, all[id])));
       }else{
-        generateRiskExcel(getFilteredRisksList());
+        gen(getFilteredRisksList());
       }
     });
   }
@@ -3714,7 +3851,7 @@ function printRisks(list){
   const part2Rows = list.map((r,idx)=>{
     const score = (Number(r.frequency)||0) * (Number(r.severity)||0);
     const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : null;
-    const hazardCat = [r.hazardCategory, r.hazardDetailType].filter(Boolean).join(' · ') || '-';
+    const hazardCat = hazardCatText(r) || '-';
     return `
       <tr>
         <td class="ctr">${idx+1}</td>
@@ -3861,7 +3998,7 @@ function generateRiskExcel(list){
     const newRowsXml = list.map((r, idx)=>{
       const score = (Number(r.frequency)||0)*(Number(r.severity)||0);
       const afterScore = (r.afterFrequency && r.afterSeverity) ? Number(r.afterFrequency)*Number(r.afterSeverity) : '';
-      const hazardCat = [r.hazardCategory, r.hazardDetailType].filter(Boolean).join(' · ');
+      const hazardCat = hazardCatText(r);
       // 접수일: 사고접수에서 자동연계된 건(linkedIncidentId 있음)은 그 사고의 접수일(등록시각) 기준,
       // 그 외(제보로 직접 등록한 건)는 이 위험성평가 자체의 접수일(createdAt) 기준
       const linkedIncident = r.linkedIncidentId ? DataStore.get(PATHS.incidents)[r.linkedIncidentId] : null;
@@ -3934,18 +4071,319 @@ function generateRiskExcel(list){
   });
 }
 
+// ===== 위험요인 분류 (수시 조사표 양식의 「유해·위험 요인 파악」 목록 기준 — 정기·수시 공통) =====
+// 양식에서 같은 항목이 두 곳에 중복된 것(기후/고온/한랭 5.11·6.1, 작업(조작)도구 5.10·6.8)은 한 곳(6.1, 5.10)에만 둠
 const HAZARD_SUBCATEGORIES = {
-  '기계적요인': ['협착·끼임','절단·베임','말림','충돌·부딪힘','튀어나옴','기타(직접입력)'],
-  '전기적요인': ['감전','누전·합선','정전기','아크·스파크','기타(직접입력)'],
-  '화학적요인': ['유해가스·증기','분진','화재·폭발','부식성물질','피부접촉·흡입','기타(직접입력)'],
-  '생물학적요인': ['세균·바이러스','곰팡이·진균','동물·곤충','기타(직접입력)'],
-  '작업특성요인': ['반복작업','부적절한자세','과도한힘','중량물취급','기타(직접입력)'],
-  '작업환경요인': ['소음·진동','고온·저온','조명불량','밀폐공간','미끄러짐·넘어짐','기타(직접입력)'],
+  '기계적요인': ['1.1 협착위험 부분(감김, 끼임)','1.2 위험한 표면(절단, 베임, 긁힘)','1.3 기계(설비)의 낙하,전복,붕괴,전도위험','1.4 충돌위험 부분','1.5 넘어짐(미끄러짐,걸림,헛디딤)','1.6 추락위험 부분(개구부 등)','기타(직접입력)'],
+  '전기적요인': ['2.1 감전(안전전압초과)','2.2 아크','2.3 정전기','2.4 화재/폭발 위험','기타(직접입력)'],
+  '화학적요인': ['3.1 가스','3.2 증기','3.3 에어로졸·흄','3.4 액체·미스트','3.5 고체(분진)','3.6 반응성 물질','3.7 방사선','3.8 화재/폭발 위험','3.9 복사열/폭발과압','기타(직접입력)'],
+  '생물학적요인': ['4.1 병원성미생물, 바이러스에 의한 감염','4.2 유전자 변형물질(GMO)','4.3 알러지 및 미생물','4.4 동물','4.5 식물','기타(직접입력)'],
+  '작업특성요인': ['5.1 소음','5.2 초음파·초저주파음','5.3 진동','5.4 근로자실수(휴먼에러)','5.5 저압 또는 고압상태','5.6 질식위험 산소결핍','5.7 중량물 취급작업','5.8 반복작업','5.9 불안정한 작업자세','5.10 작업(조작)도구','기타(직접입력)'],
+  '작업환경요인': ['6.1 기후/고온/한랭','6.2 조명','6.3 공간 및 이동통로','6.4 주변 근로자','6.5 작업시간','6.6 조직 안전문화','6.7 화상','기타(직접입력)'],
 };
+// 이전에 입력된 옛 세부분류 → 새 항목 (저장된 데이터는 건드리지 않고, 화면·엑셀에 보일 때만 변환)
+const HAZARD_LEGACY_MAP = {
+  '협착·끼임':'1.1','말림':'1.1','절단·베임':'1.2','튀어나옴':'1.3','충돌·부딪힘':'1.4',
+  '감전':'2.1','아크·스파크':'2.2','정전기':'2.3','누전·합선':'2.4',
+  '유해가스·증기':'3.1','부식성물질':'3.4','피부접촉·흡입':'3.4','분진':'3.5','화재·폭발':'3.8',
+  '세균·바이러스':'4.1','곰팡이·진균':'4.3','동물·곤충':'4.4',
+  '소음·진동':'5.1','밀폐공간':'5.6','과도한힘':'5.7','중량물취급':'5.7','반복작업':'5.8','부적절한자세':'5.9',
+  '고온·저온':'6.1','조명불량':'6.2','미끄러짐·넘어짐':'6.3',
+};
+function hazardItemByNo(no){
+  for(const cat of Object.keys(HAZARD_SUBCATEGORIES)){
+    const hit = HAZARD_SUBCATEGORIES[cat].find(x=> x.startsWith(no+' '));
+    if(hit) return {cat, label:hit};
+  }
+  return null;
+}
+// 저장된 위험분류/세부분류를 새 목록 기준으로 정리해서 {cat, detail, no}로 돌려줌
+function hazardNorm(r){
+  const cat0 = (r && r.hazardCategory) || '';
+  const det0 = (r && r.hazardDetailType) || '';
+  if(det0){
+    for(const cat of Object.keys(HAZARD_SUBCATEGORIES)){
+      if(det0!=='기타(직접입력)' && HAZARD_SUBCATEGORIES[cat].includes(det0)) return {cat, detail:det0, no:det0.split(' ')[0]};
+    }
+    const no = HAZARD_LEGACY_MAP[det0];
+    if(no){ const it = hazardItemByNo(no); if(it) return {cat:it.cat, detail:it.label, no}; }
+  }
+  return {cat:cat0, detail:det0, no:''};
+}
+function hazardCatText(r){
+  const h = hazardNorm(r);
+  return [h.cat, h.detail].filter(Boolean).join(' · ');
+}
 
-function openRiskModal(existing){
+// ===== 수시 위험성평가 — 조사표 제출용 양식 엑셀 =====
+// 사고 1건 = (위험성 추정 및 결정 + 감소대책 수립 및 실행계획서) 2장. 그 사고에 연결된 위험성평가가 여러 개면 같은 시트 아래 행으로 이어 씀.
+// 표지·유해위험요인파악 시트는 한 장씩 고정(요인파악은 선택된 건들의 항목을 합쳐서 체크). 법규/노출기준은 비워둠.
+const ADHOC_XLSX_TEMPLATE_B64 = "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";
+const ADHOC_CAT_LABEL = {'기계적요인':'기계(설비)적\n요인','전기적요인':'전기적\n요인','화학적요인':'화학적\n요인','생물학적요인':'생물학적\n요인','작업특성요인':'작업특성\n요인','작업환경요인':'작업환경\n요인'};
+function adhocIsRisk(r){
+  if(!r || !r.linkedIncidentId) return false;
+  const inc = (DataStore.get(PATHS.incidents)||{})[r.linkedIncidentId];
+  return !!(inc && inc.hasInvestigationReport);
+}
+function adhocYmd(d){ // yy.mm.dd
+  const x = new Date(d); if(isNaN(x)) return '';
+  return String(x.getFullYear()).slice(2)+'.'+String(x.getMonth()+1).padStart(2,'0')+'.'+String(x.getDate()).padStart(2,'0');
+}
+// 조치요구일 = 사고 발생일 + 1개월 (말일 넘어가면 그 달 말일로)
+function adhocDueDate(d){
+  const x = new Date(d); if(isNaN(x)) return '';
+  const day = x.getDate();
+  const y = new Date(x.getFullYear(), x.getMonth()+1, 1);
+  const last = new Date(y.getFullYear(), y.getMonth()+1, 0).getDate();
+  y.setDate(Math.min(day, last));
+  return adhocYmd(y);
+}
+function adhocCell(ref, s, val){
+  if(val===undefined || val===null || val==='') return `<c r="${ref}" s="${s}"/>`;
+  if(typeof val==='number') return `<c r="${ref}" s="${s}"><v>${val}</v></c>`;
+  return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xlsxEscInline(val)}</t></is></c>`;
+}
+function adhocRowHeight(vals, widths){
+  let maxLines = 1;
+  Object.keys(vals).forEach(c=>{
+    const txt = vals[c]; if(!txt) return;
+    const cpl = Math.max(3, Math.floor((widths[c]||9) / 2.1));
+    let lines = 0;
+    String(txt).split('\n').forEach(line=>{ lines += Math.max(1, Math.ceil(line.length / cpl)); });
+    maxLines = Math.max(maxLines, lines);
+  });
+  return Math.max(150, maxLines*16 + 14);
+}
+function adhocPhotoBytes(src){ // data URL이면 바로, 주소(URL)면 내려받아서 {bytes, ext}
+  return (async()=>{
+    if(!src) return null;
+    try{
+      let buf, mime;
+      if(src.startsWith('data:')){
+        mime = (/^data:(image\/[\w+.-]+)/.exec(src)||[])[1] || 'image/jpeg';
+        const bin = atob(src.split(',')[1]||''); buf = new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+      }else{
+        const res = await fetch(src); if(!res.ok) return null;
+        mime = res.headers.get('content-type') || 'image/jpeg';
+        buf = new Uint8Array(await res.arrayBuffer());
+      }
+      const ext = /png/.test(mime) ? 'png' : 'jpeg';
+      const blob = new Blob([buf], {type: ext==='png'?'image/png':'image/jpeg'});
+      const url = URL.createObjectURL(blob);
+      const dim = await new Promise(resolve=>{
+        const im = new Image(); im.onload=()=>resolve({w:im.naturalWidth,h:im.naturalHeight}); im.onerror=()=>resolve({w:4,h:3}); im.src=url;
+      });
+      URL.revokeObjectURL(url);
+      return {bytes:buf, ext, w:dim.w||4, h:dim.h||3};
+    }catch(e){ console.warn('[수시 엑셀] 사진을 불러오지 못했습니다', e); return null; }
+  })();
+}
+
+async function generateAdhocExcel(list){
+  list = (list||[]).filter(adhocIsRisk);
+  if(list.length===0){ toast('수시 위험성평가(조사표 체크된 사고 건)가 없습니다'); return; }
+  if(typeof PizZip==='undefined'){ toast('문서 생성 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  try{
+    const incidents = DataStore.get(PATHS.incidents)||{};
+    // 사고 1건 = 문서 1개(4시트). 한 사고에 요인이 여러 개면 같은 시트 아래 행으로 이어 씀
+    const groups = {};
+    list.forEach(r=>{ (groups[r.linkedIncidentId] = groups[r.linkedIncidentId] || []).push(r); });
+    const incIds = Object.keys(groups).sort((a,b)=>{
+      const da = new Date(incidents[a].datetime||incidents[a].createdAt||0), db = new Date(incidents[b].datetime||incidents[b].createdAt||0);
+      return da-db;
+    });
+    const files = [];
+    const used = {};
+    for(const id of incIds){
+      const inc = incidents[id];
+      const rows = groups[id].map(r=>({r, inc}));
+      const bytes = await adhocBuildBook(rows);
+      const proc = String(rows[0].r.process || inc.process || '공정미상').replace(/[\\/:*?"<>|]/g,'');
+      let name = `수시위험성평가_${proc}_${adhocYmd(inc.datetime||inc.createdAt).replace(/\./g,'')}`;
+      used[name] = (used[name]||0)+1; if(used[name]>1) name += `_${used[name]}`;
+      files.push({name: name+'.xlsx', bytes});
+    }
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    let blob, fname;
+    if(files.length===1){
+      blob = new Blob([files[0].bytes], {type:mime}); fname = files[0].name;
+    }else{
+      const z = new PizZip();
+      files.forEach(f=> z.file(f.name, f.bytes));
+      blob = z.generate({type:'blob', mimeType:'application/zip'}); fname = `수시위험성평가_${todayStr()}.zip`;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    toast(files.length===1 ? '수시 위험성평가를 다운로드합니다' : `수시 위험성평가 ${files.length}건(사고별 파일)을 zip으로 다운로드합니다`);
+  }catch(e){
+    console.error(e);
+    toast('수시 문서 생성 중 오류가 발생했습니다.');
+  }
+}
+async function adhocBuildBook(allRows){
+  // allRows: [{r:위험성평가, inc:사고}] — 한 사고의 요인들. 반환: xlsx 바이트
+    const binary = atob(ADHOC_XLSX_TEMPLATE_B64);
+    const bytes = new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+    const zip = new PizZip(bytes);
+    const tplDecide = zip.file('xl/worksheets/sheet4.xml').asText();
+    const tplPlan   = zip.file('xl/worksheets/sheet5.xml').asText();
+    let tplFactors  = zip.file('xl/worksheets/sheet3.xml').asText();
+    let cover       = zip.file('xl/worksheets/sheet1.xml').asText();
+    ['sheet3','sheet4','sheet5'].forEach(n=> zip.remove(`xl/worksheets/${n}.xml`));
+
+    // 표지 — 날짜를 다운로드한 날짜로
+    const d0 = new Date();
+    const coverDate = `${d0.getFullYear()}. ${String(d0.getMonth()+1).padStart(2,'0')}. ${String(d0.getDate()).padStart(2,'0')}`;
+    cover = cover.replace(/<c r="A14" s="(\d+)"[^>]*?(?:\/>|>.*?<\/c>)/s, (m,s)=>`<c r="A14" s="${s}" t="inlineStr"><is><t xml:space="preserve">${coverDate}</t></is></c>`);
+    zip.file('xl/worksheets/sheet1.xml', cover);
+
+    const sheetsMeta = [ {name:'표지', file:'sheet1.xml'} ];
+    const printAreas = {};
+    const ctOverrides = [];
+    const mediaExts = new Set();
+    const usedNos = new Set();
+    let drawingSeq = 1; // drawing1 = 표지
+    let imgSeq = 0;
+
+    const decideStyle = {A:35,B:35,C:35,D:43,E:45,F:35,G:35,H:35,I:37,J:43};
+    const decideWidths = {A:9.9,B:17.6,C:17.6,D:17.6,E:19.3,J:27};
+    const planStyle = {A:35,B:35,C:35,D:43,E:35,F:37,G:43,H:35,I:35,J:35,K:35,L:44,M:44,N:38};
+    const planWidths = {A:9,B:9,C:17.1,D:11.1,G:19.3,K:7.3,L:6.6,M:6.6};
+    const MIN_ROWS = 3;
+
+    const procList = Array.from(new Set(allRows.map(x=> x.r.process || x.inc.process || '').filter(Boolean)));
+    for(let gi=0; gi<1; gi++){
+      const k = gi+1;
+      const process = procList.join(', ');
+      const items = allRows.map(({r, inc})=>{
+        const h = hazardNorm(r);
+        if(h.no) usedNos.add(h.no);
+        const f = Number(r.frequency)||0, s = Number(r.severity)||0;
+        const af = Number(r.afterFrequency)||0, as = Number(r.afterSeverity)||0;
+        return {
+          cat: ADHOC_CAT_LABEL[h.cat] || (h.cat||''),
+          cause: cleanHazardTextForExport(r.hazard),
+          factor: h.detail==='기타(직접입력)' ? '' : (h.detail||''),
+          current: r.currentMeasures||'',
+          f, s, score: f*s||'',
+          measures: r.measures||'',
+          af: af||'', as: as||'', afterScore: (af&&as)?af*as:'',
+          assignee: r.assignee||'',
+          due: adhocDueDate(inc.datetime||inc.createdAt),
+          done: r.completedDate ? adhocYmd(r.completedDate) : '',
+          photo: r.photoAfter||'',
+        };
+      });
+
+      // ---- 위험성 추정 및 결정 ----
+      let xmlD = tplDecide;
+      xmlD = xmlD.replace(/<c r="C3" s="(\d+)"[^>]*?(?:\/>|>.*?<\/c>)/s, (m,s)=>adhocCell('C3', s, process));
+      let rowsD = '';
+      const nD = Math.max(MIN_ROWS, items.length);
+      for(let i=0;i<nD;i++){
+        const it = items[i], r = 8+i;
+        const v = it ? {A:it.cat, B:it.cause, C:it.factor, D:'', E:it.current, F:it.f||'', G:it.s||'', H:it.score, I:i+1, J:it.measures} : {};
+        const ht = adhocRowHeight({B:v.B, C:v.C, E:v.E, J:v.J}, decideWidths);
+        rowsD += `<row r="${r}" spans="1:10" ht="${ht}" customHeight="1">` + 'ABCDEFGHIJ'.split('').map(c=>adhocCell(c+r, decideStyle[c], v[c])).join('') + '</row>';
+      }
+      xmlD = xmlD.replace('<!--DATAROWS-->', rowsD).replace(/<dimension ref="[^"]*"\/>/, `<dimension ref="A1:J${7+nD}"/>`);
+      const decideFile = `sheet${3+gi*2}.xml`;
+      zip.file('xl/worksheets/'+decideFile, xmlD);
+      const decideName = '위험성 추정 및 결정';
+      sheetsMeta.push({name:decideName, file:decideFile});
+      printAreas[decideName] = `$A$1:$J$${7+nD}`;
+
+      // ---- 감소대책 수립 및 실행계획서 (+ 완료사진) ----
+      let xmlP = tplPlan;
+      xmlP = xmlP.replace(/<c r="C3" s="(\d+)"[^>]*?(?:\/>|>.*?<\/c>)/s, (m,s)=>adhocCell('C3', s, process));
+      let rowsP = '';
+      const nP = Math.max(MIN_ROWS, items.length);
+      const heights = [];
+      for(let i=0;i<nP;i++){
+        const it = items[i], r = 9+i;
+        const v = it ? {A:it.cat, B:it.cause, C:it.factor, D:'', E:it.score, F:i+1, G:it.measures, H:it.af, I:it.as, J:it.afterScore, K:it.assignee, L:it.due, M:it.done} : {};
+        const ht = adhocRowHeight({B:v.B, C:v.C, G:v.G, K:v.K}, planWidths);
+        heights.push(ht);
+        rowsP += `<row r="${r}" spans="1:14" ht="${ht}" customHeight="1">` + 'ABCDEFGHIJKLMN'.split('').map(c=>adhocCell(c+r, planStyle[c], v[c])).join('') + '</row>';
+      }
+      xmlP = xmlP.replace('<!--DATAROWS-->', rowsP).replace(/<dimension ref="[^"]*"\/>/, `<dimension ref="A1:N${8+nP}"/>`);
+
+      // 사진 — N열(완료사진)에 칸 크기에 맞춰 비율 유지로 넣음
+      const pics = [];
+      for(let i=0;i<items.length;i++){
+        if(!items[i].photo) continue;
+        const pb = await adhocPhotoBytes(items[i].photo);
+        if(pb) pics.push({row:9+i, rowHt:heights[i], pb});
+      }
+      const planFile = `sheet${4+gi*2}.xml`;
+      if(pics.length){
+        drawingSeq++;
+        const cellW = Math.round((23.25*7+5)*9525);               // N열 폭(EMU)
+        let anchors = '', drRels = '';
+        pics.forEach((p,pi)=>{
+          imgSeq++; mediaExts.add(p.pb.ext);
+          const mediaName = `image${imgSeq}.${p.pb.ext}`;
+          zip.file('xl/media/'+mediaName, p.pb.bytes);
+          const cellH = Math.round(p.rowHt*12700);
+          const pad = 76200; // 8pt 여백
+          const maxW = cellW-2*pad, maxH = cellH-2*pad;
+          const sc = Math.min(maxW/p.pb.w, maxH/p.pb.h);
+          const cx = Math.round(p.pb.w*sc), cy = Math.round(p.pb.h*sc);
+          const offX = Math.round((cellW-cx)/2), offY = Math.round((cellH-cy)/2);
+          drRels += `<Relationship Id="rId${pi+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${mediaName}"/>`;
+          anchors += `<xdr:oneCellAnchor><xdr:from><xdr:col>13</xdr:col><xdr:colOff>${offX}</xdr:colOff><xdr:row>${p.row-1}</xdr:row><xdr:rowOff>${offY}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pi+2}" name="완료사진 ${pi+1}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId${pi+1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;
+        });
+        zip.file(`xl/drawings/drawing${drawingSeq}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${anchors}</xdr:wsDr>`);
+        zip.file(`xl/drawings/_rels/drawing${drawingSeq}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${drRels}</Relationships>`);
+        zip.file(`xl/worksheets/_rels/${planFile}.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawingSeq}.xml"/></Relationships>`);
+        xmlP = xmlP.replace('</worksheet>', '<drawing r:id="rId1"/></worksheet>');
+        ctOverrides.push(`<Override PartName="/xl/drawings/drawing${drawingSeq}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
+      }
+      zip.file('xl/worksheets/'+planFile, xmlP);
+      const planName = '감소대책 수립 및 실행계획서';
+      sheetsMeta.push({name:planName, file:planFile});
+      printAreas[planName] = `$A$1:$N$${8+nP}`;
+    }
+
+    // 유해·위험요인파악 — 선택된 건들의 항목을 합쳐서 체크(☑)
+    usedNos.forEach(no=>{
+      const re = new RegExp('□(\\s*)'+no.replace('.','[.,]')+'(?!\\d)','g');
+      tplFactors = tplFactors.replace(re, '☑$1'+no);
+    });
+    zip.file('xl/worksheets/sheet2.xml', tplFactors);
+    sheetsMeta.splice(1, 0, {name:'평가대상 유해위험요인파악', file:'sheet2.xml'});
+    printAreas['평가대상 유해위험요인파악'] = '$A$1:$E$21';
+
+    // workbook.xml / rels / content types 새로 구성
+    const sheetsXml = sheetsMeta.map((s,i)=>`<sheet name="${xlsxEscInline(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('');
+    const dnXml = sheetsMeta.map((s,i)=> printAreas[s.name] ? `<definedName name="_xlnm.Print_Area" localSheetId="${i}">'${xlsxEscInline(s.name)}'!${printAreas[s.name]}</definedName>` : '').join('');
+    zip.file('xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="15000" activeTab="0"/></bookViews><sheets>${sheetsXml}</sheets><definedNames>${dnXml}</definedNames><calcPr calcId="191029"/></workbook>`);
+    const n = sheetsMeta.length;
+    const relsXml = sheetsMeta.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/${s.file}"/>`).join('')
+      + `<Relationship Id="rId${n+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>`
+      + `<Relationship Id="rId${n+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`
+      + `<Relationship Id="rId${n+3}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>`;
+    zip.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relsXml}</Relationships>`);
+    const ctDefaults = `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`
+      + (mediaExts.has('png') ? `<Default Extension="png" ContentType="image/png"/>` : '')
+      + (mediaExts.has('jpeg') ? `<Default Extension="jpeg" ContentType="image/jpeg"/>` : '');
+    const ctSheets = sheetsMeta.map(s=>`<Override PartName="/xl/worksheets/${s.file}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('');
+    zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">${ctDefaults}<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${ctSheets}<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>${ctOverrides.join('')}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`);
+    zip.file('docProps/app.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Microsoft Excel</Application></Properties>`);
+
+    return zip.generate({ type:'uint8array' });
+}
+
+
+function openRiskModal(existing, prefill){
   const isEdit = !!existing;
-  const v = existing || {};
+  const _hn = existing ? hazardNorm(existing) : null;
+  const v = existing ? Object.assign({}, existing, {hazardCategory:_hn.cat, hazardDetailType:_hn.detail}) : Object.assign({}, prefill||{});
   const isAdmin = State.mode==='admin';
   const isManager = State.mode==='admin' || State.mode==='dept';
   showModal(`
@@ -4007,6 +4445,9 @@ function openRiskModal(existing){
           </select>
           <input type="text" id="f_hazardDetailTypeOther" value="${esc(v.hazardDetailType && !(HAZARD_SUBCATEGORIES[v.hazardCategory]||[]).includes(v.hazardDetailType) ? v.hazardDetailType : '')}" placeholder="세부분류 직접 입력" style="margin-top:8px;${v.hazardDetailType && !(HAZARD_SUBCATEGORIES[v.hazardCategory]||[]).includes(v.hazardDetailType) ? '' : 'display:none'}">
         </div>
+      </div>
+      <div class="field"><label>담당자 <span class="hint" style="font-weight:400;">— 해당 공정 관리자 (수시 양식의 담당자 칸에 들어갑니다)</span></label>
+        <input type="text" id="f_assignee" value="${esc(v.assignee||'')}" placeholder="이름">
       </div>
       ${isAdmin ? `
       <div class="field"><label>${t('lbl_photo_after')}</label>
@@ -4094,6 +4535,7 @@ function openRiskModal(existing){
       measures: document.getElementById('f_measures').value.trim(),
       reporter: document.getElementById('f_reporter').value.trim(),
     };
+    if(!isEdit && prefill && prefill.linkedIncidentId) data.linkedIncidentId = prefill.linkedIncidentId; // 같은 사고의 다른 요인(수시 양식에 아래 행으로 이어짐)
     let chosenStatus = null;
     if(isManager && document.getElementById('f_status')){
       chosenStatus = document.getElementById('f_status').value;
@@ -4108,6 +4550,7 @@ function openRiskModal(existing){
       const detailSelVal = document.getElementById('f_hazardDetailType').value;
       const detailOtherVal = document.getElementById('f_hazardDetailTypeOther').value.trim();
       data.hazardDetailType = (detailSelVal==='기타(직접입력)' || (!detailSelVal && detailOtherVal)) ? detailOtherVal : detailSelVal;
+      data.assignee = (document.getElementById('f_assignee')||{value:''}).value.trim();
     }
 
     // 완료 처리 시 개선후 재평가 필수. 점수가 7점 이상이면 바로 저장하지 않고 확인 팝업을 먼저 띄움
@@ -4240,7 +4683,8 @@ function openRiskDetail(id){
         <dt>${t('th_status')}</dt><dd>${statusBadge('risk', r.status)}</dd>
         <dt>${t('lbl_received_date')}</dt><dd>${riskReceivedDate(r)||'-'}</dd>
         ${r.completedDate ? `<dt>${t('lbl_completed_date')}</dt><dd>${fmtDate(r.completedDate)}</dd>` : ''}
-        ${isAdmin && (r.hazardCategory||r.hazardDetailType) ? `<dt>위험분류</dt><dd>${esc(r.hazardCategory||'-')} ${r.hazardDetailType?('· '+esc(r.hazardDetailType)):''}</dd>` : ''}
+        ${isAdmin && (r.hazardCategory||r.hazardDetailType) ? `<dt>위험분류</dt><dd>${esc(hazardNorm(r).cat||'-')} ${hazardNorm(r).detail?('· '+esc(hazardNorm(r).detail)):''}</dd>` : ''}
+        ${isAdmin && r.assignee ? `<dt>담당자</dt><dd>${esc(r.assignee)}</dd>` : ''}
         ${afterScore!=null ? `<dt>${t('th_risklevel_after')}</dt><dd>${riskChip({frequency:r.afterFrequency,severity:r.afterSeverity})} &nbsp;(${t('th_frequency')} ${r.afterFrequency} × ${t('th_severity')} ${r.afterSeverity})</dd>` : ''}
       </dl>
       ${(r.photoBefore||r.photoAfter) ? `
@@ -4260,12 +4704,19 @@ function openRiskDetail(id){
       ${isAdmin ? `<button class="btn" id="delBtn">${t('btn_delete')}</button><button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       ${(State.mode==='dept' && r.status!=='완료') ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
       ${(State.mode==='user' && r.status==='접수' && getMyOwnedIds('isc_my_risks').includes(id)) ? `<button class="btn btn-primary" id="editBtn">${t('btn_edit')}</button>` : ''}
+      ${(isManager && adhocIsRisk(r)) ? `<button class="btn" id="addFactorBtn" title="같은 사고에서 요인이 여러 개일 때 — 수시 양식에 아래 행으로 이어집니다">＋ 이 사고에 요인 추가</button>` : ''}
       <button class="btn" data-close>${t('btn_close')}</button>
     </div>
   `);
   bindImageZoom(document.getElementById('modalBox') || document);
   if(document.getElementById('editBtn')){
     document.getElementById('editBtn').addEventListener('click', ()=>{ closeModal(); openRiskModal(r); });
+  }
+  if(document.getElementById('addFactorBtn')){
+    document.getElementById('addFactorBtn').addEventListener('click', ()=>{
+      closeModal();
+      openRiskModal(null, { linkedIncidentId:r.linkedIncidentId, process:r.process, task:r.task||'', reporter:r.reporter||'' });
+    });
   }
   if(State.mode==='admin'){
     document.getElementById('delBtn').addEventListener('click', async ()=>{
@@ -5077,7 +5528,7 @@ function openIncidentDetail(id){
       label.textContent = invChk.checked ? '작성 완료' : '미작성';
       label.style.background = invChk.checked ? '#3B82F6' : 'var(--line)';
       label.style.color = invChk.checked ? '#fff' : 'var(--ink-soft)';
-      toast('저장되었습니다');
+      toast(invChk.checked ? '저장되었습니다 — 위험성평가의 "수시" 탭에 반영됩니다' : '저장되었습니다 — 위험성평가의 "수시" 탭에서 빠집니다');
       renderIncidents();
     });
   }
@@ -10601,25 +11052,31 @@ function ppeStdKeys(){ // 인당 기준(안) 대상 종류
 function renderPpe(force){
   const el = document.getElementById('view-ppe');
   if(!el) return;
-  if(State.mode!=='admin'){
-    el.innerHTML = '<div class="card" style="padding:24px;">🔒 마스터 계정 전용 메뉴입니다.</div>';
+  if(!canPpe()){
+    el.innerHTML = '<div class="card" style="padding:24px;">🔒 마스터·안전환경부 계정 전용 메뉴입니다.</div>';
     return;
   }
+  const ppeMaster = State.mode==='admin';
+  const ppeTabs = ppeMaster ? PPE_TABS : ['지급']; // 안전환경부 계정은 지급 탭만 (예산·지급기준·시나리오·설정은 마스터 전용)
   // 다른 데이터가 갱신돼 자동 재그리기가 일어날 때, 입력 중인 칸이 있으면 건드리지 않는다(입력 내용 보호)
   const ae = document.activeElement;
   if(!force && ae && el.contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
   ppeEnsureStyle();
-  if(!PPE_TABS.includes(PPEState.tab)) PPEState.tab = '지급';
+  if(!ppeTabs.includes(PPEState.tab)) PPEState.tab = '지급';
   el.innerHTML = `
     <div class="toolbar" style="margin-bottom:14px;gap:10px;flex-wrap:wrap;align-items:center;">
       <div class="tabs">
-        ${PPE_TABS.map(tab=>`<button class="tab ${PPEState.tab===tab?'active':''}" data-ppe-tab="${tab}">${tab}</button>`).join('')}
+        ${ppeTabs.map(tab=>`<button class="tab ${PPEState.tab===tab?'active':''}" data-ppe-tab="${tab}">${tab}</button>`).join('')}
       </div>
       <div id="ppeTopAct" style="display:flex;gap:8px;"></div>
     </div>
     <div id="ppeBody"></div>`;
   el.querySelectorAll('[data-ppe-tab]').forEach(b=> b.addEventListener('click', ()=>{ PPEState.tab = b.dataset.ppeTab; PPEState.editId = null; renderPpe(true); }));
   const body = document.getElementById('ppeBody');
+  if(!ppeMaster && !ppeItems().length){
+    body.innerHTML = '<div class="card" style="padding:22px;">등록된 품목이 없습니다. 마스터 계정에서 기본 품목·지급 기준표를 먼저 불러온 뒤 사용할 수 있습니다.</div>';
+    return;
+  }
   if(!ppeItems().length && PPEState.tab!=='설정'){
     body.innerHTML = `<div class="card" style="padding:22px;">
       <div style="font-weight:700;margin-bottom:6px;">등록된 품목이 없습니다</div>
@@ -10631,7 +11088,7 @@ function renderPpe(force){
     });
     return;
   }
-  if(ppeCfg().units.length && ppeCfg().v<4) ppeMigrate();
+  if(ppeMaster && ppeCfg().units.length && ppeCfg().v<4) ppeMigrate();
   if(PPEState.tab==='지급') renderPpeIssue(body);
   else if(PPEState.tab==='예산') renderPpeBudget(body);
   else if(PPEState.tab==='지급기준') renderPpeStandard(body);
@@ -10838,7 +11295,7 @@ function renderPpeIssue(body){
       const qty = Number(inp.value) || 0;
       const id = `bm_${m}_${uid}_${iid}`;
       if(qty>0){
-        writes.push(DataStore.update(PATHS.ppeIssues, id, { src:'batch', month:m, date, itemId:iid, kind:kind.name, unitId:uid, who:u.name, rtype:'process', qty, stdQty:Number(inp.dataset.std)||0, createdAt:Date.now() }));
+        writes.push(DataStore.update(PATHS.ppeIssues, id, { by:ppeActor(), src:'batch', month:m, date, itemId:iid, kind:kind.name, unitId:uid, who:u.name, rtype:'process', qty, stdQty:Number(inp.dataset.std)||0, createdAt:Date.now() }));
       }else if(byKey[uid+'|'+iid]){
         writes.push(DataStore.remove(PATHS.ppeIssues, id));
       }
@@ -10891,10 +11348,10 @@ function renderPpeIssue(body){
       recs.push({ src:'request', date:r.date, month:r.date.slice(0,7), itemId:f.item.id, kind:f.kind.name, qty, rtype:r.rtype, who, dept: r.rtype==='person' ? (r.dept||'') : '', size:f.item.hasSize ? String(r.size) : '', reason:r.reason||'일반' });
     }
     if(edit){
-      await DataStore.update(PATHS.ppeIssues, edit.id, recs[0]);
+      await DataStore.update(PATHS.ppeIssues, edit.id, Object.assign({}, recs[0], {by:ppeActor()}));
       PPEState.editId = null; PPEState.rows = null; toast('수정했습니다');
     }else{
-      for(const rec of recs){ await DataStore.push(PATHS.ppeIssues, { ...rec, createdAt:Date.now() }); }
+      for(const rec of recs){ await DataStore.push(PATHS.ppeIssues, { ...rec, by:ppeActor(), createdAt:Date.now() }); }
       const last = used[used.length-1];
       PPEState.rows = [ppeNewRow(last, m)];
       toast(`${recs.length}건 추가했습니다`);
@@ -10983,10 +11440,11 @@ function ppeTableSheet(name, title, header, rows, opt){
   const h0 = 5;
   header.forEach((t,k)=> cells.push({ r:h0, c:2+k, v:t, st:{ ...bd, b:true, fill:'DDEBF7', h:'center', wrap:true } }));
   rows.forEach((row,i)=>{
-    const cs = Array.isArray(row) ? row : row.cells; const tot = !Array.isArray(row) && row.tot;
-    cs.forEach((v,k)=>{
+    const cs = Array.isArray(row) ? row : row.cells; const tot = !Array.isArray(row) && row.tot, sub = !Array.isArray(row) && row.sub;
+    cs.forEach((cv,k)=>{
+      const o = (cv && typeof cv==='object') ? cv : { v:cv }, v = o.v;
       const isNum = typeof v==='number';
-      cells.push({ r:h0+1+i, c:2+k, v, st:{ ...bd, b:tot, fill: tot ? 'F2F2F2' : undefined, h:'center', wrap:true, fmt: isNum ? (Math.abs(v)<1000 && v%1 ? '#,##0.0' : '#,##0') : undefined } });
+      cells.push({ r:h0+1+i, c:2+k, v, st:{ ...bd, b:tot||o.b, fill: o.fill || (tot ? 'F2F2F2' : undefined), color: o.color || (sub ? '475569' : undefined), h:'center', wrap:true, fmt: isNum ? (Math.abs(v)<1000 && v%1 ? '#,##0.0' : '#,##0') : undefined } });
     });
   });
   const cols = [2, ...(opt.widths || header.map((_,k)=> k===0 ? 20 : 11))];
@@ -11019,6 +11477,13 @@ function ppeCompare(year){
   });
   return { year, months, agg, rows };
 }
+// 월별 수량 칸 판정(화면·엑셀 공통): 추가 지급 있으면 red, 그 달 현행 기준 합계보다 적으면 blue
+function ppeQtyFlag(row, p, month){
+  if(row.item.method!=='monthly' || !(p.qty>0)) return { flag:'', B:null };
+  const cfg = ppeCfg();
+  const B = cfg.units.filter(u=>!u.trackFrom || month>=u.trackFrom).reduce((s,u)=> s + (Number((cfg.std[row.item.id]||{})[u.id])||0), 0);
+  return { flag: p.ex>0 ? 'red' : (p.qty<B ? 'blue' : ''), B };
+}
 function renderPpeBudget(body){
   const year = PPEState.year;
   const agg = ppeYearAgg(year);
@@ -11036,10 +11501,10 @@ function renderPpeBudget(body){
     const ku = ppeKindUnit(row.item,row.kind), per = ppeKindPer(row.item,row.kind), each = row.kind.priceBasis==='each';
     const label = `${esc(row.kind.name)}${ku!=='개'?` <span class="hint">(${esc(ku)})</span>`:''}`;
     const qtyCells = row.per.map((p,i)=>{
-      const B = baseOf(row.item, agg.months[i]); let st = '', tt = '';
-      if(p.qty>0 && B!=null){
-        if(p.ex>0) st = `background:#FDE2E2;color:${PPE_RED};font-weight:700;`;
-        else if(p.qty<B) st = `background:#DCEBFE;color:${PPE_BLUE};font-weight:700;`;
+      const { flag, B } = ppeQtyFlag(row, p, agg.months[i]); let st = '', tt = '';
+      if(B!=null){
+        if(flag==='red') st = `background:#FDE2E2;color:${PPE_RED};font-weight:700;`;
+        else if(flag==='blue') st = `background:#DCEBFE;color:${PPE_BLUE};font-weight:700;`;
         tt = `현행 기준 ${ppeNum(B)} · 추가 ${ppeNum(p.ex)}`;
       }
       return `<td style="${st}" title="${tt}">${cell(p.qty)}${p.ex>0?`<div class="bh" style="color:${PPE_RED};">추가 +${ppeNum(p.ex)}</div>`:''}${each&&p.qty?`<div class="bh">${ppeNum(p.qty*per)}개</div>`:''}</td>`;
@@ -11196,31 +11661,56 @@ function renderPpeSim(box, cmp){
 function ppeDownloadBudget(year, agg, cmp, sim){
   if(typeof PizZip==='undefined'){ toast('엑셀 도구를 불러오지 못했습니다'); return; }
   const sheets = [];
-  // 1) 월별 예산 (구분 × 월: 수량 / 금액 / 단가)
+  const RED = 'B42318', BLUE = '1D4ED8';
+  const dcell = (d, fmt)=> (d===null || d===undefined || d==='') ? '' : (d===0 ? 0 : { v:d, color:d>0?RED:BLUE, b:true });
+  // ① 월별 수량 · 금액 · 단가 (화면과 같은 색: 빨강=추가 지급 있음 / 파랑=현행 기준 합계보다 적음)
   const rows1 = [];
   const mh = agg.months.map(m=> Number(m.slice(5))+'월');
   agg.rows.filter(r=>r.totalQty>0).forEach(r=>{
     const ku = ppeKindUnit(r.item,r.kind), per = ppeKindPer(r.item,r.kind);
     const nm = ku!=='개' ? `${r.kind.name}(${ku})` : r.kind.name;
-    rows1.push([nm, '수량', ...r.per.map(p=>p.qty||''), r.totalQty||'']);
-    if(r.kind.priceBasis==='each') rows1.push([nm, '개수', ...r.per.map(p=>p.qty ? p.qty*per : ''), r.totalQty*per||'']);
-    if(r.ex>0) rows1.push([nm, '추가 수량', ...r.per.map(p=>p.ex||''), r.ex]);
+    rows1.push([nm, '수량', ...r.per.map((p,i)=>{
+      const { flag } = ppeQtyFlag(r, p, agg.months[i]);
+      const v = p.qty||'';
+      return flag==='red' ? { v, fill:'FDE2E2', color:RED, b:true } : flag==='blue' ? { v, fill:'DCEBFE', color:BLUE, b:true } : v;
+    }), r.totalQty||'']);
+    if(r.ex>0) rows1.push([nm, '└ 추가 수량', ...r.per.map(p=> p.ex>0 ? { v:p.ex, color:RED, b:true } : ''), { v:r.ex, color:RED, b:true }]);
+    if(r.kind.priceBasis==='each') rows1.push([nm, '└ 개수', ...r.per.map(p=>p.qty ? p.qty*per : ''), r.totalQty*per||'']);
     rows1.push([nm, '금액', ...r.per.map(p=>p.amt||''), r.totalAmt||'']);
     rows1.push([nm, '단가', ...r.per.map(p=>p.qty ? Math.round(p.amt/p.qty) : ''), r.totalQty ? Math.round(r.totalAmt/r.totalQty) : '']);
   });
   const mt = agg.months.map((m,i)=> agg.rows.reduce((s,r)=>s+r.per[i].amt,0));
   rows1.push({ cells:['금액 합계','', ...mt.map(v=>v||''), mt.reduce((a,b)=>a+b,0)||''], tot:true });
-  sheets.push(ppeTableSheet(`${year} 월별 예산`, `${year}년 보호구 지급 월별 예산 근거`, ['구분','', ...mh, '합계'], rows1, { widths:[20,8,...mh.map(()=>11),13], note:'저장된 월 일괄 지급 + 요청 시 지급 집계 / 금액 = 지급 월 단가 × 수량 / 마스크는 박스 기준' }));
-  // 2) 현행·추가·인당기준 비교
-  const rows2 = cmp.rows.filter(r=> r.batch>0 || r.req>0 || r.hasStd).map(r=>{
+  sheets.push(ppeTableSheet(`① ${year} 월별 예산`, `${year}년 보호구 지급 월별 수량 · 금액 · 단가`, ['구분','', ...mh, '합계'], rows1, { widths:[20,12,...mh.map(()=>11),13],
+    note:'저장된 월 일괄 + 요청 시 지급 집계 / 금액 = 지급 월 단가 × 수량 / 수량 칸 빨강 = 그 달 추가 지급 있음, 파랑 = 현행 기준 합계보다 적게 지급(장갑·마스크) / 귀마개는 박스 기준(개수 줄 병기)' }));
+  // ② 실제 지급 vs 인당 기준(안) · 추가 지급 (화면의 펼침 행을 모두 펼쳐서 수록)
+  const rows2 = [];
+  cmp.rows.filter(r=> r.batch>0 || r.req>0 || r.hasStd).forEach(r=>{
     const act = r.batch + r.req, d = r.std==null ? '' : Math.round((act - r.std)*10)/10;
-    return [r.kind.name, ppeKindUnit(r.item,r.kind), r.batch||'', r.req||'', act||'', r.std==null ? '' : Math.round(r.std*10)/10, d, d==='' ? '' : Math.round(d*r.price), r.ex||'', r.exAmt||''];
+    rows2.push([`${r.kind.name} (${ppeKindUnit(r.item,r.kind)})`, r.batch||'', r.req||'', act||'', r.std==null ? '' : Math.round(r.std*10)/10, dcell(d), d==='' ? '' : dcell(Math.round(d*r.price)), r.ex>0 ? { v:r.ex, color:RED, b:true } : '', r.exAmt>0 ? { v:Math.round(r.exAmt), color:RED } : '']);
+    r.per.filter(p=> p.batch>0 || p.req>0 || (p.std||0)>0).forEach(p=>{
+      const a = p.batch+p.req, dd = p.std==null ? '' : Math.round((a - p.std)*10)/10;
+      rows2.push({ sub:true, cells:[`   └ ${p.unit.name}`, p.batch||'', p.req||'', a||'', p.std==null ? '' : Math.round(p.std*10)/10, dcell(dd), dd==='' ? '' : dcell(Math.round(dd*r.price)), p.ex>0 ? { v:p.ex, color:RED } : '', ''] });
+    });
+    if(r.person) rows2.push({ sub:true, cells:['   └ 개인 지급(요청)', '', r.person, r.person, '', '', '', '', ''] });
   });
-  sheets.push(ppeTableSheet('3-way 비교', `${year}년 월 일괄 · 추가 지급 · 인당 기준(안) 비교`, ['품목','단위','① 월 일괄','② 요청 시 추가','①+② 실제','③ 인당 기준(안)','차이(①+②−③)','금액 차이(원)','추가 지급 수량','추가 지급 금액(원)'], rows2, { widths:[20,8,12,14,12,14,14,14,14,16], note:`인당 기준(안)은 미확정·참고용 — 기록된 ${cmp.months.length}개월(${cmp.months.map(m=>Number(m.slice(5))+'월').join(', ')}) 기준` }));
-  // 3) 시뮬레이션
-  const rows3 = sim.rows.map(x=> [x.r.kind.name, ppeKindUnit(x.r.item,x.r.kind), Math.round(x.qty/(1+x.adj/100)||0), x.adj, x.qty, x.price, x.amt, x.r.totalAmt, x.amt - x.r.totalAmt]);
-  rows3.push({ cells:['합계','','','','','',sim.total,sim.old,sim.total-sim.old], tot:true });
-  sheets.push(ppeTableSheet(`${sim.ty} 예산 시뮬레이션`, `${sim.ty}년 보호구 예산 시뮬레이션`, ['품목','단위','기준 수량','수량 증감(%)',`${sim.ty}년 수량`,'단가(원)',`${sim.ty}년 금액(원)`,`${year}년 금액(원)`,'증감(원)'], rows3, { widths:[20,8,12,12,12,12,15,15,13], note:`기준: ${PPEState.sim.base==='std'?'인당 지급기준(안)':year+'년 실적'} / 단가 인상률 ${PPEState.sim.rate||0}%` }));
+  sheets.push(ppeTableSheet('② 비교·추가 지급', `${year}년 실제 지급 vs 인당 기준(안) · 추가 지급 (공정별 펼침)`, ['품목 / 공정','월 일괄','요청 시','실제 합계','인당 기준(안)','차이(실제−기준)','금액 차이(원)','추가 지급','추가 금액(원)'], rows2,
+    { widths:[26,12,12,12,14,14,14,12,14], note:`인당 기준(안)은 미확정·참고용, 현행에는 혹서기 증량이 없어 현행이 적게 나오는 것이 정상 / 추가 지급은 현행 기준표 기준 / 기록된 ${cmp.months.length}개월(${cmp.months.map(m=>Number(m.slice(5))+'월').join(', ')}) 기준` }));
+  // ③ 추가 지급 분류
+  let n = 3;
+  if(agg.extra.total>0){
+    const rows3 = [];
+    Object.entries(PPE_WHY).filter(([k])=>agg.extra.byCat[k]).forEach(([k,t])=> rows3.push(['구분별', t, ppeExtraText(agg.extra.byCat[k].items), { v:Math.round(agg.extra.byCat[k].amt), color:RED }]));
+    Object.entries(agg.extra.byUnit).sort((a,b)=>b[1].amt-a[1].amt).forEach(([nm,o])=> rows3.push(['공정별', nm, ppeExtraText(o.items), { v:Math.round(o.amt), color:RED }]));
+    rows3.push({ cells:['합계','','', Math.round(agg.extra.total)], tot:true });
+    sheets.push(ppeTableSheet('③ 추가 지급 분류', `${year}년 추가 지급 분류 (구분별 · 공정별)`, ['분류 기준','구분 / 공정','내용','금액(원)'], rows3,
+      { widths:[12,20,46,16], note:'월 일괄 초과 = 기준표보다 더 준 수량 / 요청 시 추가 = 월 일괄 공정의 요청 지급 · 기준 외 공정의 월 기준 초과분 / 주기 내 재지급 = 안전화 등 지급 주기 안 재지급 / 집진기는 추가 판정 시작월 이전 제외' }));
+    n = 4;
+  }
+  // 시뮬레이션
+  const rows4 = sim.rows.map(x=> [x.r.kind.name, ppeKindUnit(x.r.item,x.r.kind), Math.round(x.qty/(1+x.adj/100)||0), x.adj, x.qty, x.price, x.amt, x.r.totalAmt, dcell(x.amt - x.r.totalAmt)]);
+  rows4.push({ cells:['합계','','','','','',sim.total,sim.old,dcell(sim.total-sim.old)], tot:true });
+  sheets.push(ppeTableSheet(`${['①','②','③','④'][n-1]} ${sim.ty} 시뮬레이션`, `${sim.ty}년 보호구 예산 시뮬레이션`, ['품목','단위','기준 수량','수량 증감(%)',`${sim.ty}년 수량`,'단가(원)',`${sim.ty}년 금액(원)`,`${year}년 금액(원)`,'증감(원)'], rows4, { widths:[20,8,12,12,12,12,15,15,13], note:`기준: ${year}년 실적 / 단가 인상률 ${PPEState.sim.rate||0}%` }));
   ppeDownloadBlob(ppeXlsxBuild(sheets), `보호구_예산_${year}.xlsx`);
 }
 
