@@ -2110,117 +2110,226 @@ function fmtBytes(n){
 }
 
 /* ============================================================
-   정기보고서 (마스터) — 대시보드 요약 팝업 + 인쇄
-   월을 고르면 그 달 기준으로 사고접수·위험성평가·작업허가 현황을 요약한다 (새로 입력하는 값 없음 — 이미 등록된 자료만 집계)
+   정기보고서 (마스터 전용) — 대시보드 요약 팝업 + 인쇄(A4 1장)
+   그래프 3개(월별 사고 추이·전년 비교 / 유형별 / 위험성평가 진행) + 당월·누적 숫자 카드 + 당월 사고 현황 + 미완료 고위험
+   새로 입력하는 값 없이, 이미 등록된 사고접수·위험성평가·작업허가·통계(LTIFR) 자료만 집계한다.
 ============================================================= */
-function periodicReportHtml(ym){
-  const year = ym.slice(0,4);
+const RP_C = { cur:'#1F3A5F', cum:'#8FA8C6', mid:'#5B7DA8', fut:'#DCE4EE', prev:'#D9822B', grid:'#D5DBE3', txt:'#333', sub:'#777' };
+const RP_STATUS_COL = { '접수완료':'#9AA5B1', '접수':'#9AA5B1', '조치중':'#D9822B', '일부개선완료':'#E0B63A', '완료':'#2E7D5B' };
+function rpMaskName(n){
+  n = String(n||'').trim(); if(!n) return '';
+  if(n.length<=1) return n;
+  if(n.length===2) return n[0]+'○';
+  return n[0] + '○'.repeat(n.length-2) + n[n.length-1];
+}
+function rpSvgBarsYear(cur, prev, selMonth, year){
+  const W=300,H=180,ml=22,mr=8,mt=22,mb=24, iw=W-ml-mr, ih=H-mt-mb;
+  const mx = Math.max(1, ...cur, ...prev);
+  const nice = mx<=4 ? mx : Math.ceil(mx/ (mx>12?4:2))*(mx>12?4:2);
+  const y = v => mt + ih - (v/nice)*ih;
+  const step = iw/12, bw = step*0.56;
+  let g = '';
+  const ticks = nice<=4 ? Array.from({length:nice+1},(_,i)=>i) : [0, nice/2, nice];
+  ticks.forEach(tv=>{ g += `<line x1="${ml}" x2="${W-mr}" y1="${y(tv)}" y2="${y(tv)}" stroke="${RP_C.grid}" stroke-width="0.6"/><text x="${ml-4}" y="${y(tv)+3}" font-size="8" text-anchor="end" fill="${RP_C.sub}">${tv}</text>`; });
+  for(let m=1;m<=12;m++){
+    const cx = ml + step*(m-0.5), v = cur[m-1]||0;
+    const fill = m===selMonth ? RP_C.cur : (m<selMonth ? RP_C.mid : RP_C.fut);
+    if(m<=selMonth){
+      g += `<rect x="${cx-bw/2}" y="${y(v)}" width="${bw}" height="${Math.max(0, mt+ih-y(v))}" fill="${fill}" rx="1.5"/>`;
+      if(v>0) g += `<text x="${cx}" y="${y(v)-3}" font-size="8.5" font-weight="${m===selMonth?800:600}" text-anchor="middle" fill="${m===selMonth?RP_C.cur:RP_C.txt}">${v}</text>`;
+    }
+    g += `<text x="${cx}" y="${H-9}" font-size="8" text-anchor="middle" fill="${m===selMonth?RP_C.cur:RP_C.sub}" font-weight="${m===selMonth?800:400}">${m}</text>`;
+  }
+  const pts = prev.map((v,i)=> `${(ml+step*(i+0.5)).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  g += `<polyline points="${pts}" fill="none" stroke="${RP_C.prev}" stroke-width="1.6" stroke-dasharray="3 2"/>` + prev.map((v,i)=>`<circle cx="${(ml+step*(i+0.5)).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="#fff" stroke="${RP_C.prev}" stroke-width="1.3"/>`).join('');
+  const lg = `<rect x="${ml}" y="4" width="8" height="8" fill="${RP_C.mid}" rx="1"/><text x="${ml+11}" y="11" font-size="8.5" fill="${RP_C.txt}">${year}년</text>
+    <rect x="${ml+52}" y="4" width="8" height="8" fill="${RP_C.cur}" rx="1"/><text x="${ml+63}" y="11" font-size="8.5" fill="${RP_C.txt}">선택월</text>
+    <line x1="${ml+108}" x2="${ml+122}" y1="8" y2="8" stroke="${RP_C.prev}" stroke-width="1.6" stroke-dasharray="3 2"/><circle cx="${ml+115}" cy="8" r="2.2" fill="#fff" stroke="${RP_C.prev}" stroke-width="1.3"/><text x="${ml+126}" y="11" font-size="8.5" fill="${RP_C.txt}">${year-1}년</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;font-family:inherit">${lg}${g}</svg>`;
+}
+function rpSvgTypes(rows){ // rows: [{label, m, c}]
+  const W=300,H=180,ml=62,mr=26,mt=22; const n=Math.max(rows.length,1), rh=Math.min(24,(H-mt-6)/n);
+  const mx = Math.max(1,...rows.map(r=>r.c));
+  const sx = v => (v/mx)*(W-ml-mr);
+  let g = `<rect x="${ml}" y="4" width="8" height="8" fill="${RP_C.cur}" rx="1"/><text x="${ml+11}" y="11" font-size="8.5" fill="${RP_C.txt}">당월</text><rect x="${ml+46}" y="4" width="8" height="8" fill="${RP_C.cum}" rx="1"/><text x="${ml+57}" y="11" font-size="8.5" fill="${RP_C.txt}">올해 누적</text>`;
+  if(!rows.length) g += `<text x="${W/2}" y="${H/2}" font-size="10" text-anchor="middle" fill="${RP_C.sub}">자료 없음</text>`;
+  rows.forEach((r,i)=>{
+    const y0 = mt + i*rh, bh = (rh-5)/2;
+    g += `<text x="${ml-5}" y="${y0+rh/2+2}" font-size="8.5" text-anchor="end" fill="${RP_C.txt}">${esc(r.label.length>6?r.label.slice(0,6)+'…':r.label)}</text>
+      <rect x="${ml}" y="${y0}" width="${Math.max(r.m?sx(r.m):0,0)}" height="${bh}" fill="${RP_C.cur}" rx="1"/><text x="${ml+sx(r.m)+3}" y="${y0+bh-0.5}" font-size="8" fill="${RP_C.cur}" font-weight="700">${r.m}</text>
+      <rect x="${ml}" y="${y0+bh+1.5}" width="${Math.max(sx(r.c),0)}" height="${bh}" fill="${RP_C.cum}" rx="1"/><text x="${ml+sx(r.c)+3}" y="${y0+2*bh+1}" font-size="8" fill="${RP_C.txt}">${r.c}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;font-family:inherit">${g}</svg>`;
+}
+function rpSvgDonut(parts, total){ // parts: [{label,n,col}]
+  const W=300,H=180,cx=78,cy=100,R=56,r=34; let a0=-Math.PI/2, g='';
+  if(total===0) g += `<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="${RP_C.grid}" stroke-width="${R-r}"/>`;
+  parts.filter(p=>p.n>0).forEach(p=>{
+    const frac = p.n/total, a1 = a0 + frac*2*Math.PI - (frac>=0.9999?0.0001:0);
+    const p0=[cx+R*Math.cos(a0), cy+R*Math.sin(a0)], p1=[cx+R*Math.cos(a1), cy+R*Math.sin(a1)], q1=[cx+r*Math.cos(a1), cy+r*Math.sin(a1)], q0=[cx+r*Math.cos(a0), cy+r*Math.sin(a0)];
+    g += `<path d="M${p0[0].toFixed(2)},${p0[1].toFixed(2)} A${R},${R} 0 ${frac>0.5?1:0} 1 ${p1[0].toFixed(2)},${p1[1].toFixed(2)} L${q1[0].toFixed(2)},${q1[1].toFixed(2)} A${r},${r} 0 ${frac>0.5?1:0} 0 ${q0[0].toFixed(2)},${q0[1].toFixed(2)} Z" fill="${p.col}"/>`;
+    a0 += frac*2*Math.PI;
+  });
+  g += `<text x="${cx}" y="${cy-1}" font-size="18" font-weight="800" text-anchor="middle" fill="${RP_C.cur}">${total}</text><text x="${cx}" y="${cy+12}" font-size="8.5" text-anchor="middle" fill="${RP_C.sub}">전체(건)</text>`;
+  parts.forEach((p,i)=>{
+    const ly = 56 + i*24;
+    g += `<rect x="150" y="${ly-8}" width="10" height="10" fill="${p.col}" rx="1.5"/><text x="166" y="${ly}" font-size="9.5" fill="${RP_C.txt}">${esc(p.label)}</text><text x="${W-6}" y="${ly}" font-size="10" font-weight="800" text-anchor="end" fill="${RP_C.txt}">${p.n}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;font-family:inherit">${g}</svg>`;
+}
+function periodicReportHtml(ym, showName){
+  const Y = Number(ym.slice(0,4)), M = Number(ym.slice(5,7));
   const incidents = objToArr(DataStore.get(PATHS.incidents));
   const risks = objToArr(DataStore.get(PATHS.risks));
   const permits = objToArr(DataStore.get(PATHS.permits));
-  const inM = s => (s||'').slice(0,7)===ym;
-  const inY = s => (s||'').slice(0,4)===year && (s||'').slice(0,7)<=ym;
-  const dateOfMs = ms => { const d = new Date(ms); return isNaN(d) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-  const cnt = (arr, fn) => arr.filter(fn).length;
+  const pad = n => String(n).padStart(2,'0');
+  const ymOf = (y,m) => `${y}-${pad(m)}`;
+  const msYm = ms => { const d = new Date(ms); return isNaN(d) ? '' : `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
+  const pmYm = p => String(p.startDate||'').slice(0,7) || msYm(p.createdAt);
+  // 해당 연도 m월 건수 / 1~M월 누적
+  const monthly = (arr, ymFn, y) => Array.from({length:12},(_,i)=> arr.filter(x=> ymFn(x)===ymOf(y,i+1)).length);
+  const sumTo = (a, m) => a.slice(0,m).reduce((s,v)=>s+v,0);
+  const sumBy = (arr, ymFn, y, m, valFn) => arr.reduce((s,x)=>{ const k=ymFn(x); return (k.slice(0,4)===String(y) && Number(k.slice(5,7))===m) ? s+valFn(x) : s; },0);
+  const sumToBy = (arr, ymFn, y, m, valFn) => arr.reduce((s,x)=>{ const k=ymFn(x); return (k.slice(0,4)===String(y) && Number(k.slice(5,7))<=m && k.length>=7) ? s+valFn(x) : s; },0);
+  const incYm = i => (i.datetime||'').slice(0,7);
 
-  // ── 사고 ──
-  const incM = incidents.filter(i=> inM(i.datetime)).sort((a,b)=> (a.datetime||'')<(b.datetime||'')?-1:1);
-  const incY = incidents.filter(i=> inY(i.datetime));
-  const leaveY = incY.reduce((s,i)=> s + (Number(i.leaveDays)||0), 0);
-  // 최근 6개월 추이
-  const trend = [];
-  for(let k=5;k>=0;k--){
-    const d = new Date(Number(ym.slice(0,4)), Number(ym.slice(5,7))-1-k, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    trend.push({label:`${d.getMonth()+1}월`, n: cnt(incidents, i=> (i.datetime||'').slice(0,7)===key)});
-  }
-  // ── 위험성평가 ──
-  const rkM = risks.filter(r=> inM(dateOfMs(r.createdAt)));
-  const rkY = risks.filter(r=> inY(dateOfMs(r.createdAt)));
-  const rkDoneM = risks.filter(r=> inM(r.completedDate));
-  const byStatus = {}; risks.forEach(r=>{ const s = r.status||'접수완료'; byStatus[s] = (byStatus[s]||0)+1; });
-  const openRisks = risks.filter(r=> r.status!=='완료');
-  const openHigh = openRisks.filter(r=> riskLevel(r)>=4).sort((a,b)=> riskLevel(b)-riskLevel(a));
-  const adhocN = cnt(risks, adhocIsRisk);
-  // ── 작업허가 ──
-  const pmDate = p => String(p.startDate||dateOfMs(p.createdAt)||'');
-  const pmM = permits.filter(p=> inM(pmDate(p)));
-  const pmStatus = {}; pmM.forEach(p=>{ pmStatus[p.status||'-'] = (pmStatus[p.status||'-']||0)+1; });
+  // 사고 월별(올해/작년)
+  const incCur = monthly(incidents, incYm, Y), incPrev = monthly(incidents, incYm, Y-1);
+  // 카드용 지표: [당월, 누적, 전년 동월, 전년 누적]
+  const metric = (arr, ymFn, valFn) => [ sumBy(arr,ymFn,Y,M,valFn), sumToBy(arr,ymFn,Y,M,valFn), sumBy(arr,ymFn,Y-1,M,valFn), sumToBy(arr,ymFn,Y-1,M,valFn) ];
+  const one = ()=>1;
+  const mInc = metric(incidents, incYm, one);
+  const mInd = metric(incidents.filter(i=>i.isIndustrialAccident), incYm, one);
+  const mLeave = metric(incidents, incYm, i=> Number(i.leaveDays)||0);
+  const mRkReg = metric(risks, r=>msYm(r.createdAt), one);
+  const mRkDone = metric(risks.filter(r=>r.completedDate), r=>String(r.completedDate).slice(0,7), one);
+  const mPermit = metric(permits, pmYm, one);
+  // LTIFR (통계 메뉴에 월별 근로자·근로시간이 입력된 경우에만)
+  let ltM = null, ltY = null, ltPM = null, ltPY = null;
+  try{
+    const cm = statsComputeMonth(Y, M), cmp = statsComputeMonth(Y-1, M);
+    const yrAgg = (y)=>{ let h=0,l=0; for(let m=1;m<=M;m++){ const x=statsComputeMonth(y,m); h+=x.totalHours; l+=x.lostTimeCount; } return h>0 ? l*1000000/h : null; };
+    ltM = cm.totalHours>0 ? cm.ltifr : null; ltPM = cmp.totalHours>0 ? cmp.ltifr : null; ltY = yrAgg(Y); ltPY = yrAgg(Y-1);
+  }catch(e){ /* 통계 자료 없음 */ }
 
-  const kv = (rows)=> `<table class="rp-t"><tbody>${rows.map(r=>`<tr><th>${esc(r[0])}</th><td>${esc(String(r[1]))}</td><th>${esc(r[2])}</th><td>${esc(String(r[3]))}</td></tr>`).join('')}</tbody></table>`;
-  const list = (head, rows, empty)=> rows.length
-    ? `<table class="rp-t rp-list"><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(String(c==null?'':c))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-    : `<div class="rp-empty">${esc(empty)}</div>`;
-  const ymd = s => String(s||'').slice(0,10).replace(/-/g,'.');
+  const delta = (c, p) => { if(p==null) return ''; const d = c-p; if(Math.abs(d)<1e-9) return `<span class="rp-d0">전년 ${typeof p==='number'&&p%1?p.toFixed(2):p} · 동일</span>`; const up = d>0; return `<span class="${up?'rp-du':'rp-dd'}">전년 ${typeof p==='number'&&p%1?p.toFixed(2):p} · ${up?'▲':'▼'}${Math.abs(d)%1?Math.abs(d).toFixed(2):Math.abs(d)}</span>`; };
+  const card = (title, m, unit, opts={}) => {
+    const f = v => (v==null) ? '-' : (opts.dec ? v.toFixed(opts.dec) : v);
+    return `<div class="rp-card"><div class="rp-ct">${title}</div>
+      <div class="rp-cv"><div class="rp-cm"><b>${f(m[0])}</b><span>${unit}</span><i>${M}월</i></div><div class="rp-cc"><b>${f(m[1])}</b><span>${unit}</span><i>${Y}년 누적</i></div></div>
+      <div class="rp-cd">${delta(m[0]==null?0:m[0], m[2])}<br>${delta(m[1]==null?0:m[1], m[3])}</div></div>`;
+  };
+
+  // 유형별 (당월 / 누적)
+  const typeOf = i => i.accidentType || i.type || '기타';
+  const typeCnt = {};
+  incidents.filter(i=> { const k=incYm(i); return k.slice(0,4)===String(Y) && Number(k.slice(5,7))<=M; }).forEach(i=>{
+    const t = typeOf(i); typeCnt[t] = typeCnt[t] || {m:0,c:0}; typeCnt[t].c++; if(incYm(i)===ym) typeCnt[t].m++;
+  });
+  let typeRows = Object.entries(typeCnt).map(([label,v])=>({label, m:v.m, c:v.c})).sort((a,b)=> b.c-a.c || b.m-a.m);
+  if(typeRows.length>6){ const rest = typeRows.slice(5); typeRows = typeRows.slice(0,5).concat([{label:'그 외', m:rest.reduce((s,r)=>s+r.m,0), c:rest.reduce((s,r)=>s+r.c,0)}]); }
+
+  // 위험성평가 진행상태
+  const stOrder = ['접수완료','조치중','일부개선완료','완료'];
+  const stCnt = {}; risks.forEach(r=>{ let s = r.status||'접수완료'; if(s==='접수') s='접수완료'; stCnt[s]=(stCnt[s]||0)+1; });
+  const donutParts = stOrder.map(s=>({label:s, n:stCnt[s]||0, col:RP_STATUS_COL[s]}));
+  Object.keys(stCnt).filter(s=>!stOrder.includes(s)).forEach(s=> donutParts.push({label:s, n:stCnt[s], col:'#B0B7C0'}));
+
+  // 당월 사고 현황 표
+  const incM = incidents.filter(i=> incYm(i)===ym).sort((a,b)=> (a.datetime||'')<(b.datetime||'')?-1:1);
+  const MAXROW = 8;
+  const nameOf = i => { const n = i.injuredPerson || ''; return showName ? n : rpMaskName(n); };
+  const incRows = incM.slice(0,MAXROW).map(i=>`<tr><td>${esc((i.datetime||'').replace('T',' ').slice(5,16))}</td><td>${esc(i.process||'')}</td><td>${esc(i.location||'')}</td><td>${esc(typeOf(i))}</td><td><b>${esc(nameOf(i))}</b></td><td>${esc(i.injurySeverity||'')}</td><td class="c">${Number(i.leaveDays)||0}</td><td>${esc(i.status||'')}</td><td class="c">${i.hasInvestigationReport?'작성':'-'}</td></tr>`).join('');
+
+  // 미완료 고위험 TOP5
+  const today = new Date(todayStr());
+  const openHigh = risks.filter(r=> r.status!=='완료' && riskLevel(r)>=4).sort((a,b)=> riskLevel(b)-riskLevel(a) || (a.createdAt||0)-(b.createdAt||0));
+  const hiRows = openHigh.slice(0,5).map(r=>{
+    const days = r.createdAt ? Math.max(0, Math.floor((today - new Date(r.createdAt))/86400000)) : '';
+    const lv = riskLevelInfo(riskLevel(r));
+    return `<tr><td>${esc(r.process||'')}</td><td class="l">${esc(cleanHazardTextForExport(r.hazard||''))}</td><td class="c">${lv.roman} ${esc(lv.label)}</td><td>${esc(r.status||'')}</td><td class="c">${days}${days!==''?'일':''}</td></tr>`;
+  }).join('');
 
   return `
     <div class="rp">
-      <div class="rp-title">안전환경 정기보고 <span>${ym.slice(0,4)}년 ${Number(ym.slice(5,7))}월 기준</span></div>
-      <div class="rp-sub">일신캐스팅 안전환경부 · 출력일 ${ymd(todayStr())}</div>
+      <div class="rp-head"><div><div class="rp-title">안전환경 현황 보고</div><div class="rp-sub">일신캐스팅 안전환경부</div></div>
+        <div class="rp-meta"><b>${Y}년 ${M}월</b> 기준<br>출력일 ${esc(todayStr().replace(/-/g,'.'))} · 마스터 전용</div></div>
 
-      <h4>1. 핵심 현황</h4>
-      ${kv([
-        ['사고접수 (당월)', cnt(incM,()=>true)+'건', '사고접수 (연 누계)', incY.length+'건'],
-        ['산재 처리 (당월)', cnt(incM,i=>i.isIndustrialAccident)+'건', '산재 처리 (연 누계)', cnt(incY,i=>i.isIndustrialAccident)+'건'],
-        ['조사표 작성 (당월 발생분)', cnt(incM,i=>i.hasInvestigationReport)+'건', '조사표 작성 (연 누계)', cnt(incY,i=>i.hasInvestigationReport)+'건'],
-        ['휴업일수 (연 누계)', leaveY+'일', '수시 위험성평가 대상', adhocN+'건'],
-        ['위험성평가 등록 (당월)', rkM.length+'건', '위험성평가 등록 (연 누계)', rkY.length+'건'],
-        ['위험성평가 완료 (당월)', rkDoneM.length+'건', '미완료 위험성평가 (현재)', openRisks.length+'건'],
-        ['미완료 고위험 (Ⅳ등급 이상)', openHigh.length+'건', '작업허가 (당월)', pmM.length+'건'],
-      ])}
+      <div class="rp-grid3">
+        <div class="rp-box"><div class="rp-bt">월별 사고접수 추이 <small>(막대 ${Y} · 점선 ${Y-1})</small></div>${rpSvgBarsYear(incCur, incPrev, M, Y)}</div>
+        <div class="rp-box"><div class="rp-bt">사고 유형별 현황 <small>(당월·누적)</small></div>${rpSvgTypes(typeRows)}</div>
+        <div class="rp-box"><div class="rp-bt">위험성평가 진행 현황 <small>(전체)</small></div>${rpSvgDonut(donutParts, risks.length)}</div>
+      </div>
 
-      <h4>2. 사고접수 내역 (${Number(ym.slice(5,7))}월)</h4>
-      ${list(['일시','공정','장소','유형','심각도','처리상태','조사표'],
-        incM.map(i=>[ (i.datetime||'').replace('T',' ').slice(0,16), i.process||'', i.location||'', i.accidentType||i.type||'', i.injurySeverity||'', i.status||'', i.hasInvestigationReport?'작성':'-' ]),
-        '이 달 접수된 사고가 없습니다.')}
-      <div class="rp-trend">최근 6개월 사고 추이 — ${trend.map(t=>`${t.label} <b>${t.n}</b>건`).join(' · ')}</div>
+      <div class="rp-legend"><span class="k1"></span>당월(${M}월) <span class="k2"></span>${Y}년 누적(1~${M}월) <span class="k3">▲▼</span>전년 같은 기간 대비</div>
+      <div class="rp-cards">
+        ${card('사고접수', mInc, '건')}
+        ${card('산재 처리', mInd, '건')}
+        ${card('휴업일수', mLeave, '일')}
+        ${card('LTIFR(도수율)', [ltM, ltY, ltPM, ltPY], '', {dec:2})}
+        ${card('위험성평가 등록', mRkReg, '건')}
+        ${card('위험성평가 완료', mRkDone, '건')}
+        ${card('작업허가', mPermit, '건')}
+        <div class="rp-card rp-hi"><div class="rp-ct">미완료 고위험 (Ⅳ등급↑)</div><div class="rp-cv" style="justify-content:center"><div class="rp-cm"><b style="color:#B23A3A">${openHigh.length}</b><span>건</span><i>현재</i></div></div><div class="rp-cd">전체 미완료 ${risks.filter(r=>r.status!=='완료').length}건 중</div></div>
+      </div>
 
-      <h4>3. 위험성평가 현황</h4>
-      <div class="rp-line">전체 ${risks.length}건 — ${Object.keys(byStatus).map(k=>`${esc(k)} ${byStatus[k]}건`).join(' · ') || '등록된 건 없음'}</div>
-      ${list(['공정','유해·위험 요인','위험도','진행상태','등록일'],
-        openHigh.slice(0,15).map(r=>[ r.process||'', cleanHazardTextForExport(r.hazard||''), riskLevelInfo(riskLevel(r)).roman+' '+riskLevelInfo(riskLevel(r)).label, r.status||'', ymd(dateOfMs(r.createdAt)) ]),
-        '미완료 고위험(Ⅳ등급 이상) 건이 없습니다.')}
-      ${openHigh.length>15 ? `<div class="rp-more">※ 미완료 고위험 ${openHigh.length}건 중 상위 15건만 표시</div>` : ''}
+      <div class="rp-bt2">${M}월 사고 현황 <small>(${incM.length}건${incM.length>MAXROW?` · 최근 ${MAXROW}건 표시, 외 ${incM.length-MAXROW}건`:''})</small></div>
+      <table class="rp-t"><thead><tr><th>일시</th><th>공정</th><th>장소</th><th>유형</th><th>사고자</th><th>부상정도</th><th>휴업(일)</th><th>처리상태</th><th>조사표</th></tr></thead>
+        <tbody>${incRows || `<tr><td colspan="9" class="c rp-none">이 달 접수된 사고가 없습니다</td></tr>`}</tbody></table>
 
-      <h4>4. 작업허가 (${Number(ym.slice(5,7))}월)</h4>
-      <div class="rp-line">총 ${pmM.length}건 — ${Object.keys(pmStatus).map(k=>`${esc(k)} ${pmStatus[k]}건`).join(' · ') || '해당 월 건 없음'}</div>
+      <div class="rp-bt2">미완료 고위험 위험성평가 <small>(위험도 높은 순 상위 5건)</small></div>
+      <table class="rp-t"><thead><tr><th style="width:15%">공정</th><th>유해·위험 요인</th><th style="width:16%">위험도</th><th style="width:13%">진행상태</th><th style="width:10%">경과</th></tr></thead>
+        <tbody>${hiRows || `<tr><td colspan="5" class="c rp-none">미완료 고위험 건이 없습니다</td></tr>`}</tbody></table>
     </div>`;
 }
 const PERIODIC_REPORT_CSS = `
-  .rp{font-family:'Malgun Gothic','Noto Sans KR',sans-serif;color:#111;font-size:12.5px;line-height:1.55;}
-  .rp-title{font-size:19px;font-weight:800;border-bottom:3px solid #1F3A5F;padding-bottom:6px;} .rp-title span{font-size:14px;font-weight:600;color:#555;margin-left:8px;}
-  .rp-sub{color:#666;font-size:11.5px;margin:6px 0 4px;}
-  .rp h4{margin:16px 0 6px;font-size:13.5px;border-left:4px solid #1F3A5F;padding-left:8px;}
-  .rp-t{width:100%;border-collapse:collapse;margin-bottom:4px;font-size:12.5px;} .rp-t th,.rp-t td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top;}
-  .rp-t th{background:#eef2f7;font-weight:700;white-space:nowrap;} .rp-list thead th{background:#dfe6ee;text-align:center;}
-  .rp-empty,.rp-line,.rp-trend,.rp-more{padding:6px 2px;color:#333;} .rp-empty,.rp-more{color:#777;} .rp-trend{margin-top:4px;font-size:12px;}
+  .rp{font-family:'Malgun Gothic','Noto Sans KR',sans-serif;color:#222;font-size:11px;line-height:1.4;background:#fff;}
+  .rp-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1F3A5F;padding-bottom:6px;margin-bottom:8px;}
+  .rp-title{font-size:21px;font-weight:800;color:#1F3A5F;letter-spacing:-.5px;} .rp-sub{font-size:11px;color:#777;margin-top:1px;}
+  .rp-meta{text-align:right;font-size:10.5px;color:#666;} .rp-meta b{font-size:14px;color:#1F3A5F;}
+  .rp-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .rp-box{border:1px solid #D5DBE3;border-radius:6px;padding:6px 7px 4px;background:#fff;} .rp-bt{font-size:11px;font-weight:800;color:#1F3A5F;margin-bottom:2px;} .rp-bt small{font-weight:400;color:#888;font-size:9.5px;}
+  .rp-legend{font-size:10px;color:#666;margin:8px 0 4px;} .rp-legend span{display:inline-block;vertical-align:middle;margin:0 3px 0 10px;} .rp-legend .k1{width:10px;height:10px;background:#1F3A5F;border-radius:2px;margin-left:0} .rp-legend .k2{width:10px;height:10px;background:#8FA8C6;border-radius:2px;} .rp-legend .k3{margin-left:10px;color:#D9822B;font-size:10px;}
+  .rp-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .rp-card{border:1px solid #D5DBE3;border-radius:6px;overflow:hidden;background:#fff;} .rp-ct{background:#EEF2F7;font-size:10.5px;font-weight:800;color:#1F3A5F;padding:3px 7px;}
+  .rp-cv{display:flex;} .rp-cm,.rp-cc{flex:1;padding:4px 7px 2px;} .rp-cm{background:#E3EAF3;} .rp-cc{background:#F6F8FB;}
+  .rp-cm b{font-size:20px;font-weight:800;color:#1F3A5F;} .rp-cc b{font-size:15px;font-weight:800;color:#56708F;} .rp-cm span,.rp-cc span{font-size:10px;color:#666;margin-left:2px;} .rp-cm i,.rp-cc i{display:block;font-style:normal;font-size:9px;color:#888;}
+  .rp-cd{font-size:9px;color:#777;padding:2px 7px 4px;line-height:1.35;} .rp-du{color:#B23A3A;} .rp-dd{color:#2E7D5B;} .rp-d0{color:#777;}
+  .rp-bt2{font-size:11.5px;font-weight:800;color:#1F3A5F;margin:10px 0 3px;border-left:4px solid #1F3A5F;padding-left:6px;} .rp-bt2 small{font-weight:400;color:#888;font-size:10px;}
+  .rp-t{width:100%;border-collapse:collapse;font-size:10px;} .rp-t th,.rp-t td{border:1px solid #C9D1DB;padding:3px 5px;text-align:center;vertical-align:middle;} .rp-t th{background:#DFE6EE;font-weight:800;color:#1F3A5F;} .rp-t td.l{text-align:left;} .rp-t td.c{text-align:center;} .rp-none{color:#888;padding:9px !important;}
 `;
 function openPeriodicReport(){
-  if(State.mode!=='admin'){ toast('마스터 계정에서만 출력할 수 있습니다'); return; }
+  if(State.mode!=='admin'){ toast('마스터 계정에서만 열 수 있습니다'); return; }
+  ensurePathsSubscribed([PATHS.statsWorkforce, PATHS.statsHolidayWork, PATHS.permits, PATHS.risks, PATHS.incidents]);
   const defYm = todayStr().slice(0,7);
   showModal(`
-    <div class="modal-head"><h3>정기보고서 요약</h3><button class="x-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>정기보고서 (마스터 전용)</h3><button class="x-btn" data-close>✕</button></div>
     <div class="modal-body">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
         <label style="font-weight:700;font-size:13px;">기준 월</label>
         <input type="month" id="rpMonth" value="${defYm}">
-        <span class="hint">이미 등록된 자료를 집계한 요약입니다</span>
+        <label style="font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="rpShowName" checked> 사고자 실명 표시</label>
+        <span class="hint">이미 등록된 자료를 집계한 보고서입니다 (인쇄 시 A4 1장)</span>
       </div>
       <style>${PERIODIC_REPORT_CSS}</style>
-      <div id="rpBody" style="max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff;">${periodicReportHtml(defYm)}</div>
+      <div id="rpBody" style="max-height:68vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff;"></div>
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>닫기</button>
       <button class="btn btn-primary" id="rpPrintBtn">🖨 인쇄</button>
     </div>
   `);
-  const mon = document.getElementById('rpMonth');
-  mon.addEventListener('change', ()=>{ if(mon.value) document.getElementById('rpBody').innerHTML = periodicReportHtml(mon.value); });
+  const box = document.getElementById('modalBox'); if(box){ box.style.maxWidth = '980px'; box.style.width = 'min(96vw, 980px)'; }
+  const mon = document.getElementById('rpMonth'), nm = document.getElementById('rpShowName');
+  const draw = ()=>{ const b = document.getElementById('rpBody'); if(b) b.innerHTML = periodicReportHtml(mon.value || defYm, nm.checked); };
+  draw();
+  setTimeout(draw, 1500); // 통계(근로시간) 자료가 늦게 도착하는 경우 LTIFR 반영
+  mon.addEventListener('change', draw); nm.addEventListener('change', draw);
   document.getElementById('rpPrintBtn').addEventListener('click', ()=>{
     const ym = mon.value || defYm;
     const win = window.open('', '_blank');
     if(!win){ toast('팝업이 차단되었습니다. 이 사이트의 팝업을 허용해주세요.'); return; }
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>안전환경 정기보고 ${ym}</title><style>@page{size:A4;margin:14mm;} body{margin:0;} ${PERIODIC_REPORT_CSS}</style></head><body>${periodicReportHtml(ym)}</body></html>`);
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>안전환경 현황 보고 ${ym}</title><style>@page{size:A4 portrait;margin:11mm;} html,body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;} ${PERIODIC_REPORT_CSS}</style></head><body>${periodicReportHtml(ym, nm.checked)}</body></html>`);
     win.document.close();
     win.onload = ()=> win.print();
   });
@@ -4195,6 +4304,7 @@ async function generateAdhocExcel(list){
     });
     const files = [];
     const used = {};
+    ADHOC_NOTES.length = 0;
     for(const id of incIds){
       const inc = incidents[id];
       const rows = groups[id].map(r=>({r, inc}));
@@ -4218,12 +4328,13 @@ async function generateAdhocExcel(list){
     a.href = url; a.download = fname;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 5000);
-    toast(files.length===1 ? '수시 위험성평가를 다운로드합니다' : `수시 위험성평가 ${files.length}건(사고별 파일)을 zip으로 다운로드합니다`);
+    toast((files.length===1 ? '수시 위험성평가를 다운로드합니다' : `수시 위험성평가 ${files.length}건(사고별 파일)을 zip으로 다운로드합니다`) + (ADHOC_NOTES.length ? ' — ※ '+Array.from(new Set(ADHOC_NOTES))[0] : ''));
   }catch(e){
     console.error(e);
     toast('수시 문서 생성 중 오류가 발생했습니다.');
   }
 }
+const ADHOC_NOTES = [];
 async function adhocBuildBook(allRows){
   // allRows: [{r:위험성평가, inc:사고}] — 한 사고의 요인들. 반환: xlsx 바이트
     const binary = atob(ADHOC_XLSX_TEMPLATE_B64);
@@ -4236,9 +4347,10 @@ async function adhocBuildBook(allRows){
     let cover       = zip.file('xl/worksheets/sheet1.xml').asText();
     ['sheet3','sheet4','sheet5'].forEach(n=> zip.remove(`xl/worksheets/${n}.xml`));
 
-    // 표지 — 날짜를 다운로드한 날짜로
-    const d0 = new Date();
-    const coverDate = `${d0.getFullYear()}. ${String(d0.getMonth()+1).padStart(2,'0')}. ${String(d0.getDate()).padStart(2,'0')}`;
+    // 표지 — 날짜는 수시 위험성평가를 완료한 날(그 사고 요인들의 완료일 중 가장 늦은 날). 완료 전이면 비워 둠
+    const _done = allRows.map(x=>x.r.completedDate).filter(Boolean).map(d=>new Date(d)).filter(d=>!isNaN(d)).sort((a,b)=>b-a);
+    const coverDate = _done.length ? `${_done[0].getFullYear()}. ${String(_done[0].getMonth()+1).padStart(2,'0')}. ${String(_done[0].getDate()).padStart(2,'0')}` : '';
+    if(!_done.length || allRows.some(x=>!x.r.completedDate)) ADHOC_NOTES.push('완료되지 않은 요인이 있어 표지 날짜가 '+(_done.length?'일부 완료일 기준입니다':'비어 있습니다'));
     cover = cover.replace(/<c r="A14" s="(\d+)"[^>]*?(?:\/>|>.*?<\/c>)/s, (m,s)=>`<c r="A14" s="${s}" t="inlineStr"><is><t xml:space="preserve">${coverDate}</t></is></c>`);
     zip.file('xl/worksheets/sheet1.xml', cover);
 
